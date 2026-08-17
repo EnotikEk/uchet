@@ -1,0 +1,638 @@
+{% extends "base.html" %}
+
+{% block title %}Учет лицензий{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h4><i class="fas fa-key"></i> Управление лицензиями</h4>
+    </div>
+    <div class="card-body">
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="btn-group flex-wrap">
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addLicenseModal">
+                        <i class="fas fa-plus"></i> Добавить лицензию
+                    </button>
+                    <button class="btn btn-info" style="color: white;" data-bs-toggle="modal" data-bs-target="#importLicenseModal">
+                        <i class="fas fa-file-excel"></i> Импорт из Excel
+                    </button>
+                    <button class="btn btn-secondary" onclick="loadLicenses()">
+                        <i class="fas fa-sync"></i> Обновить
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mb-3">
+            <div class="col-12">
+                <label class="form-label small mb-1 text-muted">
+                    <i class="fas fa-keyboard"></i> Поисковый запрос:
+                </label>
+                <div class="input-group">
+                    <input type="text" class="form-control" id="searchInput" placeholder="Поиск по названию, ключу, компании...">
+                    <button class="btn btn-success" onclick="searchLicenses()">
+                        <i class="fas fa-search"></i> Поиск
+                    </button>
+                    <button class="btn btn-danger" onclick="resetSearch()">
+                        <i class="fas fa-times"></i> Сбросить
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="table-responsive" style="border: 1px solid #dee2e6; border-radius: 8px;">
+            <table class="table table-bordered table-hover mb-0" id="licensesTable">
+                <thead style="background-color: #343a40; color: white;">
+                    <tr>
+                        <th style="width: 60px; text-align: center;"><i class="fas fa-info-circle"></i> Детали</th>
+                        <th><i class="fas fa-box"></i> Название продукта</th>
+                        <th><i class="fas fa-key"></i> Ключ продукта</th>
+                        <th><i class="fas fa-calendar"></i> Срок действия</th>
+                        <th><i class="fas fa-building"></i> Компания</th>
+                        <th class="text-center"><i class="fas fa-copy"></i> Количество</th>
+                        <th class="text-center"><i class="fas fa-chart-line"></i> Используется</th>
+                        <th style="width: 60px; text-align: center;"><i class="fas fa-trash"></i> Удалить</th>
+                    </tr>
+                </thead>
+                <tbody id="licensesTableBody">
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-4">
+                            <i class="fas fa-spinner fa-spin me-2"></i> Загрузка данных...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div id="licensesStats" class="mt-2"></div>
+    </div>
+</div>
+
+<!-- Модальное окно импорта лицензий из Excel -->
+<div class="modal fade" id="importLicenseModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title"><i class="fas fa-file-excel"></i> Импорт лицензий из Excel</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="importLicenseForm" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label class="form-label">Файл Excel (.xlsx, .xls)</label>
+                        <input type="file" class="form-control" id="licenseExcelFile" accept=".xlsx,.xls" required>
+                        <small class="text-muted">Файл должен содержать колонки с указанными названиями</small>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> <strong>Ожидаемые колонки:</strong><br>
+                        <code>Название продукта</code> - обязательно<br>
+                        <code>Ключ продукта</code> - уникальный ключ<br>
+                        <code>Срок действия</code> - дата в формате ДД.ММ.ГГГГ или <strong>бессрочно</strong><br>
+                        <code>Компания продукта</code> - название компании<br>
+                        <code>Количество</code> - количество лицензий<br>
+                        <code>Используется (кол-во)</code> - сколько активировано
+                    </div>
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i> 
+                        Лицензии с уже существующим ключом будут пропущены
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-info" onclick="importLicenseExcel()" style="color: white;">
+                    <i class="fas fa-upload"></i> Импортировать
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно добавления лицензии -->
+<div class="modal fade" id="addLicenseModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-plus"></i> Добавить лицензию</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addLicenseForm">
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Название продукта <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="licenseProductName" required placeholder="Например: Microsoft Windows 11 Pro">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Ключ продукта</label>
+                            <input type="text" class="form-control" id="licenseProductKey" placeholder="XXXXX-XXXXX-XXXXX-XXXXX-XXXXX">
+                            <small class="text-muted">Уникальный ключ лицензии</small>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Срок действия</label>
+                            <input type="date" class="form-control" id="licenseExpiryDate">
+                            <small class="text-muted">Дата окончания действия лицензии</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Компания</label>
+                            <input type="text" class="form-control" id="licenseCompany" placeholder="ООО Пример">
+                            <small class="text-muted">Название компании</small>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Количество <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="licenseQuantity" value="1" min="1" required>
+                            <small class="text-muted">Общее количество лицензий</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Используется</label>
+                            <input type="number" class="form-control" id="licenseUsed" value="0" min="0">
+                            <small class="text-muted">Сколько уже активировано</small>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="saveLicenseFromModal()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно просмотра/редактирования лицензии -->
+<div class="modal fade" id="viewLicenseModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title"><i class="fas fa-info-circle"></i> Информация о лицензии</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="viewLicenseId">
+                <div class="row">
+                    <div class="col-md-12 mb-2">
+                        <label class="fw-bold">Название продукта:</label>
+                        <p id="viewLicenseProductName" class="mb-2">—</p>
+                    </div>
+                    <div class="col-md-12 mb-2">
+                        <label class="fw-bold">Ключ продукта:</label>
+                        <p id="viewLicenseProductKey" class="mb-2">—</p>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="fw-bold">Срок действия:</label>
+                        <p id="viewLicenseExpiryDate" class="mb-2">—</p>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="fw-bold">Компания:</label>
+                        <p id="viewLicenseCompany" class="mb-2">—</p>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="fw-bold">Количество:</label>
+                        <p id="viewLicenseQuantity" class="mb-2">—</p>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="fw-bold">Используется:</label>
+                        <p id="viewLicenseUsed" class="mb-2">—</p>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="fw-bold">Статус:</label>
+                        <p id="viewLicenseStatus" class="mb-2">—</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" id="viewLicenseFooter">
+                <button type="button" class="btn btn-warning" id="editLicenseBtn">
+                    <i class="fas fa-edit"></i> Редактировать
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let licensesData = [];
+let currentLicenseData = null;
+
+function loadLicenses() {
+    $('#licensesTableBody').html('<tr><td colspan="8" class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin me-2"></i>Загрузка данных...</td></tr>');
+    
+    $.ajax({
+        url: '/api/licenses',
+        method: 'GET',
+        dataType: 'json',
+        success: function(data) {
+            console.log("Лицензии загружены, количество:", data.length);
+            licensesData = data;
+            renderLicenses(data);
+            $('#licensesStats').html(`<div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="fas fa-check-circle"></i> Загружено лицензий: ${data.length}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>`);
+            setTimeout(() => $('#licensesStats .alert').alert('close'), 3000);
+        },
+        error: function(xhr, status, error) {
+            console.error("Ошибка загрузки лицензий:", error);
+            let errorMsg = error;
+            if (xhr.responseJSON && xhr.responseJSON.error) {
+                errorMsg = xhr.responseJSON.error;
+            }
+            $('#licensesTableBody').html(`<table><td colspan="8" class="text-center text-danger py-4">
+                ❌ Ошибка загрузки: ${errorMsg}<br>
+                <button class="btn btn-outline-danger mt-2" onclick="loadLicenses()">Повторить</button>
+            </td
+            </tr>`);
+        }
+    });
+}
+
+function renderLicenses(data) {
+    const tbody = $('#licensesTableBody');
+    tbody.empty();
+    
+    if (!data || data.length === 0) {
+        tbody.html('<tr><td colspan="8" class="text-center text-muted py-4">📭 Нет лицензий. Нажмите "Добавить лицензию"</td</tr>');
+        return;
+    }
+    
+    for (let i = 0; i < data.length; i++) {
+        const license = data[i];
+        
+        let expiryText = license.expiry_date ? new Date(license.expiry_date).toLocaleDateString('ru-RU') : '—';
+        let statusClass = '';
+        let statusText = '';
+        
+        if (license.expiry_date) {
+            const today = new Date();
+            const expiryDate = new Date(license.expiry_date);
+            const daysLeft = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
+            
+            if (daysLeft < 0) {
+                statusClass = 'text-danger fw-bold';
+                statusText = 'Просрочена';
+            } else if (daysLeft <= 30) {
+                statusClass = 'text-warning fw-bold';
+                statusText = `Истекает (${daysLeft} дн.)`;
+            } else {
+                statusClass = 'text-success';
+                statusText = 'Активна';
+            }
+        } else {
+            statusText = 'Активна';
+            statusClass = 'text-success';
+        }
+        
+        const row = $(`
+            <tr data-id="${license.id}" class="license-row" style="cursor: pointer;">
+                <td class="text-center">
+                    <i class="fas fa-info-circle text-info" style="font-size: 1.2rem;"></i>
+                 </td>
+                <td style="vertical-align: middle;"><strong>${escapeHtml(license.product_name)}</strong></td>
+                <td style="vertical-align: middle;"><code class="small">${escapeHtml(license.product_key) || '—'}</code></td>
+                <td style="vertical-align: middle;" class="${statusClass}">${expiryText}<br><small>${statusText}</small></td>
+                <td style="vertical-align: middle;">${escapeHtml(license.company) || '—'}</td>
+                <td class="text-center">${license.quantity}</td>
+                <td class="text-center">${license.used}</td>
+                <td class="text-center">
+                    <button class="btn btn-sm btn-danger delete-license-btn" data-id="${license.id}">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+             </tr>
+        `);
+        row.data('license-data', license);
+        tbody.append(row);
+    }
+    
+    // Обработчик клика по строке для просмотра
+    $('.license-row').off('click').on('click', function(e) {
+        if ($(e.target).closest('.delete-license-btn').length) return;
+        const data = $(this).data('license-data');
+        if (data) openLicenseView(data);
+    });
+    
+    // Обработчик удаления
+    $('.delete-license-btn').off('click').on('click', function(e) {
+        e.stopPropagation();
+        const id = $(this).data('id');
+        deleteLicense(id);
+    });
+}
+
+function openLicenseView(license) {
+    currentLicenseData = license;
+    $('#viewLicenseId').val(license.id);
+    $('#viewLicenseProductName').text(license.product_name || '—');
+    $('#viewLicenseProductKey').text(license.product_key || '—');
+    $('#viewLicenseExpiryDate').text(license.expiry_date ? new Date(license.expiry_date).toLocaleDateString('ru-RU') : '—');
+    $('#viewLicenseCompany').text(license.company || '—');
+    $('#viewLicenseQuantity').text(license.quantity || 0);
+    $('#viewLicenseUsed').text(license.used || 0);
+    
+    // Определяем статус для отображения
+    let statusText = 'Активна';
+    let statusClass = 'text-success';
+    if (license.expiry_date) {
+        const today = new Date();
+        const expiryDate = new Date(license.expiry_date);
+        const daysLeft = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
+        if (daysLeft < 0) {
+            statusText = 'Просрочена';
+            statusClass = 'text-danger';
+        } else if (daysLeft <= 30) {
+            statusText = `Истекает (осталось ${daysLeft} дн.)`;
+            statusClass = 'text-warning fw-bold';
+        }
+    }
+    $('#viewLicenseStatus').html(`<span class="${statusClass}">${statusText}</span>`);
+    
+    disableLicenseEditMode();
+    $('#viewLicenseModal').modal('show');
+}
+
+function enableLicenseEditMode() {
+    const license = currentLicenseData;
+    
+    $('#viewLicenseProductName').html(`<input type="text" class="form-control form-control-sm" id="editLicenseProductName" value="${escapeHtml(license.product_name || '')}">`);
+    $('#viewLicenseProductKey').html(`<input type="text" class="form-control form-control-sm" id="editLicenseProductKey" value="${escapeHtml(license.product_key || '')}">`);
+    $('#viewLicenseExpiryDate').html(`<input type="date" class="form-control form-control-sm" id="editLicenseExpiryDate" value="${license.expiry_date || ''}">`);
+    $('#viewLicenseCompany').html(`<input type="text" class="form-control form-control-sm" id="editLicenseCompany" value="${escapeHtml(license.company || '')}">`);
+    $('#viewLicenseQuantity').html(`<input type="number" class="form-control form-control-sm" id="editLicenseQuantity" value="${license.quantity || 0}" min="1">`);
+    $('#viewLicenseUsed').html(`<input type="number" class="form-control form-control-sm" id="editLicenseUsed" value="${license.used || 0}" min="0">`);
+    
+    $('#viewLicenseFooter').html(`
+        <button type="button" class="btn btn-success" id="saveLicenseBtn">
+            <i class="fas fa-save"></i> Сохранить
+        </button>
+        <button type="button" class="btn btn-secondary" id="cancelLicenseEditBtn">
+            <i class="fas fa-times"></i> Отмена
+        </button>
+    `);
+    
+    $('#saveLicenseBtn').off('click').on('click', saveLicenseEdit);
+    $('#cancelLicenseEditBtn').off('click').on('click', cancelLicenseEdit);
+}
+
+function saveLicenseEdit() {
+    const id = $('#viewLicenseId').val();
+    const data = {
+        product_name: $('#editLicenseProductName').val().trim(),
+        product_key: $('#editLicenseProductKey').val().trim(),
+        expiry_date: $('#editLicenseExpiryDate').val(),
+        company: $('#editLicenseCompany').val().trim(),
+        quantity: parseInt($('#editLicenseQuantity').val()) || 0,
+        used: parseInt($('#editLicenseUsed').val()) || 0
+    };
+    
+    if (!data.product_name) {
+        showMessage('Введите название продукта', 'danger');
+        return;
+    }
+    if (data.quantity < 1) {
+        showMessage('Количество должно быть не менее 1', 'danger');
+        return;
+    }
+    if (data.used > data.quantity) {
+        showMessage('Используемое количество не может превышать общее количество', 'danger');
+        return;
+    }
+    
+    $.ajax({
+        url: `/api/licenses/${id}`,
+        method: 'PUT',
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success: function(response) {
+            if (response.success) {
+                showMessage('✅ Лицензия обновлена', 'success');
+                loadLicenses();
+                $('#viewLicenseModal').modal('hide');
+            } else {
+                showMessage(response.error, 'danger');
+            }
+        },
+        error: function(xhr) {
+            const error = xhr.responseJSON;
+            showMessage(error?.error || '❌ Ошибка при обновлении', 'danger');
+        }
+    });
+}
+
+function importLicenseExcel() {
+    const fileInput = document.getElementById('licenseExcelFile');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        showMessage('Выберите файл Excel', 'danger');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const btn = $('#importLicenseModal .btn-info');
+    const originalHtml = btn.html();
+    btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Импорт...');
+    
+    $.ajax({
+        url: '/api/licenses/import-excel',
+        method: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function(response) {
+            if (response.success) {
+                showMessage(response.message, 'success');
+                $('#importLicenseModal').modal('hide');
+                fileInput.value = '';
+                loadLicenses();
+            } else {
+                showMessage(response.error, 'danger');
+            }
+        },
+        error: function(xhr) {
+            const error = xhr.responseJSON;
+            showMessage(error?.error || 'Ошибка при импорте', 'danger');
+        },
+        complete: function() {
+            btn.prop('disabled', false).html(originalHtml);
+        }
+    });
+}
+
+function cancelLicenseEdit() {
+    if (currentLicenseData) {
+        openLicenseView(currentLicenseData);
+    }
+}
+
+function disableLicenseEditMode() {
+    if (!currentLicenseData) return;
+    
+    const license = currentLicenseData;
+    
+    $('#viewLicenseProductName').text(license.product_name || '—');
+    $('#viewLicenseProductKey').text(license.product_key || '—');
+    $('#viewLicenseExpiryDate').text(license.expiry_date ? new Date(license.expiry_date).toLocaleDateString('ru-RU') : '—');
+    $('#viewLicenseCompany').text(license.company || '—');
+    $('#viewLicenseQuantity').text(license.quantity || 0);
+    $('#viewLicenseUsed').text(license.used || 0);
+    
+    let statusText = 'Активна';
+    let statusClass = 'text-success';
+    if (license.expiry_date) {
+        const today = new Date();
+        const expiryDate = new Date(license.expiry_date);
+        const daysLeft = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
+        if (daysLeft < 0) {
+            statusText = 'Просрочена';
+            statusClass = 'text-danger';
+        } else if (daysLeft <= 30) {
+            statusText = `Истекает (осталось ${daysLeft} дн.)`;
+            statusClass = 'text-warning fw-bold';
+        }
+    }
+    $('#viewLicenseStatus').html(`<span class="${statusClass}">${statusText}</span>`);
+    
+    $('#viewLicenseFooter').html(`
+        <button type="button" class="btn btn-warning" id="editLicenseBtn">
+            <i class="fas fa-edit"></i> Редактировать
+        </button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+    `);
+    
+    $('#editLicenseBtn').off('click').on('click', enableLicenseEditMode);
+}
+
+function deleteLicense(id) {
+    if (confirm('🗑️ Удалить лицензию? Это действие нельзя отменить.')) {
+        $.ajax({
+            url: `/api/licenses/${id}`,
+            method: 'DELETE',
+            success: function() { 
+                loadLicenses(); 
+                showMessage('✅ Лицензия удалена', 'success'); 
+            },
+            error: function(xhr) { 
+                const error = xhr.responseJSON;
+                showMessage(error?.error || '❌ Ошибка при удалении', 'danger'); 
+            }
+        });
+    }
+}
+
+function saveLicenseFromModal() {
+    const data = {
+        product_name: $('#licenseProductName').val().trim(),
+        product_key: $('#licenseProductKey').val().trim(),
+        expiry_date: $('#licenseExpiryDate').val(),
+        company: $('#licenseCompany').val().trim(),
+        quantity: parseInt($('#licenseQuantity').val()) || 0,
+        used: parseInt($('#licenseUsed').val()) || 0
+    };
+    
+    if (!data.product_name) {
+        showMessage('Введите название продукта', 'danger');
+        return;
+    }
+    if (data.quantity < 1) {
+        showMessage('Количество должно быть не менее 1', 'danger');
+        return;
+    }
+    if (data.used > data.quantity) {
+        showMessage('Используемое количество не может превышать общее количество', 'danger');
+        return;
+    }
+    
+    $.ajax({
+        url: '/api/licenses',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success: function(response) {
+            if (response.success) {
+                showMessage('✅ Лицензия добавлена', 'success');
+                $('#addLicenseModal').modal('hide');
+                $('#addLicenseForm')[0].reset();
+                $('#licenseQuantity').val('1');
+                $('#licenseUsed').val('0');
+                loadLicenses();
+            } else {
+                showMessage(response.error, 'danger');
+            }
+        },
+        error: function(xhr) {
+            const error = xhr.responseJSON;
+            showMessage(error?.error || '❌ Ошибка при добавлении', 'danger');
+        }
+    });
+}
+
+function searchLicenses() {
+    const searchTerm = $('#searchInput').val().toLowerCase();
+    if (!searchTerm) {
+        renderLicenses(licensesData);
+        return;
+    }
+    
+    const filtered = [];
+    for (let i = 0; i < licensesData.length; i++) {
+        const license = licensesData[i];
+        if ((license.product_name && license.product_name.toLowerCase().includes(searchTerm)) ||
+            (license.product_key && license.product_key.toLowerCase().includes(searchTerm)) ||
+            (license.company && license.company.toLowerCase().includes(searchTerm))) {
+            filtered.push(license);
+        }
+    }
+    renderLicenses(filtered);
+    $('#licensesStats').html(`<div class="alert alert-info">Найдено: ${filtered.length} из ${licensesData.length}</div>`);
+}
+
+function resetSearch() {
+    $('#searchInput').val('');
+    renderLicenses(licensesData);
+    $('#licensesStats').empty();
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function showMessage(message, type) {
+    const alertDiv = $(`
+        <div class="alert alert-${type} alert-dismissible fade show position-fixed top-0 end-0 m-3" 
+             style="z-index: 9999; min-width: 300px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);" role="alert">
+            <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'} me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `);
+    $('body').append(alertDiv);
+    setTimeout(() => alertDiv.alert('close'), 3000);
+}
+
+$(document).ready(function() {
+    loadLicenses();
+    
+    // Обработчик Enter для поиска лицензий
+    $('#searchInput').on('keypress', function(e) {
+        if (e.which == 13 || e.keyCode == 13) {
+            searchLicenses();
+            return false;
+        }
+    });
+});
+</script>
+{% endblock %}

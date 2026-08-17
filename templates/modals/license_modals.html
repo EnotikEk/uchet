@@ -1,0 +1,279 @@
+<!-- Модальное окно добавления лицензии -->
+<div class="modal fade" id="addLicenseModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-plus"></i> Добавить лицензию</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addLicenseForm">
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Название продукта <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="licenseProductName" required placeholder="Например: Microsoft Windows 11 Pro">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Ключ продукта</label>
+                            <input type="text" class="form-control" id="licenseProductKey" placeholder="XXXXX-XXXXX-XXXXX-XXXXX-XXXXX">
+                            <small class="text-muted">Уникальный ключ лицензии</small>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Срок действия</label>
+                            <input type="date" class="form-control" id="licenseExpiryDate">
+                            <small class="text-muted">Дата окончания действия лицензии</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Компания</label>
+                            <input type="text" class="form-control" id="licenseCompany" placeholder="ООО Пример">
+                            <small class="text-muted">Название компании</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Количество <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="licenseQuantity" value="1" min="1" required>
+                            <small class="text-muted">Общее количество лицензий</small>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Используется</label>
+                            <input type="number" class="form-control" id="licenseUsed" value="0" min="0">
+                            <small class="text-muted">Сколько уже активировано</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Статус</label>
+                            <select class="form-select" id="licenseStatus">
+                                <option value="Активна">Активна</option>
+                                <option value="Истекает">Истекает</option>
+                                <option value="Просрочена">Просрочена</option>
+                                <option value="Архив">Архив</option>
+                            </select>
+                            <small class="text-muted">Текущий статус лицензии</small>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="saveLicenseFromModal()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно редактирования лицензии -->
+<div class="modal fade" id="editLicenseModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-edit"></i> Редактировать лицензию</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editLicenseForm">
+                    <input type="hidden" id="editLicenseId">
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Название продукта <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="editProductName" required>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Ключ продукта</label>
+                            <input type="text" class="form-control" id="editProductKey">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Срок действия</label>
+                            <input type="date" class="form-control" id="editExpiryDate">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Email <span class="text-danger">*</span></label>
+                            <input type="email" class="form-control" id="editEmail" required>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Компания</label>
+                            <input type="text" class="form-control" id="editCompany">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Количество <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="editQuantity" min="1" required>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Используется</label>
+                            <input type="number" class="form-control" id="editUsed" min="0">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Статус</label>
+                            <select class="form-select" id="editStatus">
+                                <option value="Активна">Активна</option>
+                                <option value="Истекает">Истекает</option>
+                                <option value="Просрочена">Просрочена</option>
+                                <option value="Архив">Архив</option>
+                            </select>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="updateLicenseFromModal()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function saveLicenseFromModal() {
+    var data = {
+        product_name: $('#licenseProductName').val(),
+        product_key: $('#licenseProductKey').val(),
+        expiry_date: $('#licenseExpiryDate').val(),
+        email: $('#licenseEmail').val(),
+        company: $('#licenseCompany').val(),
+        quantity: parseInt($('#licenseQuantity').val()) || 0,
+        used: parseInt($('#licenseUsed').val()) || 0,
+        status: $('#licenseStatus').val()
+    };
+    
+    if (!data.product_name) {
+        alert('⚠️ Введите название продукта');
+        $('#licenseProductName').focus();
+        return;
+    }
+    
+    if (!data.email) {
+        alert('⚠️ Введите Email');
+        $('#licenseEmail').focus();
+        return;
+    }
+    
+    if (data.quantity < 1) {
+        alert('⚠️ Количество должно быть не менее 1');
+        $('#licenseQuantity').focus();
+        return;
+    }
+    
+    if (data.used > data.quantity) {
+        alert('⚠️ Используемое количество не может превышать общее количество');
+        $('#licenseUsed').focus();
+        return;
+    }
+    
+    var emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailPattern.test(data.email)) {
+        alert('⚠️ Введите корректный Email адрес');
+        $('#licenseEmail').focus();
+        return;
+    }
+    
+    $.ajax({
+        url: '/api/licenses',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success: function(response) {
+            if (response.success) {
+                showMessage('✅ Лицензия добавлена', 'success');
+                $('#addLicenseModal').modal('hide');
+                $('#addLicenseForm')[0].reset();
+                $('#licenseQuantity').val('1');
+                $('#licenseUsed').val('0');
+                $('#licenseStatus').val('Активна');
+                if (typeof loadLicenses === 'function') loadLicenses();
+            } else {
+                showMessage(response.error, 'danger');
+            }
+        },
+        error: function(xhr) {
+            var error = xhr.responseJSON;
+            showMessage(error.error || '❌ Ошибка при добавлении лицензии', 'danger');
+        }
+    });
+}
+
+function updateLicenseFromModal() {
+    var id = $('#editLicenseId').val();
+    var data = {
+        product_name: $('#editProductName').val(),
+        product_key: $('#editProductKey').val(),
+        expiry_date: $('#editExpiryDate').val(),
+        email: $('#editEmail').val(),
+        company: $('#editCompany').val(),
+        quantity: parseInt($('#editQuantity').val()) || 0,
+        used: parseInt($('#editUsed').val()) || 0,
+        status: $('#editStatus').val()
+    };
+    
+    if (!data.product_name) {
+        alert('⚠️ Введите название продукта');
+        $('#editProductName').focus();
+        return;
+    }
+    
+    if (!data.email) {
+        alert('⚠️ Введите Email');
+        $('#editEmail').focus();
+        return;
+    }
+    
+    if (data.quantity < 1) {
+        alert('⚠️ Количество должно быть не менее 1');
+        $('#editQuantity').focus();
+        return;
+    }
+    
+    if (data.used > data.quantity) {
+        alert('⚠️ Используемое количество не может превышать общее количество');
+        $('#editUsed').focus();
+        return;
+    }
+    
+    var emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailPattern.test(data.email)) {
+        alert('⚠️ Введите корректный Email адрес');
+        $('#editEmail').focus();
+        return;
+    }
+    
+    $.ajax({
+        url: '/api/licenses/' + id,
+        method: 'PUT',
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success: function(response) {
+            if (response.success) {
+                showMessage('✅ Лицензия обновлена', 'success');
+                $('#editLicenseModal').modal('hide');
+                if (typeof loadLicenses === 'function') loadLicenses();
+            } else {
+                showMessage(response.error, 'danger');
+            }
+        },
+        error: function(xhr) {
+            var error = xhr.responseJSON;
+            showMessage(error.error || '❌ Ошибка при обновлении лицензии', 'danger');
+        }
+    });
+}
+
+function showMessage(message, type) {
+    var alertDiv = $('<div class="alert alert-' + type + ' alert-dismissible fade show position-fixed top-0 end-0 m-3" ' + 
+        'style="z-index: 9999; min-width: 300px; box-shadow: 0 2px 10px rgba(0,0,0,0.2);" role="alert">' +
+        message +
+        '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>' +
+        '</div>');
+    $('body').append(alertDiv);
+    setTimeout(function() { alertDiv.alert('close'); }, 3000);
+}
+</script>
