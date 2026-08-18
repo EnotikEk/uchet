@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Система учета предприятия{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Навигационная панель -->
+    <!-- base.html - обновленная навигационная панель с селектором филиала -->
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('index') }}">
+                <i class="fas fa-building"></i> Система учета предприятия
+            </a>
+            <div class="d-flex align-items-center">
+                <!-- СЕЛЕКТОР ФИЛИАЛА ДЛЯ АДМИНА -->
+                {% if session.get('role') == 'admin' %}
+                <div class="me-3" id="adminOrgSelector">
+                    <select class="form-select form-select-sm bg-dark text-white border-secondary" 
+                            id="adminOrganizationSelect" 
+                            style="min-width: 200px; cursor: pointer;"
+                            onchange="switchOrganization()">
+                        <option value="__ALL__" {% if session.get('view_organization_id') == '__ALL__' or not session.get('view_organization_id') %}selected{% endif %}>
+                            🌍 Все филиалы
+                        </option>
+                        {% for org in organizations %}
+                        <option value="{{ org.id }}" {% if session.get('view_organization_id')|string == org.id|string %}selected{% endif %}>
+                            🏢 {{ org.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <small class="text-muted d-block text-end" style="font-size: 0.65rem; color: rgba(255,255,255,0.5) !important;">
+                        <i class="fas fa-info-circle"></i> Новые записи создаются в выбранном филиале
+                    </small>
+                </div>
+                {% endif %}
+                
+                <span class="navbar-text me-3">
+                    <i class="fas fa-user"></i> <span id="userName">{{ session.get('full_name', session.get('username', 'Гость')) }}</span>
+                    {% if session.get('organization_name') %}
+                        <span class="text-info ms-2" id="userOrganization">
+                            <i class="fas fa-building"></i> {{ session.get('organization_name', 'Филиал') }}
+                        </span>
+                    {% endif %}
+                </span>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+            </div>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('index') }}">
+                            <i class="fas fa-home"></i> Главная
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('cartridges') }}">
+                            <i class="fas fa-print"></i> Учет картриджей
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('licenses') }}">
+                            <i class="fas fa-key"></i> Лицензии
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('organizations') }}">
+                            <i class="fas fa-building"></i> Организации
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('equipment_page') }}">
+                            <i class="fas fa-desktop"></i> Оборудование
+                        </a>
+                    </li>                    
+                    {% if session.get('role') == 'admin' %}
+                    <li class="nav-item" id="adminMenu">
+                        <a class="nav-link" href="{{ url_for('users_page') }}">
+                            <i class="fas fa-users-cog"></i> Пользователи
+                        </a>
+                    </li>
+                    {% endif %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="logout()">
+                            <i class="fas fa-sign-out-alt"></i> Выход
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Основной контент -->
+    <div class="container-fluid mt-3">
+        {% block content %}{% endblock %}
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/search.js') }}"></script>
+    
+    <!-- Подключение модальных окон для главной страницы -->
+    {% if request.endpoint == 'index' %}
+
+     <div class="modal fade" id="addEquipmentModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-desktop"></i> Добавить оборудование</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addEquipmentFormMain">
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Тип <span class="text-danger">*</span></label>
+                                <select class="form-select" id="addEquipmentTypeMain" required>
+                                    <option value="">Выберите</option>
+                                    <option value="Компьютер">Компьютер</option>
+                                    <option value="Ноутбук">Ноутбук</option>
+                                    <option value="Монитор">Монитор</option>
+                                    <option value="Сервер">Сервер</option>
+                                    <option value="Сетевое оборудование">Сетевое оборудование</option>
+                                    <option value="Принтер">Принтер</option>
+                                    <option value="МФУ">МФУ</option>
+                                    <option value="Сканер">Сканер</option>
+                                    <option value="IP-телефон">IP-телефон</option>
+                                    <option value="Другое">Другое</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Бренд</label>
+                                <input type="text" class="form-control" id="addEquipmentBrandMain" placeholder="HP, Dell">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Модель</label>
+                                <input type="text" class="form-control" id="addEquipmentModelMain" placeholder="Модель">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Серийный номер</label>
+                                <input type="text" class="form-control" id="addEquipmentSerialMain" placeholder="S/N">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Инвентарный номер</label>
+                                <input type="text" class="form-control" id="addEquipmentInventoryMain" placeholder="Инв. №">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">МОЛ</label>
+                                <input type="text" class="form-control" id="addEquipmentMOLMain" placeholder="Материально-ответственное лицо">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Ответственный</label>
+                                <input type="text" class="form-control" id="addEquipmentResponsibleMain" placeholder="ФИО">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Кабинет</label>
+                                <input type="text" class="form-control" id="addEquipmentRoomMain" placeholder="№ кабинета">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Дата принятия к учету</label>
+                                <input type="date" class="form-control" id="addEquipmentPurchaseDateMain">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Статус</label>
+                                <select class="form-select" id="addEquipmentStatusMain">
+                                    <option value="В работе">В работе</option>
+                                    <option value="Ремонт">Ремонт</option>
+                                    <option value="На складе">На складе</option>
+                                    <option value="Списано">Списано</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Примечание</label>
+                            <textarea class="form-control" id="addEquipmentNotesMain" rows="2" placeholder="Дополнительная информация..."></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-primary" onclick="saveEquipmentFromMain()">Сохранить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    function saveEquipmentFromMain() {
+        const data = {
+            type: $('#addEquipmentTypeMain').val(),
+            brand: $('#addEquipmentBrandMain').val(),
+            model: $('#addEquipmentModelMain').val(),
+            serial_number: $('#addEquipmentSerialMain').val(),
+            inventory_number: $('#addEquipmentInventoryMain').val(),
+            mol: $('#addEquipmentMOLMain').val(),
+            responsible: $('#addEquipmentResponsibleMain').val(),
+            room: $('#addEquipmentRoomMain').val(),
+            purchase_date: $('#addEquipmentPurchaseDateMain').val(),
+            status: $('#addEquipmentStatusMain').val(),
+            notes: $('#addEquipmentNotesMain').val()
+        };
+        
+        if (!data.type) {
+            showMessage('Выберите тип оборудования', 'danger');
+            return;
+        }
+        
+        $.ajax({
+            url: '/api/equipment',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(data),
+            success: function(response) {
+                if (response.success) {
+                    showMessage('Оборудование добавлено', 'success');
+                    $('#addEquipmentModal').modal('hide');
+                    $('#addEquipmentFormMain')[0].reset();
+                    // Обновляем счетчик на главной
+                    $.get('/api/equipment', function(data) {
+                        $('#equipment_count').text(data.length);
+                    });
+                } else {
+                    showMessage(response.error, 'danger');
+                }
+            },
+            error: function(xhr) {
+                const error = xhr.responseJSON;
+                showMessage(error?.error || 'Ошибка при добавлении', 'danger');
+            }
+        });
+    }
+    </script>
+
+        <!-- Модальные окна для картриджей -->
+        <div class="modal fade" id="addCartridgeModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="fas fa-print"></i> Добавить картридж</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="addCartridgeForm">
+                            <div class="mb-3">
+                                <label class="form-label">Модель картриджа <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <select class="form-select" id="cartridgeModel" required>
+                                        <option value="">Выберите модель</option>
+                                    </select>
+                                    <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addModelModal">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Ответственный</label>
+                                <select class="form-select" id="cartridgeResponsible">
+                                    <option value="">Выберите ответственного</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Кабинет</label>
+                                <input type="text" class="form-control" id="cartridgeRoom" placeholder="Номер кабинета">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">IP адрес</label>
+                                <input type="text" class="form-control" id="cartridgeIp" placeholder="192.168.1.1">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Статус картриджа</label>
+                                <select class="form-select" id="cartridgeStatus">
+                                    <option value="Заправлен">Заправлен</option>
+                                    <option value="Пустой">Пустой</option>
+                                    <option value="Заправка">Заправка</option>
+                                    <option value="На складе">На складе</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">МФУ/Принтер</label>
+                                <div class="input-group">
+                                    <select class="form-select" id="cartridgeMFU">
+                                        <option value="">Выберите МФУ</option>
+                                    </select>
+                                    <button type="button" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#addMFUModal">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Кол-во выданных</label>
+                                <input type="number" class="form-control" id="cartridgeIssued" placeholder="Количество" value="0">
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="button" class="btn btn-primary" onclick="saveCartridgeFromModal()">Сохранить</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Модальное окно добавления МФУ -->
+        <div class="modal fade" id="addMFUModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="fas fa-print"></i> Добавить МФУ</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="addMFUForm">
+                            <div class="mb-3">
+                                <label class="form-label">Наименование МФУ/Принтера <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="newMfuName" placeholder="Например: HP LaserJet 2200">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Статус МФУ/Принтера</label>
+                                <select class="form-select" id="newMfuStatus">
+                                    <option value="Работает">Работает</option>
+                                    <option value="Ремонт">Ремонт</option>
+                                </select>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="button" class="btn btn-primary" onclick="saveMFUFromModal()">Сохранить</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Модальное окно добавления модели картриджа -->
+        <div class="modal fade" id="addModelModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="fas fa-cube"></i> Добавить модель картриджа</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="addModelForm">
+                            <div class="mb-3">
+                                <label class="form-label">Название модели <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="modelName" required placeholder="Например: Q2612A, CF283A">
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="button" class="btn btn-primary" onclick="saveModelFromModal()">Сохранить</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Модальное окно добавления лицензии -->
+        <div class="modal fade" id="addLicenseModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="fas fa-plus"></i> Добавить лицензию</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="addLicenseForm">
+                            <div class="row">
+                                <div class="col-md-12 mb-3">
+                                    <label class="form-label">Название продукта <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="licenseProductName" required placeholder="Например: Microsoft Windows 11 Pro">
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-12 mb-3">
+                                    <label class="form-label">Ключ продукта</label>
+                                    <input type="text" class="form-control" id="licenseProductKey" placeholder="XXXXX-XXXXX-XXXXX-XXXXX-XXXXX">
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Срок действия</label>
+                                    <input type="date" class="form-control" id="licenseExpiryDate">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="licenseEmail" placeholder="license@company.ru">
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Компания</label>
+                                    <input type="text" class="form-control" id="licenseCompany" placeholder="ООО Пример">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Количество</label>
+                                    <input type="number" class="form-control" id="licenseQuantity" value="1" min="1">
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Используется</label>
+                                    <input type="number" class="form-control" id="licenseUsed" value="0" min="0">
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="button" class="btn btn-primary" onclick="saveLicenseFromModal()">Сохранить</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Модальное окно добавления организации -->
+        <div class="modal fade" id="addOrganizationModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="fas fa-building"></i> Добавить организацию</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="addOrganizationForm">
+                            <div class="mb-3">
+                                <label class="form-label">Название организации <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="orgName" required placeholder="Например: ООО Волго-Балт">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Адрес</label>
+                                <input type="text" class="form-control" id="orgAddress" placeholder="Например: г. Калининград, ул. Ленина, д. 1">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Отдел</label>
+                                <input type="text" class="form-control" id="orgDepartment" placeholder="Например: Бухгалтерия, IT-отдел">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Кабинет</label>
+                                <input type="text" class="form-control" id="orgOffice" placeholder="Например: 101, 205">
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="button" class="btn btn-primary" onclick="saveOrganization()">Сохранить</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            // Функции для работы с модальными окнами на главной странице
+            function saveCartridgeFromModal() {
+                var data = {
+                    model: $('#cartridgeModel').val(),
+                    responsible: $('#cartridgeResponsible').val(),
+                    room: $('#cartridgeRoom').val(),
+                    ip: $('#cartridgeIp').val(),
+                    status: $('#cartridgeStatus').val(),
+                    mfu: $('#cartridgeMFU').val(),
+                    issued: $('#cartridgeIssued').val() || '0'
+                };
+                
+                if (!data.model) {
+                    alert('Выберите модель картриджа');
+                    return;
+                }
+                
+                $.ajax({
+                    url: '/api/cartridges',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(data),
+                    success: function(response) {
+                        if (response.success) {
+                            showMessage('Картридж добавлен', 'success');
+                            $('#addCartridgeModal').modal('hide');
+                            $('#addCartridgeForm')[0].reset();
+                            setTimeout(function() { location.reload(); }, 1000);
+                        } else {
+                            showMessage(response.error, 'danger');
+                        }
+                    },
+                    error: function() {
+                        showMessage('Ошибка при добавлении', 'danger');
+                    }
+                });
+            }
+            
+            function saveMFUFromModal() {
+                var name = $('#newMfuName').val().trim();
+                var status = $('#newMfuStatus').val();
+                
+                if (!name) {
+                    alert('Введите наименование МФУ');
+                    return;
+                }
+                
+                $.ajax({
+                    url: '/api/mfu',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({name: name, status: status}),
+                    success: function(response) {
+                        if (response.success) {
+                            showMessage('МФУ добавлен', 'success');
+                            $('#addMFUModal').modal('hide');
+                            $('#newMfuName').val('');
+                            location.reload();
+                        } else {
+                            showMessage(response.error, 'danger');
+                        }
+                    }
+                });
+            }
+            
+            function saveModelFromModal() {
+                var name = $('#modelName').val();
+                if (!name) {
+                    alert('Введите название модели');
+                    return;
+                }
+                
+                $.ajax({
+                    url: '/api/cartridge-models',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({name: name}),
+                    success: function(response) {
+                        if (response.success) {
+                            showMessage('Модель добавлена', 'success');
+                            $('#addModelModal').modal('hide');
+                            $('#addModelForm')[0].reset();
+                            location.reload();
+                        } else {
+                            showMessage(response.error, 'danger');
+                        }
+                    }
+                });
+            }
+            
+            function saveLicenseFromModal() {
+                var data = {
+                    product_name: $('#licenseProductName').val(),
+                    product_key: $('#licenseProductKey').val(),
+                    expiry_date: $('#licenseExpiryDate').val(),
+                    email: $('#licenseEmail').val(),
+                    company: $('#licenseCompany').val(),
+                    quantity: parseInt($('#licenseQuantity').val()) || 0,
+                    used: parseInt($('#licenseUsed').val()) || 0
+                };
+                
+                if (!data.product_name) {
+                    alert('Введите название продукта');
+                    return;
+                }
+                
+                $.ajax({
+                    url: '/api/licenses',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(data),
+                    success: function(response) {
+                        if (response.success) {
+                            showMessage('Лицензия добавлена', 'success');
+                            $('#addLicenseModal').modal('hide');
+                            $('#addLicenseForm')[0].reset();
+                            $('#licenseQuantity').val('1');
+                            $('#licenseUsed').val('0');
+                            setTimeout(function() { location.reload(); }, 1000);
+                        } else {
+                            showMessage(response.error, 'danger');
+                        }
+                    }
+                });
+            }
+            
+            function saveOrganization() {
+                var data = {
+                    name: $('#orgName').val(),
+                    address: $('#orgAddress').val(),
+                    department: $('#orgDepartment').val(),
+                    office: $('#orgOffice').val()
+                };
+                
+                if (!data.name) {
+                    alert('Введите название организации');
+                    return;
+                }
+                
+                $.ajax({
+                    url: '/api/organizations',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(data),
+                    success: function(response) {
+                        if (response.success) {
+                            showMessage('Организация добавлена', 'success');
+                            $('#addOrganizationModal').modal('hide');
+                            $('#addOrganizationForm')[0].reset();
+                            setTimeout(function() { location.reload(); }, 1000);
+                        } else {
+                            showMessage(response.error, 'danger');
+                        }
+                    }
+                });
+            }
+            
+            function showMessage(message, type) {
+                var alertDiv = $('<div class="alert alert-' + type + ' alert-dismissible fade show position-fixed top-0 end-0 m-3" style="z-index: 9999; min-width: 300px;" role="alert">' + message + '<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>');
+                $('body').append(alertDiv);
+                setTimeout(function() { alertDiv.alert('close'); }, 3000);
+            }
+            
+            // Загрузка данных для select при открытии модальных окон
+            $(document).ready(function() {
+                $('#addCartridgeModal').on('show.bs.modal', function() {
+                    $.get('/api/cartridge-models', function(data) {
+                        var select = $('#cartridgeModel');
+                        select.html('<option value="">Выберите модель</option>');
+                        for (var i = 0; i < data.length; i++) {
+                            select.append('<option value="' + escapeHtml(data[i]) + '">' + escapeHtml(data[i]) + '</option>');
+                        }
+                    });
+                    $.get('/api/employees', function(data) {
+                        var select = $('#cartridgeResponsible');
+                        select.html('<option value="">Выберите ответственного</option>');
+                        for (var i = 0; i < data.length; i++) {
+                            select.append('<option value="' + escapeHtml(data[i]) + '">' + escapeHtml(data[i]) + '</option>');
+                        }
+                    });
+                    $.get('/api/mfu', function(data) {
+                        var select = $('#cartridgeMFU');
+                        select.html('<option value="">Выберите МФУ</option>');
+                        for (var i = 0; i < data.length; i++) {
+                            select.append('<option value="' + escapeHtml(data[i].name) + '">' + escapeHtml(data[i].name) + '</option>');
+                        }
+                    });
+                });
+            });
+            
+            function escapeHtml(text) {
+                if (!text) return '';
+                var div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+        </script>
+    {% endif %}
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

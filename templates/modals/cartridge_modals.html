@@ -1,0 +1,1021 @@
+<!-- Модальное окно добавления картриджа -->
+<div class="modal fade" id="addCartridgeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-print"></i> Добавить картридж</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addCartridgeForm">
+                    <div class="mb-3">
+                        <label class="form-label">Модель картриджа <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <select class="form-select" id="cartridgeModel" required>
+                                <option value="">Выберите модель</option>
+                                {% for model in cartridge_models %}
+                                <option value="{{ model }}">{{ model }}</option>
+                                {% endfor %}
+                            </select>
+                            <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addModelModal">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                        <div id="stockInfo" class="mt-1 small">
+                            <span class="text-muted">Выберите модель для проверки наличия</span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Ответственный</label>
+                        <select class="form-select" id="cartridgeResponsible">
+                            <option value="">Выберите ответственного</option>
+                            {% for emp in employees %}
+                            <option value="{{ emp }}">{{ emp }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Кабинет</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="cartridgeRoom" placeholder="Номер кабинета" list="cartridgeRoomsList">
+                            <datalist id="cartridgeRoomsList">
+                                {% for room in rooms %}
+                                <option value="{{ room.number }}">{{ room.number }}</option>
+                                {% endfor %}
+                            </datalist>
+                            <button type="button" class="btn btn-outline-secondary" onclick="addNewRoom()" title="Добавить новый кабинет">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                        <small class="text-muted">Можно ввести новый кабинет или выбрать из списка</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">IP адрес</label>
+                        <input type="text" class="form-control" id="cartridgeIp" placeholder="192.168.1.1">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Статус картриджа</label>
+                        <select class="form-select" id="cartridgeStatus">
+                            {% for status in status_cart %}
+                            <option value="{{ status }}">{{ status }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">МФУ/Принтер</label>
+                        <div class="input-group">
+                            <select class="form-select" id="cartridgeMFU">
+                                <option value="">Выберите МФУ</option>
+                                {% for mfu in mfu_list %}
+                                <option value="{{ mfu.name }}">{{ mfu.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <button type="button" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#addMFUModal" onclick="storeReturnModal('addCartridgeModal')">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                        <div id="compatibleMfuHint" class="mt-1 small">
+                            <span class="text-muted">Выберите модель для фильтрации МФУ</span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Кол-во выданных картриджей</label>
+                        <input type="number" class="form-control" id="cartridgeIssued" placeholder="Количество" value="0" min="0">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="saveCartridgeFromModal()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Модальное окно добавления модели картриджа (исправленное) -->
+<div class="modal fade" id="addModelModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-cube"></i> Добавить модель картриджа</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addModelForm">
+                    <div class="mb-3">
+                        <label class="form-label">Название модели <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="modelName" required placeholder="Например: Q2612A, CF283A">
+                        <small class="text-muted">Если модель уже существует, количество будет добавлено к существующему</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Количество в наличии <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="modelQuantity" value="1" min="1" required>
+                        <small class="text-muted">Сколько картриджей этой модели добавить в наличие</small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="saveModelFromModal()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Добавьте функцию updateStockInfo() в начало блока script -->
+<script>
+// Функция для проверки наличия при выборе модели
+// cartridge_modals.html - ИСПРАВЛЕННАЯ ФУНКЦИЯ
+
+function updateStockInfo() {
+    const model = $('#cartridgeModel').val();
+    if (!model) {
+        $('#stockInfo').html('<span class="text-muted">Выберите модель для проверки наличия</span>');
+        return;
+    }
+    
+    console.log("=== ПРОВЕРКА НАЛИЧИЯ ===");
+    console.log("Модель:", model);
+    
+    // Сначала проверяем через /api/analytics/check-stock
+    $.ajax({
+        url: '/api/analytics/check-stock',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({model: model}),
+        success: function(response) {
+            console.log("Ответ check-stock:", response);
+            
+            if (response.success) {
+                const inStock = response.in_stock;
+                if (inStock > 0) {
+                    $('#stockInfo').html(`<span class="text-success"><i class="fas fa-check-circle"></i> В наличии: <strong>${inStock}</strong> шт.</span>`);
+                } else {
+                    $('#stockInfo').html(`<span class="text-danger"><i class="fas fa-exclamation-circle"></i> Нет в наличии (0 шт.). Пополните склад через "Добавить модель картриджа"</span>`);
+                }
+            }
+        },
+        error: function(xhr) {
+            console.error("Ошибка check-stock:", xhr);
+            
+            // Если ошибка, пробуем через debug эндпоинт
+            $.ajax({
+                url: `/api/debug/cartridge/${encodeURIComponent(model)}`,
+                method: 'GET',
+                success: function(debugData) {
+                    console.log("Debug данные:", debugData);
+                    
+                    if (debugData.analytics && debugData.analytics.length > 0) {
+                        let html = '<div class="mt-1">';
+                        for (let i = 0; i < debugData.analytics.length; i++) {
+                            const a = debugData.analytics[i];
+                            const isUserOrg = a.organization_id == debugData.user_org_id;
+                            const status = isUserOrg ? '✅ ваш филиал' : '⚠️ другой филиал';
+                            html += `<div class="${isUserOrg ? 'text-success' : 'text-warning'}">
+                                В наличии: <strong>${a.in_stock}</strong> шт. (${status})
+                            </div>`;
+                        }
+                        html += '</div>';
+                        $('#stockInfo').html(html);
+                    } else {
+                        $('#stockInfo').html(`<span class="text-danger">Модель не найдена в аналитике. Добавьте через "Добавить модель картриджа"</span>`);
+                    }
+                },
+                error: function() {
+                    $('#stockInfo').html('<span class="text-danger">Ошибка проверки наличия</span>');
+                }
+            });
+        }
+    });
+}
+
+// Обновленная функция saveModelFromModal
+function saveModelFromModal() {
+    var name = $('#modelName').val().trim();
+    var quantity = parseInt($('#modelQuantity').val()) || 1;
+    
+    if (!name) {
+        showMessage('Введите название модели', 'danger');
+        return;
+    }
+    
+    if (quantity < 1) {
+        showMessage('Количество должно быть не менее 1', 'danger');
+        return;
+    }
+    
+    const $btn = $('#addModelModal .btn-primary');
+    const originalHtml = $btn.html();
+    $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Сохранение...');
+    
+    // Проверяем, существует ли модель
+    $.ajax({
+        url: '/api/cartridge-models/check',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({name: name}),
+        success: function(response) {
+            if (response.exists) {
+                // Модель существует - добавляем количество
+                $.ajax({
+                    url: '/api/analytics/add-stock',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        cartridge: name,
+                        quantity: quantity
+                    }),
+                    success: function(analyticsResponse) {
+                        if (analyticsResponse.success) {
+                            showMessage('✅ Количество для модели "' + name + '" увеличено на ' + quantity + ' шт. (теперь ' + analyticsResponse.in_stock + ' шт.)', 'success');
+                            $('#addModelModal').modal('hide');
+                            $('#addModelForm')[0].reset();
+                            $('#modelQuantity').val('1');
+                            if (typeof loadAnalytics === 'function') loadAnalytics();
+                            if (typeof loadCartridges === 'function') loadCartridges();
+                        } else {
+                            showMessage(analyticsResponse.error || 'Ошибка при обновлении аналитики', 'danger');
+                        }
+                    },
+                    error: function(xhr) {
+                        const error = xhr.responseJSON;
+                        showMessage(error?.error || '❌ Ошибка при обновлении аналитики', 'danger');
+                    },
+                    complete: function() {
+                        $btn.prop('disabled', false).html(originalHtml);
+                    }
+                });
+            } else {
+                // Новая модель
+                $.ajax({
+                    url: '/api/cartridge-models',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({name: name}),
+                    success: function(response) {
+                        if (response.success) {
+                            // Добавляем в аналитику
+                            $.ajax({
+                                url: '/api/analytics',
+                                method: 'POST',
+                                contentType: 'application/json',
+                                data: JSON.stringify({
+                                    cartridge: name,
+                                    to_write_off: 0,
+                                    in_stock: quantity,
+                                    on_balance: 0,
+                                    to_buy: 0
+                                }),
+                                success: function(analyticsResponse) {
+                                    if (analyticsResponse.success) {
+                                        showMessage('✅ Модель "' + name + '" добавлена (' + quantity + ' шт. в наличии)', 'success');
+                                        $('#addModelModal').modal('hide');
+                                        $('#addModelForm')[0].reset();
+                                        $('#modelQuantity').val('1');
+                                        
+                                        // Обновляем select
+                                        $.get('/api/cartridge-models', function(data) {
+                                            var selects = $('#cartridgeModel, #compatCartridge, #analyticsCartridge');
+                                            selects.each(function() {
+                                                $(this).html('<option value="">Выберите модель</option>');
+                                                for (var i = 0; i < data.length; i++) {
+                                                    $(this).append('<option value="' + escapeHtml(data[i]) + '">' + escapeHtml(data[i]) + '</option>');
+                                                }
+                                            });
+                                        });
+                                        
+                                        if (typeof loadAnalytics === 'function') loadAnalytics();
+                                        if (typeof loadCartridges === 'function') loadCartridges();
+                                    } else {
+                                        showMessage(analyticsResponse.error, 'danger');
+                                    }
+                                },
+                                error: function(xhr) {
+                                    const error = xhr.responseJSON;
+                                    showMessage(error?.error || 'Ошибка при добавлении в аналитику', 'danger');
+                                },
+                                complete: function() {
+                                    $btn.prop('disabled', false).html(originalHtml);
+                                }
+                            });
+                        } else {
+                            showMessage(response.error, 'danger');
+                            $btn.prop('disabled', false).html(originalHtml);
+                        }
+                    },
+                    error: function(xhr) {
+                        const error = xhr.responseJSON;
+                        showMessage(error?.error || 'Ошибка при добавлении модели', 'danger');
+                        $btn.prop('disabled', false).html(originalHtml);
+                    }
+                });
+            }
+        },
+        error: function(xhr) {
+            const error = xhr.responseJSON;
+            showMessage(error?.error || 'Ошибка при проверке модели', 'danger');
+            $btn.prop('disabled', false).html(originalHtml);
+        }
+    });
+}
+
+// Обработчик изменения модели для отображения наличия
+$(document).ready(function() {
+    $('#cartridgeModel').on('change', function() {
+        updateStockInfo();
+    });
+});
+</script>
+<!-- Модальное окно редактирования картриджа -->
+<div class="modal fade" id="editCartridgeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-print"></i> Добавить картридж</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addCartridgeForm">
+                    <div class="mb-3">
+                        <label class="form-label">Модель картриджа <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <select class="form-select" id="cartridgeModel" required>
+                                <option value="">Выберите модель</option>
+                                {% for model in cartridge_models %}
+                                <option value="{{ model }}">{{ model }}</option>
+                                {% endfor %}
+                            </select>
+                            <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addModelModal">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Ответственный</label>
+                        <select class="form-select" id="cartridgeResponsible">
+                            <option value="">Выберите ответственного</option>
+                            {% for emp in employees %}
+                            <option value="{{ emp }}">{{ emp }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Кабинет</label>
+                        <input type="text" class="form-control" id="cartridgeRoom" placeholder="Номер кабинета">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">IP адрес</label>
+                        <input type="text" class="form-control" id="cartridgeIp" placeholder="192.168.1.1">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Статус картриджа</label>
+                        <select class="form-select" id="cartridgeStatus">
+                            {% for status in status_cart %}
+                            <option value="{{ status }}">{{ status }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">МФУ/Принтер</label>
+                        <div class="input-group">
+                            <select class="form-select" id="cartridgeMFU">
+                                <option value="">Выберите МФУ</option>
+                                {% for mfu in mfu_list %}
+                                <option value="{{ mfu.name }}">{{ mfu.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <button type="button" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#addMFUModal" onclick="storeReturnModal('addCartridgeModal')">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Кол-во выданных картриджей</label>
+                        <input type="number" class="form-control" id="cartridgeIssued" placeholder="Количество" value="0" min="0">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="saveCartridgeFromModal()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно добавления сотрудника -->
+<div class="modal fade" id="addEmployeeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-user-plus"></i> Добавить сотрудника/отдел</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addEmployeeForm">
+                    <div class="mb-3">
+                        <label class="form-label">ФИО/Отдел <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="employeeName" required placeholder="Введите ФИО или название отдела">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="saveEmployeeFromModal()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Модальное окно добавления модели картриджа -->
+<div class="modal fade" id="addModelModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-cube"></i> Добавить модель картриджа</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addModelForm">
+                    <div class="mb-3">
+                        <label class="form-label">Название модели <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="modelName" required placeholder="Например: Q2612A, CF283A">
+                        <label class="form-label mt-2">Количество</label>
+                        <input type="number" class="form-control" id="modelQuantity" value="0">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="saveModelFromModal()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно добавления аналитики -->
+<div class="modal fade" id="addAnalyticsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-chart-line"></i> Добавить запись в аналитику</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addAnalyticsForm">
+                    <div class="mb-3">
+                        <label class="form-label">Модель картриджа <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <select class="form-select" id="analyticsCartridge" required>
+                                <option value="">Выберите модель</option>
+                                {% for model in cartridge_models %}
+                                <option value="{{ model }}">{{ model }}</option>
+                                {% endfor %}
+                            </select>
+                            <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addModelModal">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Количество под списание</label>
+                        <input type="number" class="form-control" id="analyticsToWriteOff" value="0">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Количество в наличии</label>
+                        <input type="number" class="form-control" id="analyticsInStock" value="0">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Количество на балансе</label>
+                        <input type="number" class="form-control" id="analyticsOnBalance" value="0">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Закупка (сколько закупить)</label>
+                        <input type="number" class="form-control" id="analyticsToBuy" value="0">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="saveAnalyticsFromModal()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно добавления совместимости -->
+<div class="modal fade" id="addCompatibilityModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-exchange-alt"></i> Добавить совместимость</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addCompatibilityForm">
+                    <div class="mb-3">
+                        <label class="form-label">Модель картриджа <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <select class="form-select" id="compatCartridge" required>
+                                <option value="">Выберите модель</option>
+                                {% for model in cartridge_models %}
+                                <option value="{{ model }}">{{ model }}</option>
+                                {% endfor %}
+                            </select>
+                            <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addModelModal">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Модель МФУ/Принтера <span class="text-danger">*</span></label>
+                        <select class="form-select" id="compatMFU" required>
+                            <option value="">Выберите МФУ</option>
+                            {% for mfu in mfu_list %}
+                            <option value="{{ mfu.name }}">{{ mfu.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <!-- ДОБАВЬТЕ ЭТО ПОЛЕ ДЛЯ ИНВЕНТАРНОГО НОМЕРА (только для информации) -->
+                    <div class="mb-3" id="compatMfuInventoryBlock" style="display: none;">
+                        <label class="form-label">Инвентарный номер МФУ (для информации)</label>
+                        <input type="text" class="form-control" id="compatMfuInventory" readonly style="background-color: #e9ecef;">
+                        <small class="text-muted">Инвентарный номер отображается для информации, в таблицу совместимости не записывается</small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="saveCompatibilityFromModal()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Переменная для хранения модального окна, из которого открыли addMFUModal
+let returnModalId = null;
+
+function storeReturnModal(modalId) {
+    returnModalId = modalId;
+}
+
+// Обновление списка МФУ в select
+// Замените существующую функцию refreshMfuSelects на эту
+function refreshMfuSelects() {
+    console.log("Обновление списка МФУ...");
+    
+    // Загружаем МФУ из таблицы оборудования
+    $.get('/api/equipment-mfu', function(mfus) {
+        console.log("Получено МФУ из оборудования:", mfus);
+        window.equipmentMfuList = mfus;
+        
+        // Обновляем select в addCartridgeModal
+        const cartridgeSelect = $('#cartridgeMFU');
+        cartridgeSelect.html('<option value="">Выберите МФУ/Принтер</option>');
+        for (let i = 0; i < mfus.length; i++) {
+            let displayName = mfus[i].name;
+            if (mfus[i].inventory_number) {
+                displayName += ` (инв. ${mfus[i].inventory_number})`;
+            }
+            cartridgeSelect.append(`<option value="${escapeHtml(displayName)}">${escapeHtml(displayName)}</option>`);
+        }
+        console.log("Select обновлен, опций:", cartridgeSelect.find('option').length);
+    }).fail(function(err) {
+        console.error("Ошибка загрузки МФУ:", err);
+    });
+}
+
+// cartridges.html - ПОЛНОСТЬЮ ИСПРАВЛЕННАЯ ФУНКЦИЯ
+
+function saveCartridgeFromModal() {
+    var data = {
+        model: $('#cartridgeModel').val(),
+        responsible: $('#cartridgeResponsible').val(),
+        room: $('#cartridgeRoom').val().trim(),
+        ip: $('#cartridgeIp').val(),
+        status: $('#cartridgeStatus').val(),
+        mfu: $('#cartridgeMFU').val(),
+        issued: $('#cartridgeIssued').val() || '0'
+    };
+    
+    console.log("=== ОТПРАВКА ДАННЫХ КАРТРИДЖА ===");
+    console.log("Модель:", data.model);
+    console.log("Ответственный:", data.responsible);
+    console.log("Кабинет:", data.room);
+    console.log("МФУ:", data.mfu);
+    console.log("Статус:", data.status);
+    
+    if (!data.model) {
+        showMessage('Выберите модель картриджа', 'danger');
+        return;
+    }
+    
+    // Показываем индикатор загрузки
+    const $btn = $('#addCartridgeModal .btn-primary');
+    const originalHtml = $btn.html();
+    $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Добавление...');
+    
+    // ПРОСТО ОТПРАВЛЯЕМ ЗАПРОС БЕЗ ПРОВЕРКИ!
+    $.ajax({
+        url: '/api/cartridges',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success: function(response) {
+            console.log("Ответ сервера:", response);
+            
+            if (response.success) {
+                showMessage('✅ Картридж добавлен!', 'success');
+                $('#addCartridgeModal').modal('hide');
+                $('#addCartridgeForm')[0].reset();
+                $('#cartridgeRoomMessage').html('');
+                // Обновляем таблицы
+                loadCartridges();
+                loadAnalytics();
+            } else {
+                showMessage(response.error || 'Ошибка при добавлении', 'danger');
+            }
+        },
+        error: function(xhr) {
+            console.error("Ошибка:", xhr);
+            let errorMsg = 'Ошибка при добавлении';
+            try {
+                const response = JSON.parse(xhr.responseText);
+                errorMsg = response.error || errorMsg;
+            } catch(e) {
+                errorMsg = 'Статус: ' + xhr.status + ' - ' + xhr.statusText;
+            }
+            showMessage('❌ ' + errorMsg, 'danger');
+        },
+        complete: function() {
+            $btn.prop('disabled', false).html(originalHtml);
+        }
+    });
+}
+
+function saveEmployeeFromModal() {
+    var name = $('#employeeName').val();
+    if (!name) {
+        alert('Введите ФИО/Отдел');
+        return;
+    }
+    
+    $.ajax({
+        url: '/api/employees',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({name: name}),
+        success: function(response) {
+            if (response.success) {
+                showMessage('Сотрудник добавлен', 'success');
+                $('#addEmployeeModal').modal('hide');
+                $('#addEmployeeForm')[0].reset();
+                $.get('/api/employees', function(data) {
+                    var select = $('#cartridgeResponsible');
+                    select.html('<option value="">Выберите ответственного</option>');
+                    for (var i = 0; i < data.length; i++) {
+                        select.append('<option value="' + escapeHtml(data[i]) + '">' + escapeHtml(data[i]) + '</option>');
+                    }
+                });
+            } else {
+                showMessage(response.error, 'danger');
+            }
+        }
+    });
+}
+
+function saveMFUFromModal() {
+    const activeTab = document.querySelector('#mfuTabs .nav-link.active').getAttribute('data-bs-target');
+    
+    if (activeTab === '#newMfuTab') {
+        // Добавляем новое МФУ в таблицу оборудования
+        const brand = $('#newMfuName').val().trim();
+        const model = '';
+        const status = $('#newMfuStatus').val();
+        
+        if (!brand) {
+            alert('Введите наименование МФУ');
+            return;
+        }
+        
+        const data = {
+            type: 'МФУ',
+            brand: brand,
+            model: model,
+            status: status,
+            inventory_number: '',
+            serial_number: '',
+            responsible: '',
+            room: '',
+            notes: 'Добавлено из раздела картриджей'
+        };
+        
+        $.ajax({
+            url: '/api/equipment',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(data),
+            success: function(response) {
+                if (response.success) {
+                    showMessage('МФУ добавлен в оборудование', 'success');
+                    $('#addMFUModal').modal('hide');
+                    $('#newMfuName').val('');
+                    $('#newMfuStatus').val('Работает');
+                    
+                    // Обновляем все select с МФУ
+                    refreshMfuSelects();
+                    
+                    if (returnModalId === 'addCartridgeModal') {
+                        const newName = `${brand} ${model}`.trim();
+                        $('#cartridgeMFU').val(newName);
+                    }
+                    
+                    if (typeof loadCompatibility === 'function') loadCompatibility();
+                } else {
+                    showMessage(response.error, 'danger');
+                }
+            },
+            error: function(xhr) {
+                const error = xhr.responseJSON;
+                showMessage(error?.error || 'Ошибка при добавлении МФУ', 'danger');
+            }
+        });
+    }
+    else if (activeTab === '#editMfuStatusTab') {
+        // Изменение статуса существующего МФУ в таблице оборудования
+        const mfuId = $('#editMfuSelect').val();
+        const newStatus = $('#editMfuNewStatus').val();
+        const mfuName = $('#editMfuSelect option:selected').data('name');
+        
+        if (!mfuId) {
+            alert('Выберите МФУ');
+            return;
+        }
+        
+        $.ajax({
+            url: `/api/equipment/${mfuId}`,
+            method: 'PUT',
+            contentType: 'application/json',
+            data: JSON.stringify({ status: newStatus }),
+            success: function(response) {
+                if (response.success) {
+                    showMessage(`Статус МФУ "${mfuName}" изменен на "${newStatus}"`, 'success');
+                    $('#addMFUModal').modal('hide');
+                    
+                    // Обновляем все списки МФУ
+                    refreshMfuSelects();
+                    
+                    // Обновляем таблицу картриджей
+                    if (typeof loadCartridges === 'function') {
+                        loadCartridges();
+                    }
+                } else {
+                    showMessage(response.error, 'danger');
+                }
+            },
+            error: function(xhr) {
+                const error = xhr.responseJSON;
+                showMessage(error?.error || 'Ошибка при изменении статуса МФУ', 'danger');
+            }
+        });
+    }
+    
+    returnModalId = null;
+}
+
+
+function saveAnalyticsFromModal() {
+    var data = {
+        cartridge: $('#analyticsCartridge').val(),
+        to_write_off: parseInt($('#analyticsToWriteOff').val()) || 0,
+        in_stock: parseInt($('#analyticsInStock').val()) || 0,
+        on_balance: parseInt($('#analyticsOnBalance').val()) || 0,
+        to_buy: parseInt($('#analyticsToBuy').val()) || 0
+    };
+    
+    if (!data.cartridge) {
+        alert('Выберите модель картриджа');
+        return;
+    }
+    
+    $.ajax({
+        url: '/api/analytics',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success: function(response) {
+            if (response.success) {
+                showMessage('Запись аналитики добавлена', 'success');
+                $('#addAnalyticsModal').modal('hide');
+                $('#addAnalyticsForm')[0].reset();
+                if (typeof loadAnalytics === 'function') loadAnalytics();
+            } else {
+                showMessage(response.error, 'danger');
+            }
+        }
+    });
+}
+
+function saveCompatibilityFromModal() {
+    var data = {
+        cartridge: $('#compatCartridge').val(),
+        mfu: $('#compatMFU').val()
+    };
+    
+    if (!data.cartridge || !data.mfu) {
+        alert('Выберите модель картриджа и МФУ');
+        return;
+    }
+    
+    // Убираем инвентарный номер из названия МФУ, если он там есть
+    // В таблицу совместимости сохраняем только название МФУ без инвентарного номера
+    var mfuName = data.mfu;
+    if (mfuName.includes(' (инв.')) {
+        mfuName = mfuName.split(' (инв.')[0];
+    }
+    data.mfu = mfuName;
+    
+    console.log("Сохранение совместимости:", data);
+    
+    $.ajax({
+        url: '/api/compatibility',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success: function(response) {
+            if (response.success) {
+                showMessage('Совместимость добавлена', 'success');
+                $('#addCompatibilityModal').modal('hide');
+                $('#addCompatibilityForm')[0].reset();
+                $('#compatMfuInventoryBlock').hide();
+                if (typeof loadCompatibility === 'function') loadCompatibility();
+                if (typeof loadCompatibilityList === 'function') loadCompatibilityList();
+            } else {
+                showMessage(response.error, 'danger');
+            }
+        },
+        error: function(xhr) {
+            var error = xhr.responseJSON;
+            showMessage(error?.error || 'Ошибка при добавлении', 'danger');
+        }
+    });
+}
+// Функция для показа инвентарного номера при выборе МФУ в совместимости
+function showMfuInventoryInCompatibility() {
+    const selectedOption = $('#compatMFU option:selected');
+    const inventoryNumber = selectedOption.data('inventory') || '';
+    const mfuName = selectedOption.val();
+    
+    if (mfuName && mfuName !== '') {
+        // Убираем инвентарный номер из названия для отображения
+        let cleanName = mfuName;
+        if (cleanName.includes(' (инв.')) {
+            cleanName = cleanName.split(' (инв.')[0];
+        }
+        
+        if (inventoryNumber && inventoryNumber !== '') {
+            $('#compatMfuInventory').val(inventoryNumber);
+            $('#compatMfuInventoryBlock').show();
+            $('#compatMfuInventoryBlock label').html(
+                `Инвентарный номер МФУ <span class="badge bg-info">${inventoryNumber}</span> (для информации)`
+            );
+        } else {
+            $('#compatMfuInventoryBlock').hide();
+        }
+    } else {
+        $('#compatMfuInventoryBlock').hide();
+    }
+}
+
+// При загрузке МФУ в select для совместимости - добавляем data-атрибуты
+function loadMFUForCompatibility() {
+    $.ajax({
+        url: '/api/equipment-mfu',
+        method: 'GET',
+        success: function(mfus) {
+            console.log("Загружено МФУ для совместимости:", mfus.length);
+            const compatSelect = $('#compatMFU');
+            compatSelect.html('<option value="">Выберите МФУ/Принтер</option>');
+            
+            for (let i = 0; i < mfus.length; i++) {
+                let displayName = mfus[i].name;
+                // Не добавляем инвентарный номер в название для совместимости
+                // Он будет отдельно в data-атрибуте
+                compatSelect.append(`
+                    <option value="${escapeHtml(mfus[i].name)}" 
+                            data-inventory="${escapeHtml(mfus[i].inventory_number || '')}"
+                            data-id="${mfus[i].id}">
+                        ${escapeHtml(mfus[i].name)}
+                    </option>
+                `);
+            }
+            
+            // Если есть старый список МФУ - обновляем его
+            if (window.equipmentMfuList) {
+                window.equipmentMfuList = mfus;
+            }
+        },
+        error: function() {
+            console.error("Ошибка загрузки МФУ для совместимости");
+            // Fallback на старую таблицу
+            loadLegacyMFUForCompatibility();
+        }
+    });
+}
+
+// Fallback для старой таблицы
+function loadLegacyMFUForCompatibility() {
+    $.ajax({
+        url: '/api/mfu',
+        method: 'GET',
+        success: function(mfus) {
+            const compatSelect = $('#compatMFU');
+            compatSelect.html('<option value="">Выберите МФУ/Принтер</option>');
+            for (let i = 0; i < mfus.length; i++) {
+                compatSelect.append(`
+                    <option value="${escapeHtml(mfus[i].name)}" 
+                            data-inventory=""
+                            data-id="${mfus[i].id}">
+                        ${escapeHtml(mfus[i].name)}
+                    </option>
+                `);
+            }
+        },
+        error: function() {
+            console.error("Ошибка загрузки МФУ");
+        }
+    });
+}
+
+// Функция для обновления статуса МФУ при выборе в выпадающем списке
+$(document).ready(function() {
+    $('#editMfuSelect').on('change', function() {
+        const selectedOption = $(this).find('option:selected');
+        const currentStatus = selectedOption.data('status');
+        if (currentStatus) {
+            $('#editMfuNewStatus').val(currentStatus);
+        }
+    });
+    // Обработчик выбора МФУ в совместимости
+    $('#compatMFU').on('change', function() {
+        showMfuInventoryInCompatibility();
+    });
+    
+    // При открытии модального окна совместимости - загружаем МФУ
+    $('#addCompatibilityModal').on('show.bs.modal', function() {
+        loadMFUForCompatibility();
+        // Скрываем блок инвентарного номера
+        $('#compatMfuInventoryBlock').hide();
+        $('#compatMfuInventory').val('');
+        
+        // Загружаем модели картриджей
+        $.get('/api/cartridge-models', function(data) {
+            var select = $('#compatCartridge');
+            select.html('<option value="">Выберите модель</option>');
+            for (var i = 0; i < data.length; i++) {
+                select.append('<option value="' + escapeHtml(data[i]) + '">' + escapeHtml(data[i]) + '</option>');
+            }
+        });
+    });
+    
+    // При закрытии модального окна - сбрасываем
+    $('#addCompatibilityModal').on('hidden.bs.modal', function() {
+        $('#compatMfuInventoryBlock').hide();
+        $('#compatMfuInventory').val('');
+        $('#addCompatibilityForm')[0].reset();
+    });
+});
+
+
+
+function escapeHtml(text) {
+    if (!text) return '';
+    var div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function showMessage(message, type) {
+    var alertDiv = $('<div class="alert alert-' + type + ' alert-dismissible fade show position-fixed top-0 end-0 m-3" ' + 
+        'style="z-index: 9999; min-width: 300px; box-shadow: 0 2px 10px rgba(0,0,0,0.2);" role="alert">' +
+        '<i class="fas ' + (type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle') + ' me-2"></i>' +
+        message +
+        '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>' +
+        '</div>');
+    $('body').append(alertDiv);
+    setTimeout(function() { alertDiv.alert('close'); }, 3000);
+}
+
+// При открытии модального окна addMFUModal сбрасываем форму и активируем вкладку "Добавить новый"
+$('#addMFUModal').on('show.bs.modal', function() {
+    $('#newMfuName').val('');
+    $('#newMfuStatus').val('Работает');
+    $('#editMfuSelect').val('');
+    $('#editMfuNewStatus').val('Работает');
+    // Активируем первую вкладку (Добавить новый)
+    $('#mfuTabs button:first').tab('show');
+});
+</script>
