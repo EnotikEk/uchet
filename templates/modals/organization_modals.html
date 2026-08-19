@@ -1,0 +1,364 @@
+<!-- Модальное окно добавления организации -->
+<div class="modal fade" id="addOrganizationModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-building"></i> Добавить организацию</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addOrganizationForm">
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Название организации *</label>
+                            <input type="text" class="form-control" id="orgName" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Адрес</label>
+                        <textarea class="form-control" id="orgAddress" rows="2"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Телефон</label>
+                            <input type="text" class="form-control" id="orgPhone">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-control" id="orgEmail">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">ИНН</label>
+                            <input type="text" class="form-control" id="orgInn">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">КПП</label>
+                            <input type="text" class="form-control" id="orgKpp">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="saveOrganization()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно редактирования организации -->
+<div class="modal fade" id="editOrganizationModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-edit"></i> Редактировать организацию</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editOrganizationForm">
+                    <input type="hidden" id="editOrgId">
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Название организации *</label>
+                            <input type="text" class="form-control" id="editOrgName" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Адрес</label>
+                        <textarea class="form-control" id="editOrgAddress" rows="2"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Телефон</label>
+                            <input type="text" class="form-control" id="editOrgPhone">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-control" id="editOrgEmail">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">ИНН</label>
+                            <input type="text" class="form-control" id="editOrgInn">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">КПП</label>
+                            <input type="text" class="form-control" id="editOrgKpp">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="updateOrganization()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно добавления отдела -->
+<div class="modal fade" id="addDepartmentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-users"></i> Добавить отдел</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addDepartmentForm">
+                    <div class="mb-3">
+                        <label class="form-label">Организация *</label>
+                        <select class="form-select" id="deptOrgId" required>
+                            <option value="">Выберите организацию</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Название отдела *</label>
+                        <input type="text" class="form-control" id="deptName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Телефон</label>
+                        <input type="text" class="form-control" id="deptPhone">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" id="deptEmail">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Руководитель</label>
+                        <input type="text" class="form-control" id="deptHeadName">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="saveDepartment()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно добавления кабинета -->
+<div class="modal fade" id="addOfficeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-door-open"></i> Добавить кабинет</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addOfficeForm">
+                    <div class="mb-3">
+                        <label class="form-label">Отдел *</label>
+                        <select class="form-select" id="officeDeptId" required>
+                            <option value="">Выберите отдел</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Номер кабинета *</label>
+                        <input type="text" class="form-control" id="officeNumber" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Этаж</label>
+                        <input type="number" class="form-control" id="officeFloor">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Телефон</label>
+                        <input type="text" class="form-control" id="officePhone">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Ответственный</label>
+                        <input type="text" class="form-control" id="officeResponsible">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="saveOffice()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function saveOrganization() {
+    var data = {
+        name: $('#orgName').val(),
+        address: $('#orgAddress').val(),
+        phone: $('#orgPhone').val(),
+        email: $('#orgEmail').val(),
+        inn: $('#orgInn').val(),
+        kpp: $('#orgKpp').val()
+    };
+    
+    if (!data.name) {
+        alert('Введите название организации');
+        return;
+    }
+    
+    $.ajax({
+        url: '/api/organizations',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success: function(response) {
+            if (response.success) {
+                showMessage('Организация добавлена', 'success');
+                $('#addOrganizationModal').modal('hide');
+                $('#addOrganizationForm')[0].reset();
+                if (typeof loadOrganizations === 'function') loadOrganizations();
+                loadOrgSelect();
+            } else {
+                showMessage(response.error, 'danger');
+            }
+        },
+        error: function(xhr) {
+            showMessage('Ошибка при добавлении', 'danger');
+        }
+    });
+}
+
+function updateOrganization() {
+    var id = $('#editOrgId').val();
+    var data = {
+        name: $('#editOrgName').val(),
+        address: $('#editOrgAddress').val(),
+        phone: $('#editOrgPhone').val(),
+        email: $('#editOrgEmail').val(),
+        inn: $('#editOrgInn').val(),
+        kpp: $('#editOrgKpp').val()
+    };
+    
+    if (!data.name) {
+        alert('Введите название организации');
+        return;
+    }
+    
+    $.ajax({
+        url: '/api/organizations/' + id,
+        method: 'PUT',
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success: function(response) {
+            if (response.success) {
+                showMessage('Организация обновлена', 'success');
+                $('#editOrganizationModal').modal('hide');
+                if (typeof loadOrganizations === 'function') loadOrganizations();
+                loadOrgSelect();
+            } else {
+                showMessage(response.error, 'danger');
+            }
+        }
+    });
+}
+
+function saveDepartment() {
+    var data = {
+        organization_id: $('#deptOrgId').val(),
+        name: $('#deptName').val(),
+        phone: $('#deptPhone').val(),
+        email: $('#deptEmail').val(),
+        head_name: $('#deptHeadName').val()
+    };
+    
+    if (!data.organization_id || !data.name) {
+        alert('Заполните обязательные поля');
+        return;
+    }
+    
+    $.ajax({
+        url: '/api/departments',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success: function(response) {
+            if (response.success) {
+                showMessage('Отдел добавлен', 'success');
+                $('#addDepartmentModal').modal('hide');
+                $('#addDepartmentForm')[0].reset();
+                if (typeof loadDepartments === 'function') loadDepartments();
+                loadDeptSelect();
+            } else {
+                showMessage(response.error, 'danger');
+            }
+        }
+    });
+}
+
+function saveOffice() {
+    var data = {
+        department_id: $('#officeDeptId').val(),
+        number: $('#officeNumber').val(),
+        floor: $('#officeFloor').val(),
+        phone: $('#officePhone').val(),
+        responsible_person: $('#officeResponsible').val()
+    };
+    
+    if (!data.department_id || !data.number) {
+        alert('Заполните обязательные поля');
+        return;
+    }
+    
+    $.ajax({
+        url: '/api/offices',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success: function(response) {
+            if (response.success) {
+                showMessage('Кабинет добавлен', 'success');
+                $('#addOfficeModal').modal('hide');
+                $('#addOfficeForm')[0].reset();
+                if (typeof loadOffices === 'function') loadOffices();
+            } else {
+                showMessage(response.error, 'danger');
+            }
+        }
+    });
+}
+
+function loadOrgSelect() {
+    $.get('/api/organizations', function(data) {
+        var select = $('#deptOrgId');
+        select.html('<option value="">Выберите организацию</option>');
+        for (var i = 0; i < data.length; i++) {
+            select.append('<option value="' + data[i].id + '">' + escapeHtml(data[i].name) + '</option>');
+        }
+    });
+}
+
+function loadDeptSelect() {
+    $.get('/api/departments', function(data) {
+        var select = $('#officeDeptId');
+        select.html('<option value="">Выберите отдел</option>');
+        for (var i = 0; i < data.length; i++) {
+            select.append('<option value="' + data[i].id + '">' + escapeHtml(data[i].name) + ' (' + escapeHtml(data[i].organization_name || '') + ')</option>');
+        }
+    });
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    var div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function showMessage(message, type) {
+    var alertDiv = $('<div class="alert alert-' + type + ' alert-dismissible fade show position-fixed top-0 end-0 m-3" ' + 
+        'style="z-index: 9999; min-width: 300px; box-shadow: 0 2px 10px rgba(0,0,0,0.2);" role="alert">' +
+        message +
+        '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>' +
+        '</div>');
+    $('body').append(alertDiv);
+    setTimeout(function() { alertDiv.alert('close'); }, 3000);
+}
+
+$(document).ready(function() {
+    loadOrgSelect();
+    loadDeptSelect();
+});
+</script>

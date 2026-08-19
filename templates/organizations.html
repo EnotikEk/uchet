@@ -1,0 +1,1451 @@
+{% extends "base.html" %}
+
+{% block title %}Учет организаций и сотрудников{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <ul class="nav nav-tabs card-header-tabs" id="orgTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#organizationsTab" type="button" role="tab">
+                    <i class="fas fa-building"></i> Организации
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#employeesTab" type="button" role="tab">
+                    <i class="fas fa-users"></i> Сотрудники
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#departmentsTab" type="button" role="tab">
+                    <i class="fas fa-sitemap"></i> Отделы
+                </button>
+            </li>
+        </ul>
+    </div>
+    <div class="card-body">
+        <div class="tab-content">
+            <!-- ==================== ВКЛАДКА ОРГАНИЗАЦИИ ==================== -->
+            <div class="tab-pane fade show active" id="organizationsTab" role="tabpanel">
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <div class="btn-group">
+                            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addOrganizationModal">
+                                <i class="fas fa-plus"></i> Добавить организацию
+                            </button>
+                            <button class="btn btn-secondary" onclick="loadOrganizations()">
+                                <i class="fas fa-sync"></i> Обновить
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <label class="form-label small mb-1 text-muted">
+                            <i class="fas fa-keyboard"></i> Поисковый запрос:
+                        </label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="searchInput" placeholder="Поиск по названию или адресу...">
+                            <button class="btn btn-success" onclick="searchOrganizations()">
+                                <i class="fas fa-search"></i> Поиск
+                            </button>
+                            <button class="btn btn-danger" onclick="resetSearch()">
+                                <i class="fas fa-times"></i> Сбросить
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="table-responsive" style="border: 1px solid #dee2e6; border-radius: 8px;">
+                    <table class="table table-bordered table-hover mb-0" id="mainTable">
+                        <thead style="background-color: #343a40; color: white;">
+                            <tr>
+                                <th style="width: 60px; text-align: center;"><i class="fas fa-info-circle"></i> Детали</th>
+                                <th><i class="fas fa-building"></i> Название организации</th>
+                                <th><i class="fas fa-map-marker-alt"></i> Адрес</th>
+                                <th style="width: 60px; text-align: center;"><i class="fas fa-trash"></i> Удалить</th>
+                            </tr>
+                        </thead>
+                        <tbody id="organizationsTableBody">
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-4">
+                                    <i class="fas fa-spinner fa-spin me-2"></i> Загрузка данных...
+                                 </td
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="orgStats" class="mt-2"></div>
+            </div>
+            
+            <!-- ==================== ВКЛАДКА СОТРУДНИКИ ==================== -->
+            <div class="tab-pane fade" id="employeesTab" role="tabpanel">
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <div class="btn-group">
+                            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addEmployeeModalOrg">
+                                <i class="fas fa-user-plus"></i> Добавить сотрудника
+                            </button>
+                            <button class="btn btn-secondary" onclick="loadEmployees()">
+                                <i class="fas fa-sync"></i> Обновить
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <label class="form-label small mb-1 text-muted">
+                            <i class="fas fa-keyboard"></i> Поисковый запрос:
+                        </label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="employeeSearchInput" placeholder="Поиск по ФИО сотрудника...">
+                            <button class="btn btn-success" onclick="searchEmployees()">
+                                <i class="fas fa-search"></i> Поиск
+                            </button>
+                            <button class="btn btn-danger" onclick="resetEmployeeSearch()">
+                                <i class="fas fa-times"></i> Сбросить
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="table-responsive" style="border: 1px solid #dee2e6; border-radius: 8px;">
+                    <table class="table table-bordered table-hover mb-0" id="employeesTable">
+                        <thead style="background-color: #343a40; color: white;">
+                            <tr>
+                                <th style="width: 60px; text-align: center;"><i class="fas fa-info-circle"></i> Детали</th>
+                                <th><i class="fas fa-user"></i> ФИО</th>
+                                <th><i class="fas fa-building"></i> Организация</th>
+                                <th style="width: 60px; text-align: center;"><i class="fas fa-trash"></i> Удалить</th>
+                            </tr>
+                        </thead>
+                        <tbody id="employeesTableBody">
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-4">
+                                    <i class="fas fa-spinner fa-spin me-2"></i> Загрузка данных...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="employeesStats" class="mt-2"></div>
+            </div>
+<!-- ==================== ВКЛАДКА ОТДЕЛЫ ==================== -->
+<div class="tab-pane fade" id="departmentsTab" role="tabpanel">
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="btn-group">
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addDepartmentModal">
+                    <i class="fas fa-plus"></i> Добавить отдел
+                </button>
+                <button class="btn btn-secondary" onclick="loadDepartments()">
+                    <i class="fas fa-sync"></i> Обновить
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mb-3">
+        <div class="col-12">
+            <label class="form-label small mb-1 text-muted">
+                <i class="fas fa-keyboard"></i> Поисковый запрос:
+            </label>
+            <div class="input-group">
+                <input type="text" class="form-control" id="departmentSearchInput" placeholder="Поиск по названию отдела...">
+                <button class="btn btn-success" onclick="searchDepartments()">
+                    <i class="fas fa-search"></i> Поиск
+                </button>
+                <button class="btn btn-danger" onclick="resetDepartmentSearch()">
+                    <i class="fas fa-times"></i> Сбросить
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="table-responsive" style="border: 1px solid #dee2e6; border-radius: 8px;">
+        <table class="table table-bordered table-hover mb-0" id="departmentsTable">
+            <thead style="background-color: #343a40; color: white;">
+                <tr>
+                    <th style="width: 60px; text-align: center;"><i class="fas fa-info-circle"></i> Детали</th>
+                    <th><i class="fas fa-sitemap"></i> Название отдела</th>
+                    <th><i class="fas fa-building"></i> Организация</th>
+                    <th><i class="fas fa-door-open"></i> Кабинет</th>
+                    <th style="width: 60px; text-align: center;"><i class="fas fa-trash"></i> Удалить</th>
+                </tr>
+            </thead>
+            <tbody id="departmentsTableBody">
+                <tr>
+                    <td colspan="5" class="text-center text-muted py-4">
+                        <i class="fas fa-spinner fa-spin me-2"></i> Загрузка данных...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div id="departmentsStats" class="mt-2"></div>
+</div>
+
+<!-- Модальное окно добавления отдела -->
+<div class="modal fade" id="addDepartmentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-sitemap"></i> Добавить отдел</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addDepartmentForm">
+                    <div class="mb-3">
+                        <label class="form-label">Название отдела <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="deptName" required placeholder="Например: Отдел продаж">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Организация</label>
+                        <select class="form-select" id="deptOrganizationId">
+                            <option value="">-- Выберите организацию --</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Кабинет</label>
+                        <input type="text" class="form-control" id="deptOffice" placeholder="Например: 101">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="saveDepartment()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно просмотра/редактирования отдела -->
+<div class="modal fade" id="viewDepartmentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title"><i class="fas fa-info-circle"></i> Информация об отделе</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="viewDepartmentId">
+                <div class="row">
+                    <div class="col-md-12 mb-2">
+                        <label class="fw-bold">Название отдела:</label>
+                        <p id="viewDepartmentName" class="mb-2">—</p>
+                    </div>
+                    <div class="col-md-12 mb-2">
+                        <label class="fw-bold">Организация:</label>
+                        <p id="viewDepartmentOrganization" class="mb-2">—</p>
+                    </div>
+                    <div class="col-md-12 mb-2">
+                        <label class="fw-bold">Кабинет:</label>
+                        <p id="viewDepartmentOffice" class="mb-2">—</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" id="viewDepartmentFooter">
+                <button type="button" class="btn btn-warning" id="editDepartmentBtn">
+                    <i class="fas fa-edit"></i> Редактировать
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- ==================== МОДАЛЬНЫЕ ОКНА ДЛЯ ОТДЕЛОВ ==================== -->   
+ <div class="modal fade" id="addDepartmentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-plus"></i> Добавить отдел</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addDepartmentForm">
+                    <div class="mb-3">
+                        <label class="form-label">Название отдела <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="deptName" required placeholder="Например: Отдел продаж">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Кабинет</label>
+                        <input type="text" class="form-control" id="deptOffice" placeholder="Например: 101">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="saveDepartment()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+
+// ==================== ПЕРЕМЕННЫЕ ДЛЯ ОТДЕЛОВ ====================
+let departmentsData = [];
+let currentDepartmentData = null;
+
+// ==================== ФУНКЦИИ ДЛЯ ОТДЕЛОВ ====================
+
+function loadDepartmentOrganizationSelect() {
+    $.ajax({
+        url: '/api/organizations/list',
+        method: 'GET',
+        dataType: 'json',
+        success: function(data) {
+            var select = $('#deptOrganizationId');
+            select.html('<option value="">-- Выберите организацию --</option>');
+            
+            if (data && data.length > 0) {
+                for (var i = 0; i < data.length; i++) {
+                    select.append('<option value="' + data[i].id + '">' + escapeHtml(data[i].name) + '</option>');
+                }
+            }
+        },
+        error: function() {
+            // Fallback
+            $.ajax({
+                url: '/api/organizations',
+                method: 'GET',
+                dataType: 'json',
+                success: function(data) {
+                    var select = $('#deptOrganizationId');
+                    select.html('<option value="">-- Выберите организацию --</option>');
+                    for (var i = 0; i < data.length; i++) {
+                        select.append('<option value="' + data[i].id + '">' + escapeHtml(data[i].name) + '</option>');
+                    }
+                }
+            });
+        }
+    });
+}
+
+function loadDepartments() {
+    $('#departmentsTableBody').html('<tr><td colspan="5" class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin me-2"></i>Загрузка данных...</td</tr>');
+    
+    $.ajax({
+        url: '/api/departments',
+        method: 'GET',
+        dataType: 'json',
+        success: function(data) {
+            departmentsData = data;
+            renderDepartments(data);
+            $('#departmentsStats').html(`<div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="fas fa-check-circle"></i> Загружено отделов: ${data.length}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>`);
+            setTimeout(() => $('#departmentsStats .alert').alert('close'), 3000);
+        },
+        error: function() {
+            $('#departmentsTableBody').html(`<tr><td colspan="5" class="text-center text-danger py-4">
+                ❌ Ошибка загрузки отделов<br>
+                <button class="btn btn-outline-danger mt-2" onclick="loadDepartments()">Повторить</button>
+            </td</tr>`);
+        }
+    });
+}
+
+function renderDepartments(data) {
+    const tbody = $('#departmentsTableBody');
+    tbody.empty();
+    
+    if (!data || data.length === 0) {
+        tbody.html('<tr><td colspan="5" class="text-center text-muted py-4">📭 Нет отделов. Нажмите "Добавить отдел"</td</tr>');
+        return;
+    }
+    
+    for (let i = 0; i < data.length; i++) {
+        const item = data[i];
+        const row = $(`
+            <tr data-id="${item.id}" class="department-row" style="cursor: pointer;">
+                <td class="text-center">
+                    <i class="fas fa-info-circle text-info" style="font-size: 1.2rem;"></i>
+                </td>
+                <td style="vertical-align: middle;"><strong>${escapeHtml(item.name)}</strong></td>
+                <td style="vertical-align: middle;">${escapeHtml(item.organization_name) || '—'}</td>
+                <td style="vertical-align: middle;">${escapeHtml(item.office) || '—'}</td>
+                <td class="text-center">
+                    <button class="btn btn-sm btn-danger delete-dept-btn" data-id="${item.id}" data-name="${escapeHtml(item.name)}">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `);
+        row.data('department-data', item);
+        tbody.append(row);
+    }
+    
+    $('.department-row').off('click').on('click', function(e) {
+        if ($(e.target).closest('.delete-dept-btn').length) return;
+        const data = $(this).data('department-data');
+        if (data) openDepartmentView(data);
+    });
+    
+    $('.delete-dept-btn').off('click').on('click', function(e) {
+        e.stopPropagation();
+        const id = $(this).data('id');
+        const name = $(this).data('name');
+        deleteDepartment(id, name);
+    });
+}
+
+function openDepartmentView(dept) {
+    currentDepartmentData = dept;
+    $('#viewDepartmentId').val(dept.id);
+    $('#viewDepartmentName').text(dept.name || '—');
+    $('#viewDepartmentOrganization').text(dept.organization_name || '—');
+    $('#viewDepartmentOffice').text(dept.office || '—');
+    
+    disableDepartmentEditMode();
+    $('#viewDepartmentModal').modal('show');
+}
+
+function enableDepartmentEditMode() {
+    const dept = currentDepartmentData;
+    
+    $('#viewDepartmentName').html(`<input type="text" class="form-control form-control-sm" id="editDepartmentName" value="${escapeHtml(dept.name || '')}">`);
+    
+    let orgOptions = '<option value="">-- Без организации --</option>';
+    if (organizationsList && organizationsList.length > 0) {
+        for (let i = 0; i < organizationsList.length; i++) {
+            const org = organizationsList[i];
+            const selected = (dept.organization_id == org.id) ? 'selected' : '';
+            orgOptions += `<option value="${org.id}" ${selected}>${escapeHtml(org.name)}</option>`;
+        }
+    }
+    $('#viewDepartmentOrganization').html(`<select class="form-select form-select-sm" id="editDepartmentOrganization">${orgOptions}</select>`);
+    $('#viewDepartmentOffice').html(`<input type="text" class="form-control form-control-sm" id="editDepartmentOffice" value="${escapeHtml(dept.office || '')}">`);
+    
+    $('#viewDepartmentFooter').html(`
+        <button type="button" class="btn btn-success" id="saveDepartmentBtn">
+            <i class="fas fa-save"></i> Сохранить
+        </button>
+        <button type="button" class="btn btn-secondary" id="cancelDepartmentEditBtn">
+            <i class="fas fa-times"></i> Отмена
+        </button>
+    `);
+    
+    $('#saveDepartmentBtn').off('click').on('click', saveDepartmentEdit);
+    $('#cancelDepartmentEditBtn').off('click').on('click', cancelDepartmentEdit);
+}
+
+function saveDepartmentEdit() {
+    const id = $('#viewDepartmentId').val();
+    const data = {
+        name: $('#editDepartmentName').val().trim(),
+        organization_id: $('#editDepartmentOrganization').val(),
+        office: $('#editDepartmentOffice').val().trim()
+    };
+    
+    if (!data.name) {
+        showMessage('Введите название отдела', 'danger');
+        return;
+    }
+    
+    $.ajax({
+        url: `/api/departments/${id}`,
+        method: 'PUT',
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success: function(response) {
+            if (response.success) {
+                showMessage('✅ Отдел обновлен', 'success');
+                loadDepartments();
+                $('#viewDepartmentModal').modal('hide');
+            } else {
+                showMessage(response.error, 'danger');
+            }
+        },
+        error: function() {
+            showMessage('❌ Ошибка при обновлении', 'danger');
+        }
+    });
+}
+
+function cancelDepartmentEdit() {
+    if (currentDepartmentData) {
+        openDepartmentView(currentDepartmentData);
+    }
+}
+
+function disableDepartmentEditMode() {
+    if (!currentDepartmentData) return;
+    
+    const dept = currentDepartmentData;
+    $('#viewDepartmentName').text(dept.name || '—');
+    $('#viewDepartmentOrganization').text(dept.organization_name || '—');
+    $('#viewDepartmentOffice').text(dept.office || '—');
+    
+    $('#viewDepartmentFooter').html(`
+        <button type="button" class="btn btn-warning" id="editDepartmentBtn">
+            <i class="fas fa-edit"></i> Редактировать
+        </button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+    `);
+    
+    $('#editDepartmentBtn').off('click').on('click', enableDepartmentEditMode);
+}
+
+function deleteDepartment(id, name) {
+    if (confirm(`🗑️ Удалить отдел "${name}"? Это действие нельзя отменить.`)) {
+        $.ajax({
+            url: `/api/departments/${id}`,
+            method: 'DELETE',
+            success: function(response) {
+                if (response.success) {
+                    showMessage('✅ Отдел удален', 'success');
+                    loadDepartments();
+                } else {
+                    showMessage(response.error, 'danger');
+                }
+            },
+            error: function(xhr) {
+                const error = xhr.responseJSON;
+                showMessage(error?.error || '❌ Ошибка при удалении', 'danger');
+            }
+        });
+    }
+}
+
+function saveDepartment() {
+    const name = $('#deptName').val().trim();
+    const organizationId = $('#deptOrganizationId').val();
+    const office = $('#deptOffice').val().trim();
+    
+    if (!name) {
+        showMessage('Введите название отдела', 'danger');
+        return;
+    }
+    
+    const btn = $('#addDepartmentModal .btn-primary');
+    const originalHtml = btn.html();
+    btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Сохранение...');
+    
+    $.ajax({
+        url: '/api/departments',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            name: name,
+            organization_id: organizationId || null,
+            office: office
+        }),
+        success: function(response) {
+            if (response.success) {
+                showMessage('✅ Отдел добавлен', 'success');
+                $('#addDepartmentModal').modal('hide');
+                $('#addDepartmentForm')[0].reset();
+                loadDepartments();
+            } else {
+                showMessage(response.error || 'Ошибка при добавлении', 'danger');
+            }
+        },
+        error: function(xhr) {
+            const error = xhr.responseJSON;
+            showMessage(error?.error || '❌ Ошибка при добавлении отдела', 'danger');
+        },
+        complete: function() {
+            btn.prop('disabled', false).html(originalHtml);
+        }
+    });
+}
+
+function searchDepartments() {
+    const searchTerm = $('#departmentSearchInput').val().toLowerCase();
+    if (!searchTerm) {
+        renderDepartments(departmentsData);
+        return;
+    }
+    
+    const filtered = departmentsData.filter(item => {
+        return (item.name && item.name.toLowerCase().includes(searchTerm)) ||
+               (item.organization_name && item.organization_name.toLowerCase().includes(searchTerm));
+    });
+    renderDepartments(filtered);
+    $('#departmentsStats').html(`<div class="alert alert-info">Найдено отделов: ${filtered.length} из ${departmentsData.length}</div>`);
+}
+
+function resetDepartmentSearch() {
+    $('#departmentSearchInput').val('');
+    renderDepartments(departmentsData);
+    $('#departmentsStats').empty();
+}
+</script>
+
+<!-- ==================== МОДАЛЬНЫЕ ОКНА ДЛЯ ОРГАНИЗАЦИЙ ==================== -->
+
+<!-- Модальное окно добавления отдела -->
+<div class="modal fade" id="addDepartmentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-sitemap"></i> Добавить отдел</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addDepartmentForm">
+                    <div class="mb-3">
+                        <label class="form-label">Название отдела <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="deptName" required placeholder="Например: Отдел продаж">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Организация</label>
+                        <select class="form-select" id="deptOrganizationId">
+                            <option value="">-- Выберите организацию --</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Кабинет</label>
+                        <input type="text" class="form-control" id="deptOffice" placeholder="Например: 101">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="saveDepartment()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно просмотра/редактирования отдела -->
+<div class="modal fade" id="viewDepartmentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title"><i class="fas fa-info-circle"></i> Информация об отделе</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="viewDepartmentId">
+                <div class="row">
+                    <div class="col-md-12 mb-2">
+                        <label class="fw-bold">Название отдела:</label>
+                        <p id="viewDepartmentName" class="mb-2">—</p>
+                    </div>
+                    <div class="col-md-12 mb-2">
+                        <label class="fw-bold">Организация:</label>
+                        <p id="viewDepartmentOrganization" class="mb-2">—</p>
+                    </div>
+                    <div class="col-md-12 mb-2">
+                        <label class="fw-bold">Кабинет:</label>
+                        <p id="viewDepartmentOffice" class="mb-2">—</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" id="viewDepartmentFooter">
+                <button type="button" class="btn btn-warning" id="editDepartmentBtn">
+                    <i class="fas fa-edit"></i> Редактировать
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно просмотра/редактирования организации -->
+<div class="modal fade" id="viewOrganizationModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title"><i class="fas fa-info-circle"></i> Информация об организации</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="viewOrganizationId">
+                <div class="row">
+                    <div class="col-md-12 mb-2">
+                        <label class="fw-bold">Название:</label>
+                        <p id="viewOrganizationName" class="mb-2">—</p>
+                    </div>
+                    <div class="col-md-12 mb-2">
+                        <label class="fw-bold">Адрес:</label>
+                        <p id="viewOrganizationAddress" class="mb-2">—</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" id="viewOrganizationFooter">
+                <button type="button" class="btn btn-warning" id="editOrganizationBtn">
+                    <i class="fas fa-edit"></i> Редактировать
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== МОДАЛЬНЫЕ ОКНА ДЛЯ СОТРУДНИКОВ ==================== -->
+
+<!-- Модальное окно добавления сотрудника -->
+<div class="modal fade" id="addEmployeeModalOrg" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-user-plus"></i> Добавить сотрудника</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addEmployeeFormOrg">
+                    <div class="mb-3">
+                        <label class="form-label">ФИО <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="employeeNameOrg" required placeholder="Введите ФИО сотрудника">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Организация</label>
+                        <select class="form-select" id="employeeOrganizationOrg">
+                            <option value="">-- Выберите организацию --</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="saveEmployeeFromOrg()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно просмотра/редактирования сотрудника -->
+<div class="modal fade" id="viewEmployeeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title"><i class="fas fa-info-circle"></i> Информация о сотруднике</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="viewEmployeeId">
+                <div class="row">
+                    <div class="col-md-12 mb-2">
+                        <label class="fw-bold">ФИО:</label>
+                        <p id="viewEmployeeName" class="mb-2">—</p>
+                    </div>
+                    <div class="col-md-12 mb-2">
+                        <label class="fw-bold">Организация:</label>
+                        <p id="viewEmployeeOrg" class="mb-2">—</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" id="viewEmployeeFooter">
+                <button type="button" class="btn btn-warning" id="editEmployeeBtn">
+                    <i class="fas fa-edit"></i> Редактировать
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="warningModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header" style="background-color: #fff3cd; border-bottom: none;">
+                <h5 class="modal-title" style="color: #856404;"><i class="fas fa-exclamation-triangle"></i> Внимание</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="warningMessage" style="font-size: 16px; padding: 20px;"></div>
+            <div class="modal-footer" style="border-top: none;">
+                <button type="button" class="btn btn-warning" data-bs-dismiss="modal"><i class="fas fa-check"></i> Хорошо</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- ==================== МОДАЛЬНОЕ ОКНО ДОБАВЛЕНИЯ ОРГАНИЗАЦИИ ==================== -->
+<div class="modal fade" id="addOrganizationModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-building"></i> Добавить организацию</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addOrganizationForm">
+                    <div class="mb-3">
+                        <label class="form-label">Название организации <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="orgName" required placeholder="Введите название организации">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Адрес</label>
+                        <input type="text" class="form-control" id="orgAddress" placeholder="Введите адрес организации">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="saveOrganization()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ==================== ПЕРЕМЕННЫЕ ====================
+let organizationsData = [];
+let currentOrganizationData = null;
+let employeesData = [];
+let currentEmployeeData = null;
+let organizationsList = [];
+
+// ==================== ФУНКЦИИ ДЛЯ ОРГАНИЗАЦИЙ ====================
+
+function loadOrganizations() {
+    $('#organizationsTableBody').html('<tr><td colspan="4" class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin me-2"></i>Загрузка данных...</td</tr>');
+    
+    $.ajax({
+        url: '/api/organizations',
+        method: 'GET',
+        dataType: 'json',
+        success: function(data) {
+            console.log("Организации загружены, количество:", data.length);
+            organizationsData = data;
+            organizationsList = data;
+            renderOrganizations(data);
+            updateOrganizationSelects();
+            $('#orgStats').html(`<div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="fas fa-check-circle"></i> Загружено организаций: ${data.length}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>`);
+            setTimeout(() => $('#orgStats .alert').alert('close'), 3000);
+        },
+        error: function(xhr, status, error) {
+            console.error("Ошибка загрузки организаций:", error);
+            $('#organizationsTableBody').html(`<tr><td colspan="4" class="text-center text-danger py-4">
+                ❌ Ошибка загрузки: ${error}<br>
+                <button class="btn btn-outline-danger mt-2" onclick="loadOrganizations()">Повторить</button>
+            </td
+            </tr>`);
+        }
+    });
+}
+
+function renderOrganizations(data) {
+    const tbody = $('#organizationsTableBody');
+    tbody.empty();
+    
+    if (!data || data.length === 0) {
+        tbody.html('<tr><td colspan="4" class="text-center text-muted py-4">📭 Нет организаций. Нажмите "Добавить организацию"</td</tr>');
+        return;
+    }
+    
+    for (let i = 0; i < data.length; i++) {
+        const item = data[i];
+        const row = $(`
+            <tr data-id="${item.id}" class="organization-row" style="cursor: pointer;">
+                <td class="text-center">
+                    <i class="fas fa-info-circle text-info" style="font-size: 1.2rem;"></i>
+                 </td>
+                <td style="vertical-align: middle;"><strong>${escapeHtml(item.name)}</strong></td>
+                <td style="vertical-align: middle;">${escapeHtml(item.address) || '—'}</td>
+                <td class="text-center">
+                    <button class="btn btn-sm btn-danger delete-org-btn" data-id="${item.id}">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+              </tr>
+        `);
+        row.data('organization-data', item);
+        tbody.append(row);
+    }
+    
+    $('.organization-row').off('click').on('click', function(e) {
+        if ($(e.target).closest('.delete-org-btn').length) return;
+        const data = $(this).data('organization-data');
+        if (data) openOrganizationView(data);
+    });
+    
+    $('.delete-org-btn').off('click').on('click', function(e) {
+        e.stopPropagation();
+        const id = $(this).data('id');
+        deleteOrganization(id);
+    });
+}
+
+function openOrganizationView(org) {
+    currentOrganizationData = org;
+    $('#viewOrganizationId').val(org.id);
+    $('#viewOrganizationName').text(org.name || '—');
+    $('#viewOrganizationAddress').text(org.address || '—');
+    
+    disableOrganizationEditMode();
+    $('#viewOrganizationModal').modal('show');
+}
+
+function enableOrganizationEditMode() {
+    const org = currentOrganizationData;
+    
+    $('#viewOrganizationName').html(`<input type="text" class="form-control form-control-sm" id="editOrganizationName" value="${escapeHtml(org.name || '')}">`);
+    $('#viewOrganizationAddress').html(`<input type="text" class="form-control form-control-sm" id="editOrganizationAddress" value="${escapeHtml(org.address || '')}">`);
+    
+    $('#viewOrganizationFooter').html(`
+        <button type="button" class="btn btn-success" id="saveOrganizationBtn">
+            <i class="fas fa-save"></i> Сохранить
+        </button>
+        <button type="button" class="btn btn-secondary" id="cancelOrganizationEditBtn">
+            <i class="fas fa-times"></i> Отмена
+        </button>
+    `);
+    
+    $('#saveOrganizationBtn').off('click').on('click', saveOrganizationEdit);
+    $('#cancelOrganizationEditBtn').off('click').on('click', cancelOrganizationEdit);
+}
+
+function saveOrganizationEdit() {
+    const id = $('#viewOrganizationId').val();
+    const data = {
+        name: $('#editOrganizationName').val().trim(),
+        address: $('#editOrganizationAddress').val().trim()
+    };
+    
+    if (!data.name) {
+        showMessage('Введите название организации', 'danger');
+        return;
+    }
+    
+    $.ajax({
+        url: `/api/organizations/${id}`,
+        method: 'PUT',
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success: function(response) {
+            if (response.success) {
+                showMessage('✅ Организация обновлена', 'success');
+                loadOrganizations();
+                $('#viewOrganizationModal').modal('hide');
+            } else {
+                showMessage(response.error, 'danger');
+            }
+        },
+        error: function() {
+            showMessage('❌ Ошибка при обновлении', 'danger');
+        }
+    });
+}
+
+function cancelOrganizationEdit() {
+    if (currentOrganizationData) {
+        openOrganizationView(currentOrganizationData);
+    }
+}
+
+function disableOrganizationEditMode() {
+    if (!currentOrganizationData) return;
+    
+    const org = currentOrganizationData;
+    
+    $('#viewOrganizationName').text(org.name || '—');
+    $('#viewOrganizationAddress').text(org.address || '—');
+    
+    $('#viewOrganizationFooter').html(`
+        <button type="button" class="btn btn-warning" id="editOrganizationBtn">
+            <i class="fas fa-edit"></i> Редактировать
+        </button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+    `);
+    
+    $('#editOrganizationBtn').off('click').on('click', enableOrganizationEditMode);
+}
+
+function deleteOrganization(id) {
+    if (confirm('🗑️ Удалить организацию? Это действие нельзя отменить.')) {
+        $.ajax({
+            url: `/api/organizations/${id}`,
+            method: 'DELETE',
+            success: function() { 
+                loadOrganizations(); 
+                showMessage('✅ Организация удалена', 'success'); 
+            },
+            error: function() { 
+                showMessage('❌ Ошибка при удалении', 'danger'); 
+            }
+        });
+    }
+}
+
+function saveOrganization() {
+    const name = $('#orgName').val().trim();
+    const address = $('#orgAddress').val().trim();
+    
+    if (!name) {
+        showWarning('Введите название организации');
+        return;
+    }
+    
+    $.ajax({
+        url: '/api/organizations',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            name: name,
+            address: address
+        }),
+        success: function(response) {
+            if (response.success) {
+                showMessage('✅ Организация добавлена', 'success');
+                $('#addOrganizationModal').modal('hide');
+                $('#addOrganizationForm')[0].reset();
+                loadOrganizations();
+            } else {
+                showMessage(response.error, 'danger');
+            }
+        },
+        error: function() {
+            showMessage('❌ Ошибка при добавлении', 'danger');
+        }
+    });
+}
+
+function searchOrganizations() {
+    const searchTerm = $('#searchInput').val().toLowerCase();
+    if (!searchTerm) {
+        renderOrganizations(organizationsData);
+        return;
+    }
+    
+    const filtered = [];
+    for (let i = 0; i < organizationsData.length; i++) {
+        const item = organizationsData[i];
+        if (item.name.toLowerCase().includes(searchTerm) ||
+            (item.address && item.address.toLowerCase().includes(searchTerm))) {
+            filtered.push(item);
+        }
+    }
+    renderOrganizations(filtered);
+    $('#orgStats').html(`<div class="alert alert-info">Найдено организаций: ${filtered.length} из ${organizationsData.length}</div>`);
+}
+
+function resetSearch() {
+    $('#searchInput').val('');
+    renderOrganizations(organizationsData);
+    $('#orgStats').empty();
+}
+
+// ==================== ФУНКЦИИ ДЛЯ SELECT ОРГАНИЗАЦИЙ ====================
+
+function updateOrganizationSelects() {
+    const selectAdd = $('#employeeOrganizationOrg');
+    selectAdd.empty();
+    selectAdd.append('<option value="">-- Выберите организацию --</option>');
+    
+    if (organizationsList && organizationsList.length > 0) {
+        for (let i = 0; i < organizationsList.length; i++) {
+            const org = organizationsList[i];
+            selectAdd.append(`<option value="${org.id}">${escapeHtml(org.name)}</option>`);
+        }
+    }
+}
+
+// ==================== ФУНКЦИИ ДЛЯ СОТРУДНИКОВ ====================
+
+function loadEmployees() {
+    $('#employeesTableBody').html('<tr><td colspan="4" class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin me-2"></i>Загрузка данных...</td</tr>');
+    
+    $.ajax({
+        url: '/api/employees',
+        method: 'GET',
+        dataType: 'json',
+        success: function(data) {
+            console.log("Сотрудники загружены, количество:", data.length);
+            // Проверяем формат данных
+            if (data && data.length > 0 && typeof data[0] === 'object') {
+                employeesData = data;
+            } else {
+                // Если данные пришли как массив строк, преобразуем
+                employeesData = data.map(function(item, index) {
+                    if (typeof item === 'string') {
+                        return { id: index, name: item, organization_id: null, organization_name: '—' };
+                    }
+                    return item;
+                });
+            }
+            renderEmployees(employeesData);
+            $('#employeesStats').html(`<div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="fas fa-check-circle"></i> Загружено сотрудников: ${employeesData.length}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>`);
+            setTimeout(() => $('#employeesStats .alert').alert('close'), 3000);
+        },
+        error: function(xhr, status, error) {
+            console.error("Ошибка загрузки сотрудников:", error);
+            $('#employeesTableBody').html(`<tr><td colspan="4" class="text-center text-danger py-4">
+                ❌ Ошибка загрузки: ${error}<br>
+                <button class="btn btn-outline-danger mt-2" onclick="loadEmployees()">Повторить</button>
+            </td
+            <tr>`);
+        }
+    });
+}
+
+function renderEmployees(data) {
+    const tbody = $('#employeesTableBody');
+    tbody.empty();
+    
+    if (!data || data.length === 0) {
+        tbody.html('<tr><td colspan="4" class="text-center text-muted py-4">📭 Нет сотрудников. Нажмите "Добавить сотрудника"</td</tr>');
+        return;
+    }
+    
+    for (let i = 0; i < data.length; i++) {
+        const item = data[i];
+        const employeeId = item.id;
+        const employeeName = item.name || '—';
+        const organizationName = item.organization_name || '—';
+        
+        const row = $(`
+            <tr data-id="${employeeId}" class="employee-row" style="cursor: pointer;">
+                <td class="text-center">
+                    <i class="fas fa-info-circle text-info" style="font-size: 1.2rem;"></i>
+                 </td>
+                <td style="vertical-align: middle;"><strong>${escapeHtml(employeeName)}</strong></td>
+                <td style="vertical-align: middle;">${escapeHtml(organizationName)}</td>
+                <td class="text-center">
+                    <button class="btn btn-sm btn-danger delete-employee-btn" data-id="${employeeId}" data-name="${escapeHtml(employeeName)}">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+               </tr>
+        `);
+        row.data('employee-data', { 
+            id: employeeId, 
+            name: employeeName, 
+            organization_id: item.organization_id,
+            organization_name: organizationName 
+        });
+        tbody.append(row);
+    }
+    
+    // Обработчик клика по строке для просмотра
+    $('.employee-row').off('click').on('click', function(e) {
+        if ($(e.target).closest('.delete-employee-btn').length) return;
+        const data = $(this).data('employee-data');
+        if (data) openEmployeeView(data);
+    });
+    
+    // Обработчик удаления
+    $('.delete-employee-btn').off('click').on('click', function(e) {
+        e.stopPropagation();
+        const id = $(this).data('id');
+        const name = $(this).data('name');
+        deleteEmployee(id, name);
+    });
+}
+
+function openEmployeeView(employee) {
+    currentEmployeeData = employee;
+    $('#viewEmployeeId').val(employee.id);
+    $('#viewEmployeeName').text(employee.name || '—');
+    $('#viewEmployeeOrg').text(employee.organization_name || '—');
+    
+    disableEmployeeEditMode();
+    $('#viewEmployeeModal').modal('show');
+}
+
+function enableEmployeeEditMode() {
+    const emp = currentEmployeeData;
+    
+    $('#viewEmployeeName').html(`<input type="text" class="form-control form-control-sm" id="editEmployeeName" value="${escapeHtml(emp.name || '')}">`);
+    
+    // Создаем выпадающий список организаций
+    let orgOptions = '<option value="">-- Без организации --</option>';
+    if (organizationsList && organizationsList.length > 0) {
+        for (let i = 0; i < organizationsList.length; i++) {
+            const org = organizationsList[i];
+            const selected = (emp.organization_id == org.id) ? 'selected' : '';
+            orgOptions += `<option value="${org.id}" ${selected}>${escapeHtml(org.name)}</option>`;
+        }
+    }
+    $('#viewEmployeeOrg').html(`<select class="form-select form-select-sm" id="editEmployeeOrganization">${orgOptions}</select>`);
+    
+    $('#viewEmployeeFooter').html(`
+        <button type="button" class="btn btn-success" id="saveEmployeeBtn">
+            <i class="fas fa-save"></i> Сохранить
+        </button>
+        <button type="button" class="btn btn-secondary" id="cancelEmployeeEditBtn">
+            <i class="fas fa-times"></i> Отмена
+        </button>
+    `);
+    
+    $('#saveEmployeeBtn').off('click').on('click', saveEmployeeEdit);
+    $('#cancelEmployeeEditBtn').off('click').on('click', cancelEmployeeEdit);
+}
+
+function saveEmployeeEdit() {
+    const id = $('#viewEmployeeId').val();
+    const newName = $('#editEmployeeName').val().trim();
+    const organizationId = $('#editEmployeeOrganization').val();
+    
+    if (!newName) {
+        showMessage('Введите ФИО сотрудника', 'danger');
+        return;
+    }
+    
+    $.ajax({
+        url: `/api/employees/${id}`,
+        method: 'PUT',
+        contentType: 'application/json',
+        data: JSON.stringify({ 
+            name: newName,
+            organization_id: organizationId || null
+        }),
+        success: function(response) {
+            if (response.success) {
+                showMessage('✅ Сотрудник обновлен', 'success');
+                loadEmployees();
+                $('#viewEmployeeModal').modal('hide');
+            } else {
+                showMessage(response.error, 'danger');
+            }
+        },
+        error: function(xhr) {
+            const error = xhr.responseJSON;
+            showMessage(error?.error || '❌ Ошибка при обновлении', 'danger');
+        }
+    });
+}
+
+function cancelEmployeeEdit() {
+    if (currentEmployeeData) {
+        openEmployeeView(currentEmployeeData);
+    }
+}
+
+function disableEmployeeEditMode() {
+    if (!currentEmployeeData) return;
+    
+    const emp = currentEmployeeData;
+    $('#viewEmployeeName').text(emp.name || '—');
+    $('#viewEmployeeOrg').text(emp.organization_name || '—');
+    
+    $('#viewEmployeeFooter').html(`
+        <button type="button" class="btn btn-warning" id="editEmployeeBtn">
+            <i class="fas fa-edit"></i> Редактировать
+        </button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+    `);
+    
+    $('#editEmployeeBtn').off('click').on('click', enableEmployeeEditMode);
+}
+
+function deleteEmployee(id, name) {
+    if (confirm(`🗑️ Удалить сотрудника "${name}"?\n\n` +
+                `Внимание! После удаления:\n` +
+                `• Картриджи останутся без ответственного\n` +
+                `• Оборудование останется без МОЛ и ответственного\n` +
+                `• История перемещений сохранится без имен сотрудников\n\n` +
+                `Продолжить?`)) {
+        
+        // Блокируем кнопку
+        const $btn = $(`.delete-employee-btn[data-id="${id}"]`);
+        const originalHtml = $btn.html();
+        $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
+        
+        $.ajax({
+            url: `/api/employees/${id}`,
+            method: 'DELETE',
+            success: function(response) {
+                if (response.success) {
+                    let details = '';
+                    if (response.details) {
+                        details = `\n\nОбновлено:\n• Картриджей: ${response.details.cartridges_updated || 0}\n• Оборудования (МОЛ): ${response.details.equipment_mol_updated || 0}\n• Оборудования (Ответственный): ${response.details.equipment_responsible_updated || 0}`;
+                    }
+                    showMessage(`✅ ${response.message}${details}`, 'success');
+                    loadEmployees();
+                } else {
+                    showMessage(response.error || 'Ошибка при удалении', 'danger');
+                }
+            },
+            error: function(xhr) {
+                const error = xhr.responseJSON;
+                showMessage(error?.error || '❌ Ошибка при удалении', 'danger');
+            },
+            complete: function() {
+                $btn.prop('disabled', false).html(originalHtml);
+            }
+        });
+    }
+}
+
+function saveEmployeeFromOrg() {
+    const name = $('#employeeNameOrg').val().trim();
+    const organizationId = $('#employeeOrganizationOrg').val();
+    
+    if (!name) {
+        showMessage('Введите ФИО сотрудника', 'danger');
+        return;
+    }
+    
+    $.ajax({
+        url: '/api/employees',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ 
+            name: name,
+            organization_id: organizationId || null
+        }),
+        success: function(response) {
+            if (response.success) {
+                showMessage('✅ Сотрудник добавлен', 'success');
+                $('#addEmployeeModalOrg').modal('hide');
+                $('#employeeNameOrg').val('');
+                $('#employeeOrganizationOrg').val('');
+                loadEmployees();
+            } else {
+                showMessage(response.error, 'danger');
+            }
+        },
+        error: function(xhr) {
+            const error = xhr.responseJSON;
+            showMessage(error?.error || '❌ Ошибка при добавлении', 'danger');
+        }
+    });
+}
+
+function searchEmployees() {
+    const searchTerm = $('#employeeSearchInput').val().toLowerCase();
+    if (!searchTerm) {
+        renderEmployees(employeesData);
+        return;
+    }
+    
+    const filtered = employeesData.filter(item => {
+        const name = item.name || '';
+        return name.toLowerCase().includes(searchTerm);
+    });
+    renderEmployees(filtered);
+    $('#employeesStats').html(`<div class="alert alert-info">Найдено сотрудников: ${filtered.length} из ${employeesData.length}</div>`);
+}
+
+function resetEmployeeSearch() {
+    $('#employeeSearchInput').val('');
+    renderEmployees(employeesData);
+    $('#employeesStats').empty();
+}
+
+// ==================== ОБЩИЕ ФУНКЦИИ ====================
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function showWarning(message) {
+    $('#warningMessage').html(`<i class="fas fa-exclamation-triangle me-2"></i> ${message}`);
+    $('#warningModal').modal('show');
+}
+
+function showMessage(message, type) {
+    const alertDiv = $(`
+        <div class="alert alert-${type} alert-dismissible fade show position-fixed top-0 end-0 m-3" 
+             style="z-index: 9999; min-width: 300px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);" role="alert">
+            <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'} me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `);
+    $('body').append(alertDiv);
+    setTimeout(() => alertDiv.alert('close'), 3000);
+}
+
+function loadDepartmentOrganizationSelect() {
+    $.ajax({
+        url: '/api/organizations/list',
+        method: 'GET',
+        dataType: 'json',
+        success: function(data) {
+            var select = $('#deptOrganizationId');
+            select.html('<option value="">-- Выберите организацию --</option>');
+            
+            if (data && data.length > 0) {
+                for (var i = 0; i < data.length; i++) {
+                    select.append('<option value="' + data[i].id + '">' + escapeHtml(data[i].name) + '</option>');
+                }
+            } else {
+                select.append('<option value="" disabled>Нет доступных организаций</option>');
+            }
+        },
+        error: function() {
+            // Пробуем загрузить из /api/organizations
+            $.ajax({
+                url: '/api/organizations',
+                method: 'GET',
+                dataType: 'json',
+                success: function(data) {
+                    var select = $('#deptOrganizationId');
+                    select.html('<option value="">-- Выберите организацию --</option>');
+                    
+                    if (data && data.length > 0) {
+                        for (var i = 0; i < data.length; i++) {
+                            select.append('<option value="' + data[i].id + '">' + escapeHtml(data[i].name) + '</option>');
+                        }
+                    }
+                }
+            });
+        }
+    });
+}
+
+// ==================== ИНИЦИАЛИЗАЦИЯ ====================
+
+$(document).ready(function() {
+    loadOrganizations();
+    loadEmployees();
+    loadDepartments();
+    
+
+    // Обработчик Enter для поиска отделов
+    $('#departmentSearchInput').on('keypress', function(e) {
+        if (e.which == 13 || e.keyCode == 13) {
+            searchDepartments();
+            return false;
+        }
+    });
+
+    // Загрузка организаций в select при открытии модального окна
+        // В $(document).ready() добавьте:
+    $('#addDepartmentModal').on('show.bs.modal', function() {
+        loadDepartmentOrganizationSelect();
+        $('#addDepartmentForm')[0].reset();
+    });
+
+    // Обработчик Enter для поиска организаций
+    $('#searchInput').on('keypress', function(e) {
+        if (e.which == 13 || e.keyCode == 13) {
+            searchOrganizations();
+            return false;
+        }
+    });
+    
+    // Обработчик Enter для поиска сотрудников
+    $('#employeeSearchInput').on('keypress', function(e) {
+        if (e.which == 13 || e.keyCode == 13) {
+            searchEmployees();
+            return false;
+        }
+    });
+    
+    $('#orgTabs button[data-bs-target="#employeesTab"]').on('shown.bs.tab', function() {
+        loadEmployees();
+    });
+
+    $('#departmentSearchInput').on('keypress', function(e) {
+    if (e.which == 13 || e.keyCode == 13) {
+        searchDepartments();
+        return false;
+    }
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вход - Система учета предприятия</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #4361ee;
+            --primary-dark: #3a56d4;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #1a2a3a 0%, #0f1724 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .login-container {
+            width: 100%;
+            max-width: 450px;
+            padding: 20px;
+        }
+        
+        .login-card {
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            overflow: hidden;
+            animation: fadeInUp 0.5s ease;
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .login-header {
+            background: linear-gradient(135deg, #2c3e50 0%, #1a252f 100%);
+            padding: 30px;
+            text-align: center;
+            color: white;
+        }
+        
+        .login-icon {
+            width: 70px;
+            height: 70px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 15px auto;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
+        }
+        
+        .login-icon i {
+            font-size: 2rem;
+            color: white;
+        }
+        
+        .login-header h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 0;
+        }
+        
+        .login-header p {
+            font-size: 0.85rem;
+            opacity: 0.8;
+            margin: 8px 0 0 0;
+        }
+        
+        .login-body {
+            padding: 30px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: #2c3e50;
+            display: block;
+        }
+        
+        .form-group label i {
+            margin-right: 8px;
+            color: var(--primary-color);
+        }
+        
+        .form-control {
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            padding: 12px 16px;
+            font-size: 1rem;
+            transition: all 0.2s ease;
+        }
+        
+        .form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.2);
+            outline: none;
+        }
+        
+        .btn-login {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            width: 100%;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -5px rgba(67, 97, 238, 0.4);
+        }
+        
+        .btn-login:active {
+            transform: translateY(0);
+        }
+        
+        .alert {
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 0.85rem;
+        }
+        
+        .footer-text {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 0.75rem;
+            color: #6c757d;
+        }
+        
+        .demo-credentials {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 12px;
+            margin-top: 20px;
+            font-size: 0.8rem;
+            text-align: center;
+        }
+        
+        .demo-credentials code {
+            background: #e9ecef;
+            padding: 2px 6px;
+            border-radius: 6px;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="login-icon">
+                    <i class="fas fa-building"></i>
+                </div>
+                <h2>Система учета предприятия</h2>
+            </div>
+            <div class="login-body">
+                <div id="alertMessage" style="display: none;" class="alert alert-danger">
+                    <i class="fas fa-exclamation-circle"></i> <span id="alertText"></span>
+                </div>
+                
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label><i class="fas fa-user"></i> Логин</label>
+                        <input type="text" class="form-control" id="username" placeholder="Введите логин" autocomplete="off" required>
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-lock"></i> Пароль</label>
+                        <input type="password" class="form-control" id="password" placeholder="Введите пароль" required>
+                    </div>
+                    <button type="submit" class="btn-login" id="loginBtn">
+                        <i class="fas fa-sign-in-alt"></i> <span class="btn-text">Войти</span>
+                    </button>
+                </form>
+                <div class="footer-text">
+                    <p>© 2026 ФБУ "Администрация"Волго-Балт". Система учета предприятия. Разработчик: Шаром Максим.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    
+    
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $('#loginForm').on('submit', async function(e) {
+            e.preventDefault();
+            
+            const username = $('#username').val().trim();
+            const password = $('#password').val();
+            
+            if (!username || !password) {
+                showAlert('Введите логин и пароль');
+                return;
+            }
+            
+            const btn = $('#loginBtn');
+            const originalHtml = btn.html();
+            btn.prop('disabled', true);
+            btn.html('<i class="fas fa-spinner fa-spin"></i> Вход...');
+            
+            try {
+                const response = await fetch('/api/auth/login?_=' + Date.now(), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    showAlert('Вход выполнен!', 'success');
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 1000);
+                } else {
+                    showAlert(data.error || 'Ошибка входа');
+                    btn.prop('disabled', false);
+                    btn.html(originalHtml);
+                }
+            } catch (error) {
+                showAlert('Ошибка соединения с сервером');
+                btn.prop('disabled', false);
+                btn.html(originalHtml);
+            }
+        });
+        
+        function showAlert(message, type = 'danger') {
+            const alertDiv = $('#alertMessage');
+            $('#alertText').text(message);
+            alertDiv.removeClass('alert-success alert-danger').addClass(`alert-${type}`);
+            alertDiv.show();
+            
+            setTimeout(() => {
+                alertDiv.fadeOut();
+            }, 3000);
+        }
+        
+        // Enter key submit
+        $('#password').on('keypress', function(e) {
+            if (e.which === 13) {
+                $('#loginForm').submit();
+            }
+        });
+    </script>
+</body>
+</html>
