@@ -26,7 +26,7 @@ def get_db_path():
     else:
         # 3. Запуск из исходников (разработка)
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        print(f"[database] Используем локальную папку: {script_dir}")
+        # print(f"[database] Используем локальную папку: {script_dir}")
         return os.path.join(script_dir, 'db.db')
 
 def get_db():
@@ -43,8 +43,8 @@ def get_db():
     if not os.path.exists(db_path):
         print(f"[database] БД не найдена, создаем новую: {db_path}")
         init_db()
-    else:
-        print(f"[database] Используем существующую БД: {db_path}")
+    # else:
+    #     print(f"[database] Используем существующую БД: {db_path}")
     
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
