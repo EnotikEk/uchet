@@ -6,63 +6,48 @@ import hashlib
 
 def get_db_path():
     """Получение пути к базе данных в зависимости от способа запуска"""
-    # 1. Проверяем переменную окружения (устанавливается launcher_windows.py)
     env_db_path = os.environ.get('DATABASE_PATH')
     if env_db_path:
-        # Убеждаемся, что директория существует
         db_dir = os.path.dirname(env_db_path)
         if db_dir and not os.path.exists(db_dir):
             os.makedirs(db_dir, exist_ok=True)
         return env_db_path
     
-    # 2. Проверяем, запущены ли мы из скомпилированного EXE (PyInstaller)
     if getattr(sys, 'frozen', False):
-        # Запуск из .exe - используем папку AppData
         appdata = os.environ.get('APPDATA', os.path.expanduser('~'))
         db_dir = os.path.join(appdata, 'VolgoBaltAccounting')
         os.makedirs(db_dir, exist_ok=True)
         print(f"[database] Используем APPDATA: {db_dir}")
         return os.path.join(db_dir, 'db.db')
     else:
-        # 3. Запуск из исходников (разработка)
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        # print(f"[database] Используем локальную папку: {script_dir}")
         return os.path.join(script_dir, 'db.db')
 
 def get_db():
-    """Получить соединение с базой данных"""
     db_path = get_db_path()
-    
-    # Создаем директорию если её нет
     db_dir = os.path.dirname(db_path)
     if db_dir and not os.path.exists(db_dir):
         os.makedirs(db_dir, exist_ok=True)
         print(f"[database] Создана директория: {db_dir}")
     
-    # Если БД не существует, инициализируем её
     if not os.path.exists(db_path):
         print(f"[database] БД не найдена, создаем новую: {db_path}")
         init_db()
-    # else:
-    #     print(f"[database] Используем существующую БД: {db_path}")
     
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     return conn
 
 def hash_password(password):
-    """Хэширование пароля"""
     return hashlib.sha256(password.encode()).hexdigest()
 
 def init_db():
-    """Инициализация базы данных"""
     db_path = get_db_path()
     print(f"Создание базы данных: {db_path}")
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     
     # ========== ТАБЛИЦЫ ДЛЯ УЧЕТА КАРТРИДЖЕЙ ==========
-    
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS Employees (
             id INTEGER PRIMARY KEY AUTOINCREMENT, 
@@ -72,7 +57,6 @@ def init_db():
         )
     """)
     
-    # Добавление поля department_id в таблицу Employees
     cursor.execute("PRAGMA table_info(Employees)")
     columns = [col[1] for col in cursor.fetchall()]
     if 'department_id' not in columns:
@@ -134,16 +118,12 @@ def init_db():
         )
     """)
     
-    # В database.py, в функции init_db(), добавьте после создания таблицы Catrigs:
-
-    # Добавление поля equipment_id в таблицу Catrigs
     cursor.execute("PRAGMA table_info(Catrigs)")
     columns = [col[1] for col in cursor.fetchall()]
     if 'equipment_id' not in columns:
         cursor.execute("ALTER TABLE Catrigs ADD COLUMN equipment_id INTEGER")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_catrigs_equipment ON Catrigs(equipment_id)")
         print("✅ Добавлено поле equipment_id в таблицу Catrigs")
-
 
     cursor.execute("PRAGMA table_info(Catrigs)")
     columns = [col[1] for col in cursor.fetchall()]
@@ -175,9 +155,6 @@ def init_db():
         )
     """)
 
-    # Таблица для отделов
-    # Удаляем создание таблицы Rooms (или оставляем, но не используем)
-    # Вместо этого убедимся, что Departments имеет поле office
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS Departments (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -189,7 +166,6 @@ def init_db():
         )
     """)
 
-    # Добавляем колонку organization_id в Analytics
     cursor.execute("PRAGMA table_info(Analytics)")
     columns = [col[1] for col in cursor.fetchall()]
     if 'organization_id' not in columns:
@@ -197,29 +173,16 @@ def init_db():
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_analytics_organization ON Analytics(organization_id)")
         print("✅ Добавлена колонка organization_id в таблицу Analytics")
 
-    # Добавляем office, если его нет (для уже существующей таблицы)
     cursor.execute("PRAGMA table_info(Departments)")
     cols = [c[1] for c in cursor.fetchall()]
     if 'office' not in cols:
         cursor.execute("ALTER TABLE Departments ADD COLUMN office TEXT")
 
-    # В Equipment заменяем room_id на department_id
-    # Сначала проверим, есть ли room_id – если есть, переименуем или удалим
-    cursor.execute("PRAGMA table_info(Equipment)")
-    eq_cols = [c[1] for c in cursor.fetchall()]
-    if 'room_id' in eq_cols:
-        # Удаляем старую колонку (или переименовываем, но проще удалить)
-        # Но SQLite не умеет удалять колонки напрямую, поэтому создаём новую таблицу
-        pass  # Ниже сделаем миграцию
-
-    # ========== ТАБЛИЦА ДЛЯ УЧЕТА ОБОРУДОВАНИЯ ==========
-    # Проверяем существует ли таблица Equipment
     # ========== ТАБЛИЦА ДЛЯ УЧЕТА ОБОРУДОВАНИЯ ==========
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='Equipment'")
     table_exists = cursor.fetchone()
     
     if not table_exists:
-        # Создаём таблицу с колонкой viewing_angle
         cursor.execute("""
             CREATE TABLE Equipment (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -240,7 +203,7 @@ def init_db():
                 refresh_rate INTEGER,
                 panel_type TEXT,
                 response_time INTEGER,
-                viewing_angle TEXT,           -- <-- ДОБАВЛЕНО
+                viewing_angle TEXT,
                 ports TEXT,
                 port_count INTEGER,
                 speed TEXT,
@@ -256,7 +219,8 @@ def init_db():
                 printer_ports TEXT,
                 scanner_resolution TEXT,
                 scanner_speed TEXT,
-                duplex_scanner TEXT, 
+                duplex_scanner TEXT,
+                scan_format TEXT,          -- <-- ДОБАВЛЕНА
                 phone_number TEXT,
                 phone_ip TEXT,
                 sip_account TEXT,
@@ -292,7 +256,7 @@ def init_db():
                 FOREIGN KEY(updated_by) REFERENCES Users(id)
             )
         """)
-        print("✅ Таблица Equipment создана с viewing_angle")
+        print("✅ Таблица Equipment создана")
     else:
         # Обновляем существующую таблицу – добавляем недостающие колонки
         cursor.execute("PRAGMA table_info(Equipment)")
@@ -303,7 +267,7 @@ def init_db():
             'refresh_rate': 'INTEGER',
             'panel_type': 'TEXT',
             'response_time': 'INTEGER',
-            'viewing_angle': 'TEXT',       # <-- ДОБАВЛЕНО
+            'viewing_angle': 'TEXT',
             'ports': 'TEXT',
             'network_type': 'TEXT',
             'poe': 'TEXT',
@@ -315,6 +279,7 @@ def init_db():
             'color_type': 'TEXT',
             'duplex': 'TEXT',
             'duplex_scanner': 'TEXT',
+            'scan_format': 'TEXT',      # <-- ДОБАВЛЕНА
             'printer_ports': 'TEXT',
             'scanner_resolution': 'TEXT',
             'scanner_speed': 'TEXT',
@@ -404,7 +369,7 @@ def init_db():
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_equipment_mol ON Equipment(mol_employee)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_equipment_room ON Equipment(room_id)")
 
-    # Создаем администратора по умолчанию (пароль: admin123)
+    # Создаем администратора по умолчанию
     default_password = hash_password("admin123")
     cursor.execute("""
         INSERT OR IGNORE INTO Users (username, password_hash, full_name, role, is_active)
@@ -441,13 +406,9 @@ def init_db():
         )
     """)     
     
-    # Добавляем индексы
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_movements_equipment ON EquipmentMovements(equipment_id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_movements_date ON EquipmentMovements(movement_date)")
 
-    # Добавьте это в database.py после существующих таблиц
-
-    # Добавляем новую таблицу для периферийных устройств (расширяем Equipment)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS PeripheralTypes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -455,7 +416,6 @@ def init_db():
         )
     """)
 
-    # Добавляем стандартные типы периферии
     cursor.execute("INSERT OR IGNORE INTO PeripheralTypes (name) VALUES ('Мышь')")
     cursor.execute("INSERT OR IGNORE INTO PeripheralTypes (name) VALUES ('Клавиатура')")
     cursor.execute("INSERT OR IGNORE INTO PeripheralTypes (name) VALUES ('ИБП')")
@@ -465,22 +425,16 @@ def init_db():
     cursor.execute("INSERT OR IGNORE INTO PeripheralTypes (name) VALUES ('Гарнитура')")
     cursor.execute("INSERT OR IGNORE INTO PeripheralTypes (name) VALUES ('Колонки')")
 
-    # Добавляем колонку can_delete_history в Users
     cursor.execute("PRAGMA table_info(Users)")
     columns = [col[1] for col in cursor.fetchall()]
     if 'can_delete_history' not in columns:
         cursor.execute("ALTER TABLE Users ADD COLUMN can_delete_history INTEGER DEFAULT 0")
         print("✅ Добавлена колонка can_delete_history в таблицу Users")
 
-
-    # Добавьте этот код в конец функции init_db(), перед conn.commit():
-
-    # Проверяем и добавляем недостающие колонки в Equipment
+    # Добавляем недостающие колонки в Equipment (если были пропущены)
     cursor.execute("PRAGMA table_info(Equipment)")
     existing_columns = [col[1] for col in cursor.fetchall()]
-    
-    # Словарь с новыми колонками и их типами
-    new_columns = {
+    extra_columns = {
         'ram_type': 'TEXT',
         'refresh_rate': 'INTEGER',
         'panel_type': 'TEXT',
@@ -498,6 +452,8 @@ def init_db():
         'printer_ports': 'TEXT',
         'scanner_resolution': 'TEXT',
         'scanner_speed': 'TEXT',
+        'duplex_scanner': 'TEXT',
+        'scan_format': 'TEXT',     # <-- добавлено
         'phone_number': 'TEXT',
         'phone_ip': 'TEXT',
         'sip_account': 'TEXT',
@@ -513,7 +469,7 @@ def init_db():
         'viewing_angle': 'TEXT'
     }
     
-    for col_name, col_type in new_columns.items():
+    for col_name, col_type in extra_columns.items():
         if col_name not in existing_columns:
             try:
                 cursor.execute(f"ALTER TABLE Equipment ADD COLUMN {col_name} {col_type}")
@@ -521,8 +477,6 @@ def init_db():
             except Exception as e:
                 print(f"⚠️ Ошибка добавления {col_name}: {e}")
 
-
-    # Добавление поля equipment_id в таблицу Catrigs
     cursor.execute("PRAGMA table_info(Catrigs)")
     columns = [col[1] for col in cursor.fetchall()]
     if 'equipment_id' not in columns:
@@ -530,7 +484,6 @@ def init_db():
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_catrigs_equipment ON Catrigs(equipment_id)")
         print("✅ Добавлено поле equipment_id в таблицу Catrigs")
         
-        # Миграция существующих данных: связываем MFU_id с Equipment
         cursor.execute("""
             UPDATE Catrigs 
             SET equipment_id = (
@@ -545,9 +498,13 @@ def init_db():
         """)
         print(f"✅ Мигрировано {cursor.rowcount} картриджей на связь с Equipment")
 
-    # database.py — добавить в init_db() после создания таблиц
+    # Добавляем колонку status в Licenses, если её нет
+    cursor.execute("PRAGMA table_info(Licenses)")
+    columns = [col[1] for col in cursor.fetchall()]
+    if 'status' not in columns:
+        cursor.execute("ALTER TABLE Licenses ADD COLUMN status TEXT DEFAULT 'Активна'")
+        print("✅ Добавлена колонка status в таблицу Licenses")
 
-    # Добавляем поле department_id в таблицу Rooms
     cursor.execute("PRAGMA table_info(Rooms)")
     columns = [col[1] for col in cursor.fetchall()]
     if 'department_id' not in columns:
@@ -564,7 +521,6 @@ def upgrade_db():
     conn = get_db()
     cursor = conn.cursor()
 
-    # Проверяем наличие колонок в Equipment
     cursor.execute("PRAGMA table_info(Equipment)")
     existing_columns = [col[1] for col in cursor.fetchall()]
 
@@ -586,6 +542,8 @@ def upgrade_db():
         'printer_ports': 'TEXT',
         'scanner_resolution': 'TEXT',
         'scanner_speed': 'TEXT',
+        'duplex_scanner': 'TEXT',
+        'scan_format': 'TEXT',      # <-- добавлено
         'phone_number': 'TEXT',
         'phone_ip': 'TEXT',
         'sip_account': 'TEXT',
@@ -598,7 +556,7 @@ def upgrade_db():
         'ups_runtime': 'INTEGER',
         'connection_type': 'TEXT',
         'color': 'TEXT',
-        'viewing_angle': 'TEXT'   # <-- добавлено
+        'viewing_angle': 'TEXT'
     }
 
     for col_name, col_type in new_columns.items():
@@ -609,7 +567,12 @@ def upgrade_db():
             except Exception as e:
                 print(f"⚠️ Ошибка добавления {col_name}: {e}")
 
-    # Проверяем наличие колонки organization_id в Catrigs (если нет – добавляем)
+    cursor.execute("PRAGMA table_info(Licenses)")
+    licenses_cols = [col[1] for col in cursor.fetchall()]
+    if 'status' not in licenses_cols:
+        cursor.execute("ALTER TABLE Licenses ADD COLUMN status TEXT DEFAULT 'Активна'")
+        print("✅ Добавлена колонка status в Licenses")
+
     cursor.execute("PRAGMA table_info(Catrigs)")
     catrigs_cols = [col[1] for col in cursor.fetchall()]
     if 'organization_id' not in catrigs_cols:
@@ -620,7 +583,6 @@ def upgrade_db():
         except Exception as e:
             print(f"⚠️ Ошибка добавления organization_id в Catrigs: {e}")
 
-    # Проверяем наличие колонки organization_id в Analytics
     cursor.execute("PRAGMA table_info(Analytics)")
     analytics_cols = [col[1] for col in cursor.fetchall()]
     if 'organization_id' not in analytics_cols:
@@ -631,7 +593,6 @@ def upgrade_db():
         except Exception as e:
             print(f"⚠️ Ошибка добавления organization_id в Analytics: {e}")
 
-    # Проверяем наличие колонки equipment_id в Catrigs
     if 'equipment_id' not in catrigs_cols:
         try:
             cursor.execute("ALTER TABLE Catrigs ADD COLUMN equipment_id INTEGER")

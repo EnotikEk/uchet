@@ -244,13 +244,15 @@ def index():
             WHERE expiry_date < date('now') 
             AND expiry_date IS NOT NULL 
             AND organization_id = ?
+            AND (status IS NULL OR status != 'Не используется')
         """, (org_id,))
     elif is_admin:
         cursor.execute("""
             SELECT COUNT(*) 
             FROM Licenses 
             WHERE expiry_date < date('now') 
-            AND expiry_date IS NOT NULL
+            AND expiry_date IS NOT NULL 
+            AND (status IS NULL OR status != 'Не используется')
         """)
     else:
         cursor.execute("""
@@ -259,6 +261,7 @@ def index():
             WHERE expiry_date < date('now') 
             AND expiry_date IS NOT NULL 
             AND organization_id IS NULL
+            AND (status IS NULL OR status != 'Не используется')
         """)
     expired_licenses = cursor.fetchone()[0]
     
@@ -1844,41 +1847,27 @@ def get_licenses():
     
     if org_id:
         cursor.execute("""
-            SELECT id, product_name, product_key, expiry_date, company, quantity, used, organization_id 
+            SELECT id, product_name, product_key, expiry_date, company, quantity, used, organization_id, status
             FROM Licenses 
             WHERE organization_id = ?
             ORDER BY id DESC
         """, (org_id,))
     elif is_admin:
         cursor.execute("""
-            SELECT id, product_name, product_key, expiry_date, company, quantity, used, organization_id 
+            SELECT id, product_name, product_key, expiry_date, company, quantity, used, organization_id, status
             FROM Licenses 
             ORDER BY id DESC
         """)
     else:
         cursor.execute("""
-            SELECT id, product_name, product_key, expiry_date, company, quantity, used, organization_id 
+            SELECT id, product_name, product_key, expiry_date, company, quantity, used, organization_id, status
             FROM Licenses 
             WHERE organization_id IS NULL
             ORDER BY id DESC
         """)
     
     licenses = []
-    today = datetime.now().date()
     for row in cursor.fetchall():
-        expiry_date = datetime.strptime(row[3], '%Y-%m-%d').date() if row[3] else None
-        
-        if expiry_date:
-            days_left = (expiry_date - today).days
-            if days_left < 0:
-                status = "Просрочена"
-            elif days_left <= 30:
-                status = "Истекает"
-            else:
-                status = "Активна"
-        else:
-            status = "Активна"
-        
         licenses.append({
             'id': row[0],
             'product_name': row[1],
@@ -1887,8 +1876,8 @@ def get_licenses():
             'company': row[4] if row[4] else '',
             'quantity': row[5],
             'used': row[6],
-            'status': status,
-            'organization_id': row[7] if len(row) > 7 else None
+            'organization_id': row[7],
+            'status': row[8] if len(row) > 8 else 'Активна'   # <-- ДОБАВЛЕНО
         })
     
     conn.close()
@@ -1902,23 +1891,10 @@ def add_license():
     cursor = conn.cursor()
     
     try:
-        # ===== ПОЛУЧАЕМ ФИЛИАЛ ДЛЯ НОВОЙ ЗАПИСИ =====
-        org_id = get_organization_for_new_record()
-        is_admin = session.get('role') == 'admin'
-        view_org_id = session.get('view_organization_id')
-        
-        print(f"DEBUG: Филиал для новой лицензии: {org_id}")
-        
-        # Определяем филиал для сохранения
-        save_org_id = None
-        if is_admin and view_org_id and view_org_id != '__ALL__' and view_org_id != '__NONE__':
-            save_org_id = view_org_id
-        elif org_id:
-            save_org_id = org_id
-        
+        save_org_id = get_organization_for_new_record()
         cursor.execute("""
-            INSERT INTO Licenses (product_name, product_key, expiry_date, company, quantity, used, organization_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO Licenses (product_name, product_key, expiry_date, company, quantity, used, organization_id, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             data.get('product_name'), 
             data.get('product_key'), 
@@ -1926,7 +1902,8 @@ def add_license():
             data.get('company'), 
             data.get('quantity', 0), 
             data.get('used', 0),
-            save_org_id
+            save_org_id,
+            data.get('status', 'Активна')   # <-- ДОБАВЛЕНО
         ))
         conn.commit()
         return jsonify({'success': True, 'id': cursor.lastrowid})
@@ -1945,11 +1922,18 @@ def update_license(id):
     try:
         cursor.execute("""
             UPDATE Licenses 
-            SET product_name=?, product_key=?, expiry_date=?, company=?, quantity=?, used=?
+            SET product_name=?, product_key=?, expiry_date=?, company=?, quantity=?, used=?, status=?
             WHERE id=?
-        """, (data.get('product_name'), data.get('product_key'), data.get('expiry_date'),
-              data.get('company'), data.get('quantity', 0), 
-              data.get('used', 0), id))
+        """, (
+            data.get('product_name'), 
+            data.get('product_key'), 
+            data.get('expiry_date'),
+            data.get('company'), 
+            data.get('quantity', 0), 
+            data.get('used', 0),
+            data.get('status', 'Активна'),   # <-- ДОБАВЛЕНО
+            id
+        ))
         conn.commit()
         return jsonify({'success': True})
     except Exception as e:
@@ -2837,6 +2821,8 @@ def equipment_page():
 @login_required
 def add_equipment():
     data = request.json
+    print("📦 ПОЛУЧЕННЫЕ ДАННЫЕ:", data)  # <-- ОТЛАДКА
+
     conn = get_db()
     cursor = conn.cursor()
     
@@ -2916,7 +2902,7 @@ def add_equipment():
         elif org_id:
             save_org_id = org_id
         
-        # ===== INSERT с добавлением viewing_angle =====
+        # ===== ВСТАВКА – duplex ПЕРЕДАЁТСЯ ЯВНО =====
         cursor.execute("""
         INSERT INTO Equipment (
             type, brand, model, serial_number, inventory_number,
@@ -2925,6 +2911,7 @@ def add_equipment():
             port_count, speed, network_type, poe, managed, ip_address,
             print_type, print_format, print_speed, color_type, duplex, printer_ports,
             scanner_resolution, scanner_speed,
+            duplex_scanner, scan_format,
             phone_number, phone_ip, sip_account, lines, phone_poe,
             ups_power, ups_type, ups_outlets, ups_usb, ups_runtime,
             connection_type, color,
@@ -2932,7 +2919,7 @@ def add_equipment():
             responsible_employee, mol_employee, room_id, organization_id, status,
             purchase_date, warranty_until, price, supplier, notes,
             created_by, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
     """, (
         data.get('type'), data.get('brand'), data.get('model'),
         data.get('serial_number'), inventory_number,
@@ -2943,8 +2930,11 @@ def add_equipment():
         data.get('port_count'), data.get('speed'), data.get('network_type'),
         data.get('poe'), data.get('managed'), data.get('ip_address'),
         data.get('print_type'), data.get('print_format'), data.get('print_speed'),
-        data.get('color_type'), data.get('duplex'), data.get('printer_ports'),
+        data.get('color_type'),
+        data.get('duplex'),  # <-- ЭТО ГЛАВНОЕ
+        data.get('printer_ports'),
         data.get('scanner_resolution'), data.get('scanner_speed'),
+        data.get('duplex_scanner'), data.get('scan_format'),
         data.get('phone_number'), data.get('phone_ip'), data.get('sip_account'),
         data.get('lines'), data.get('phone_poe'),
         data.get('ups_power'), data.get('ups_type'), data.get('ups_outlets'),
@@ -2962,6 +2952,9 @@ def add_equipment():
         return jsonify({'success': True, 'message': 'Оборудование добавлено', 'id': cursor.lastrowid})
     except Exception as e:
         conn.rollback()
+        print(f"❌ ОШИБКА add_equipment: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 400
     finally:
         conn.close()
@@ -3049,45 +3042,47 @@ def update_equipment(id):
         
         # ===== UPDATE с добавлением viewing_angle =====
         cursor.execute("""
-            UPDATE Equipment SET
-                type=?, brand=?, model=?, serial_number=?, inventory_number=?,
-                processor=?, ram=?, ram_type=?, storage=?, os=?, os_key=?,
-                monitor_size=?, resolution=?, refresh_rate=?, panel_type=?, response_time=?, viewing_angle=?, ports=?,
-                port_count=?, speed=?, network_type=?, poe=?, managed=?, ip_address=?,
-                print_type=?, print_format=?, print_speed=?, color_type=?, duplex=?, printer_ports=?,
-                scanner_resolution=?, scanner_speed=?,
-                phone_number=?, phone_ip=?, sip_account=?, lines=?, phone_poe=?,
-                ups_power=?, ups_type=?, ups_outlets=?, ups_usb=?, ups_runtime=?,
-                connection_type=?, color=?,
-                is_set=?, set_type=?,
-                responsible_employee=?, mol_employee=?, room_id=?, organization_id=?, status=?,
-                purchase_date=?, warranty_until=?, price=?, supplier=?, notes=?,
-                updated_by=?, updated_at=datetime('now')
-            WHERE id=?
-        """, (
-            data.get('type'), data.get('brand'), data.get('model'),
-            data.get('serial_number'), new_inventory,
-            data.get('processor'), data.get('ram'), data.get('ram_type'),
-            data.get('storage'), data.get('os'), data.get('os_key'),
-            data.get('monitor_size'), data.get('resolution'), data.get('refresh_rate'),
-            data.get('panel_type'), data.get('response_time'), data.get('viewing_angle'), data.get('ports'),
-            data.get('port_count'), data.get('speed'), data.get('network_type'),
-            data.get('poe'), data.get('managed'), data.get('ip_address'),
-            data.get('print_type'), data.get('print_format'), data.get('print_speed'),
-            data.get('color_type'), data.get('duplex'), data.get('printer_ports'),
-            data.get('scanner_resolution'), data.get('scanner_speed'),
-            data.get('phone_number'), data.get('phone_ip'), data.get('sip_account'),
-            data.get('lines'), data.get('phone_poe'),
-            data.get('ups_power'), data.get('ups_type'), data.get('ups_outlets'),
-            data.get('ups_usb'), data.get('ups_runtime'),
-            data.get('connection_type'), data.get('color'),
-            data.get('is_set', 0), data.get('set_type'), 
-            responsible_id, mol_id, room_id, organization_id,
-            data.get('status', 'В работе'),
-            purchase_date, warranty_until, data.get('price'),
-            data.get('supplier'), data.get('notes'),
-            current_user_id, id
-        ))
+        UPDATE Equipment SET
+            type=?, brand=?, model=?, serial_number=?, inventory_number=?,
+            processor=?, ram=?, ram_type=?, storage=?, os=?, os_key=?,
+            monitor_size=?, resolution=?, refresh_rate=?, panel_type=?, response_time=?, viewing_angle=?, ports=?,
+            port_count=?, speed=?, network_type=?, poe=?, managed=?, ip_address=?,
+            print_type=?, print_format=?, print_speed=?, color_type=?, duplex=?, printer_ports=?,
+            scanner_resolution=?, scanner_speed=?,
+            duplex_scanner=?, scan_format=?,   -- <-- ДОБАВЛЕНЫ
+            phone_number=?, phone_ip=?, sip_account=?, lines=?, phone_poe=?,
+            ups_power=?, ups_type=?, ups_outlets=?, ups_usb=?, ups_runtime=?,
+            connection_type=?, color=?,
+            is_set=?, set_type=?,
+            responsible_employee=?, mol_employee=?, room_id=?, organization_id=?, status=?,
+            purchase_date=?, warranty_until=?, price=?, supplier=?, notes=?,
+            updated_by=?, updated_at=datetime('now')
+        WHERE id=?
+    """, (
+        data.get('type'), data.get('brand'), data.get('model'),
+        data.get('serial_number'), new_inventory,
+        data.get('processor'), data.get('ram'), data.get('ram_type'),
+        data.get('storage'), data.get('os'), data.get('os_key'),
+        data.get('monitor_size'), data.get('resolution'), data.get('refresh_rate'),
+        data.get('panel_type'), data.get('response_time'), data.get('viewing_angle'), data.get('ports'),
+        data.get('port_count'), data.get('speed'), data.get('network_type'),
+        data.get('poe'), data.get('managed'), data.get('ip_address'),
+        data.get('print_type'), data.get('print_format'), data.get('print_speed'),
+        data.get('color_type'), data.get('duplex'), data.get('printer_ports'),
+        data.get('scanner_resolution'), data.get('scanner_speed'),
+        data.get('duplex_scanner'), data.get('scan_format'),  # <-- ДОБАВЛЕНЫ
+        data.get('phone_number'), data.get('phone_ip'), data.get('sip_account'),
+        data.get('lines'), data.get('phone_poe'),
+        data.get('ups_power'), data.get('ups_type'), data.get('ups_outlets'),
+        data.get('ups_usb'), data.get('ups_runtime'),
+        data.get('connection_type'), data.get('color'),
+        data.get('is_set', 0), data.get('set_type'), 
+        responsible_id, mol_id, room_id, organization_id,
+        data.get('status', 'В работе'),
+        purchase_date, warranty_until, data.get('price'),
+        data.get('supplier'), data.get('notes'),
+        current_user_id, id
+    ))
         
         conn.commit()
         return jsonify({'success': True, 'message': 'Оборудование обновлено'})
@@ -4076,10 +4071,11 @@ def get_equipment():
             e.id, e.type, e.brand, e.model, e.serial_number, e.inventory_number,
             e.processor, e.ram, e.ram_type, e.storage, e.os, e.os_key,
             e.monitor_size, e.resolution, e.refresh_rate, e.panel_type, e.response_time, 
-            e.viewing_angle, e.ports,                                    -- <-- ДОБАВЛЕНО
+            e.viewing_angle, e.ports,
             e.port_count, e.speed, e.network_type, e.poe, e.managed, e.ip_address,
             e.print_type, e.print_format, e.print_speed, e.color_type, e.duplex, e.printer_ports,
             e.scanner_resolution, e.scanner_speed,
+            e.duplex_scanner, e.scan_format,   -- <-- добавлены
             e.phone_number, e.phone_ip, e.sip_account, e.lines, e.phone_poe,
             e.ups_power, e.ups_type, e.ups_outlets, e.ups_usb, e.ups_runtime,
             e.connection_type, e.color,
@@ -4123,7 +4119,7 @@ def get_equipment():
             'refresh_rate': row[14] or '',
             'panel_type': row[15] or '',
             'response_time': row[16] or '',
-            'viewing_angle': row[17] or '',   # <-- ДОБАВЛЕНО
+            'viewing_angle': row[17] or '',
             'ports': row[18] or '',
             'port_count': row[19] or '',
             'speed': row[20] or '',
@@ -4139,34 +4135,36 @@ def get_equipment():
             'printer_ports': row[30] or '',
             'scanner_resolution': row[31] or '',
             'scanner_speed': row[32] or '',
-            'phone_number': row[33] or '',
-            'phone_ip': row[34] or '',
-            'sip_account': row[35] or '',
-            'lines': row[36] or '',
-            'phone_poe': row[37] or '',
-            'ups_power': row[38] or '',
-            'ups_type': row[39] or '',
-            'ups_outlets': row[40] or '',
-            'ups_usb': row[41] or '',
-            'ups_runtime': row[42] or '',
-            'connection_type': row[43] or '',
-            'color': row[44] or '',
-            'is_set': row[45] if len(row) > 45 else 0,
-            'set_type': row[46] if len(row) > 46 else '',
-            'responsible': row[47] if len(row) > 47 else '',
-            'mol': row[48] if len(row) > 48 else '',
-            'room': row[49] if len(row) > 49 else '',
-            'department_name': row[50] if len(row) > 50 else '',
-            'organization': row[51] if len(row) > 51 else '',
-            'organization_id': row[52] if len(row) > 52 else None,
-            'status': row[53] if len(row) > 53 else 'В работе',
-            'purchase_date': row[54] if len(row) > 54 and row[54] else '',
-            'warranty_until': row[55] if len(row) > 55 and row[55] else '',
-            'price': float(row[56]) if len(row) > 56 and row[56] else 0,
-            'supplier': row[57] if len(row) > 57 else '',
-            'notes': row[58] if len(row) > 58 else '',
-            'created_at': row[59] if len(row) > 59 else None,
-            'created_by': row[60] if len(row) > 60 else row[61] if len(row) > 61 else ''
+            'duplex_scanner': row[33] or '',      # <-- новое поле
+            'scan_format': row[34] or '',          # <-- новое поле
+            'phone_number': row[35] or '',
+            'phone_ip': row[36] or '',
+            'sip_account': row[37] or '',
+            'lines': row[38] or '',
+            'phone_poe': row[39] or '',
+            'ups_power': row[40] or '',
+            'ups_type': row[41] or '',
+            'ups_outlets': row[42] or '',
+            'ups_usb': row[43] or '',
+            'ups_runtime': row[44] or '',
+            'connection_type': row[45] or '',
+            'color': row[46] or '',
+            'is_set': row[47] if len(row) > 47 else 0,
+            'set_type': row[48] if len(row) > 48 else '',
+            'responsible': row[49] if len(row) > 49 else '',
+            'mol': row[50] if len(row) > 50 else '',
+            'room': row[51] if len(row) > 51 else '',
+            'department_name': row[52] if len(row) > 52 else '',
+            'organization': row[53] if len(row) > 53 else '',
+            'organization_id': row[54] if len(row) > 54 else None,
+            'status': row[55] if len(row) > 55 else 'В работе',
+            'purchase_date': row[56] if len(row) > 56 and row[56] else '',
+            'warranty_until': row[57] if len(row) > 57 and row[57] else '',
+            'price': float(row[58]) if len(row) > 58 and row[58] else 0,
+            'supplier': row[59] if len(row) > 59 else '',
+            'notes': row[60] if len(row) > 60 else '',
+            'created_at': row[61] if len(row) > 61 else None,
+            'created_by': row[62] if len(row) > 62 else row[63] if len(row) > 63 else ''
         })
     
     conn.close()

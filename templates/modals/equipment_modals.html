@@ -257,7 +257,7 @@
                                     </div>
                                     <div class="col-md-4 mb-2">
                                         <label class="form-label">Двусторонняя печать</label>
-                                        <select class="form-select" id="addEquipmentDuplex">
+                                        <select class="form-select" id="addEquipmentDuplexAdd">
                                             <option value="Нет">Нет</option>
                                             <option value="Да">Да</option>
                                         </select>
@@ -266,61 +266,60 @@
                             </div>
                         </div>
                     </div>
-
-                    <!-- Форма для принтера/МФУ -->
+                    <!-- Форма для МФУ -->
                     <div id="formMFU" class="type-form" style="display: none;">
                         <div class="card mb-3">
                             <div class="card-header bg-light">
-                                <h6 class="mb-0"><i class="fas fa-print"></i> Параметры печати</h6>
+                                <h6 class="mb-0"><i class="fas fa-print"></i> Параметры МФУ</h6>
                             </div>
                             <div class="card-body">
                                 <div class="row">
-                                    <div class="col-md-4 mb-2">
+                                    <div class="col-4 mb-2">
                                         <label class="form-label">Тип печати</label>
                                         <select class="form-select" id="addEquipmentPrintType">
                                             <option value="Лазерный">Лазерный</option>
                                             <option value="Струйный">Струйный</option>
                                         </select>
                                     </div>
-                                    <div class="col-md-4 mb-2">
+                                    <div class="col-4 mb-2">
                                         <label class="form-label">Формат печати</label>
                                         <select class="form-select" id="addEquipmentPrintFormat">
                                             <option value="A4">A4</option>
                                             <option value="A3">A3</option>
                                             <option value="A3/A4">A3/A4</option>
                                         </select>
-                                    </div>  
-                                    <div class="col-md-4 mb-2">
-                                        <label class="form-label">Двусторонний скан</label>
-                                        <select class="form-select" id="addEquipmentDuplexScanner">
-                                            <option value="Нет">Нет</option>
-                                            <option value="Да">Да</option>
-                                        </select>
+                                    </div>
+                                    <div class="col-4 mb-2">
+                                        <label class="form-label">IP адрес</label>
+                                        <input type="text" class="form-control" id="addEquipmentIpAddress" placeholder="192.168.1.100">
                                     </div>
                                 </div>
                                 <div class="row">
-                                    <div class="col-md-4 mb-2">
+                                    <div class="col-4 mb-2">
                                         <label class="form-label">Цветность</label>
                                         <select class="form-select" id="addEquipmentColorType">
                                             <option value="Черно-белый">Черно-белый</option>
                                             <option value="Цветной">Цветной</option>
                                         </select>
                                     </div>
-                                    <div class="col-md-4 mb-2">
+                                    <div class="col-4 mb-2">
                                         <label class="form-label">Двусторонняя печать</label>
-                                        <select class="form-select" id="addEquipmentDuplex">
+                                        <select class="form-select" id="addEquipmentDuplexAdd">
                                             <option value="Нет">Нет</option>
                                             <option value="Да">Да</option>
                                         </select>
                                     </div>
-                                    <div class="col-md-4 mb-2">
-                                        <label class="form-label">IP адрес</label>
-                                        <input type="text" class="form-control" id="addEquipmentIpAddress" placeholder="192.168.1.100">
-                                    </div>
                                 </div>
                                 <div class="row">
-                                    <div class="col-md-4 mb-2">
-                                        <label class="form-label">Формат сканирования</label>
+                                    <div class="col-4 mb-2">
+                                        <label class="form-label">Двусторонний скан</label>
+                                        <select class="form-select" id="addEquipmentDuplexScanner">
+                                            <option value="Нет">Нет</option>
+                                            <option value="Да">Да</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-4 mb-2">
+                                        <label class="form-label">Формат скана</label>
                                         <select class="form-select" id="addEquipmentScanFormat">
                                             <option value="A4">A4</option>
                                             <option value="A3">A3</option>
@@ -415,16 +414,16 @@
                             </div>
                             <div class="card-body">
                                 <div class="row">
-                                    <div class="col-md-6 mb-2">
+                                    <div class="col-6 mb-2">
                                         <label class="form-label">Двусторонний скан</label>
-                                        <select class="form-select" id="addEquipmentConnectionTypeScanner">
+                                        <select class="form-select" id="addEquipmentDuplexScanner">
                                             <option value="Нет">Нет</option>
                                             <option value="Да">Да</option>
                                         </select>
                                     </div>
-                                    <div class="col-md-6 mb-2">
-                                        <label class="form-label">Формат бумаги</label>
-                                        <select class="form-select" id="addEquipmentPaperFormat">
+                                    <div class="col-6 mb-2">
+                                        <label class="form-label">Формат скана</label>
+                                        <select class="form-select" id="addEquipmentScanFormat">
                                             <option value="A4">A4</option>
                                             <option value="A3">A3</option>
                                             <option value="A3/A4">A3/A4</option>
@@ -523,6 +522,7 @@
                                 <option value="Ремонт">Ремонт</option>
                                 <option value="На складе">На складе</option>
                                 <option value="Списано">Списано</option>
+                                <option value="Простаивает">Простаивает</option> 
                             </select>
                         </div>
                     </div>
@@ -818,6 +818,7 @@
                                 <option value="Ремонт">Ремонт</option>
                                 <option value="На складе">На складе</option>
                                 <option value="Списано">Списано</option>
+                                <option value="Простаивает">Простаивает</option>
                             </select>
                         </div>
                     </div>
@@ -973,11 +974,9 @@ function saveEquipment() {
 
     const typeDisplay = typeNames[type] || type;
 
-    // Инвентарный номер – НЕ ОБЯЗАТЕЛЕН
     let inventoryNumber = $('#addEquipmentInventory').val().trim();
     if (inventoryNumber === '') inventoryNumber = null;
 
-    // ===== БАЗОВЫЕ ДАННЫЕ (общие для всех типов) =====
     const data = {
         type: typeDisplay,
         brand: $('#addEquipmentBrand').val().trim() || '',
@@ -993,9 +992,9 @@ function saveEquipment() {
         notes: $('#addEquipmentNotes').val().trim() || ''
     };
 
-    // ===== СПЕЦИФИЧЕСКИЕ ПОЛЯ ПО ТИПАМ =====
+    // ===== СПЕЦИФИЧЕСКИЕ ПОЛЯ =====
 
-    // 1. Компьютер / Ноутбук / Сервер / Моноблок / Другое
+    // 1. Системные
     if (['computer', 'laptop', 'server', 'monoblock', 'other'].includes(type)) {
         data.processor = $('#addEquipmentProcessor').val().trim() || '';
         data.ram = parseInt($('#addEquipmentRam').val()) || null;
@@ -1016,39 +1015,82 @@ function saveEquipment() {
         data.response_time = parseInt($('#addEquipmentResponseTime').val()) || null;
         data.viewing_angle = $('#addEquipmentViewingAngle').val().trim() || '';
         data.ports = $('#addEquipmentPorts').val().trim() || '';
+        data.connection_type = $('#addEquipmentConnectionType').val() || '';
     }
 
-    // 3. Сетевое оборудование
+    // 3. Сетевое
     if (type === 'network') {
         data.port_count = parseInt($('#addEquipmentPortCount').val()) || null;
         data.speed = $('#addEquipmentSpeed').val() || '';
         data.ip_address = $('#addEquipmentIpAddress').val().trim() || null;
+        data.network_type = $('#addEquipmentNetworkType').val() || '';
+        data.poe = $('#addEquipmentPoE').val() || '';
+        data.managed = $('#addEquipmentManaged').val() || '';
     }
 
-    // 4. Принтер и МФУ (исправлено – только существующие поля)
     if (['printer', 'mfu'].includes(type)) {
         data.print_type = $('#addEquipmentPrintType').val();
         data.print_format = $('#addEquipmentPrintFormat').val();
         data.print_speed = parseInt($('#addEquipmentPrintSpeed').val()) || null;
         data.color_type = $('#addEquipmentColorType').val();
-        data.duplex = $('#addEquipmentDuplex').val();
+        // Используем новый уникальный ID
+        data.duplex = $('#addEquipmentDuplexAdd').val();
+        console.log('📤 duplex (add) =', data.duplex);
         data.printer_ports = ($('#addEquipmentPrinterPorts').val() || '').trim();
         data.ip_address = ($('#addEquipmentIpAddress').val() || '').trim();
         if (type === 'mfu') {
-            data.scanner_resolution = ($('#addEquipmentScannerResolution').val() || '').trim();
-            data.scanner_speed = ($('#addEquipmentScannerSpeed').val() || '').trim();
+            data.duplex_scanner = $('#addEquipmentDuplexScanner').val();
+            data.scan_format = $('#addEquipmentScanFormat').val();
         }
     }
 
-    // 5. ИБП
+    // // 4. Принтер
+    // if (type === 'printer') {
+    //     data.print_type = $('#addEquipmentPrintType').val();
+    //     data.print_format = $('#addEquipmentPrintFormat').val();
+    //     data.print_speed = parseInt($('#addEquipmentPrintSpeed').val()) || null;
+    //     data.color_type = $('#addEquipmentColorType').val();
+    //     // Используем новый уникальный ID
+    //     data.duplex = $('#addEquipmentDuplexAdd').val();
+    //     console.log('📤 duplex (add) =', data.duplex);
+    //     data.printer_ports = ($('#addEquipmentPrinterPorts').val() || '').trim();
+    //     data.ip_address = ($('#addEquipmentIpAddress').val() || '').trim();
+    // }
+
+    // // 5. МФУ
+    // if (type === 'mfu') {
+    //     data.print_type = $('#addEquipmentPrintType').val();
+    //     data.print_format = $('#addEquipmentPrintFormat').val();
+    //     data.print_speed = parseInt($('#addEquipmentPrintSpeed').val()) || null;
+    //     data.color_type = $('#addEquipmentColorType').val();
+    //     // Используем новый уникальный ID
+    //     data.duplex = $('#addEquipmentModal').find('#addEquipmentDuplexAdd').val();
+    //     console.log('📤 duplex (add) =', data.duplex);
+    //     data.printer_ports = ($('#addEquipmentPrinterPorts').val() || '').trim();
+    //     data.ip_address = ($('#addEquipmentIpAddress').val() || '').trim();
+    //     data.duplex_scanner = $('#addEquipmentDuplexScanner').val();
+    //     data.scan_format = $('#addEquipmentScanFormat').val();
+    // }
+
+    // 6. Сканер
+    if (type === 'scanner') {
+        data.duplex_scanner = $('#addEquipmentDuplexScanner').val();
+        data.scan_format = $('#addEquipmentScanFormat').val();
+        data.connection_type = $('#addEquipmentConnectionType').val() || '';
+        data.color = $('#addEquipmentColor').val().trim() || '';
+        data.scanner_resolution = $('#addEquipmentScanFormat').val();
+    }
+
+    // 7. ИБП
     if (type === 'ups') {
         data.ups_power = $('#addEquipmentUpsPower').val().trim() || '';
         data.ups_type = $('#addEquipmentUpsType').val() || '';
         data.ups_outlets = parseInt($('#addEquipmentUpsOutlets').val()) || null;
-        // если есть другие поля – добавьте
+        data.ups_usb = $('#addEquipmentUpsUsb').val().trim() || '';
+        data.ups_runtime = parseInt($('#addEquipmentUpsRuntime').val()) || null;
     }
 
-    // 6. Мышь/Клавиатура
+    // 8. Мышь/Клавиатура
     if (type === 'mouse_keyboard') {
         data.connection_type = $('#addEquipmentConnectionType').val() || '';
         data.color = $('#addEquipmentColor').val().trim() || '';
@@ -1056,7 +1098,7 @@ function saveEquipment() {
         data.set_type = $('#addEquipmentSetType').val() || '';
     }
 
-    // 7. ВКС (веб-камера/гарнитура/микрофон)
+    // 9. ВКС
     if (type === 'pereferiya') {
         data.connection_type = $('#addEquipmentConnectionTypeVKS').val() || '';
         data.color = $('#addEquipmentColorVKS').val().trim() || '';
@@ -1064,7 +1106,7 @@ function saveEquipment() {
         data.set_type = $('#addEquipmentSetTypeVKS').val() || '';
     }
 
-    // 8. Периферия (внешний диск, колонки)
+    // 10. Периферия
     if (['external_drive', 'speakers'].includes(type)) {
         data.connection_type = $('#addEquipmentConnectionTypePeripheral').val() || '';
         data.color = $('#addEquipmentColorPeripheral').val().trim() || '';
@@ -1073,19 +1115,13 @@ function saveEquipment() {
         }
     }
 
-    // 9. Сканер
-    if (type === 'scanner') {
-        data.duplex = $('#addEquipmentConnectionTypeScanner').val() || '';
-        data.scan_format = $('#addEquipmentPaperFormat').val() || '';
-        // можно добавить другие поля, если они есть
-    }
-
-    // ===== ОТПРАВКА НА СЕРВЕР =====
-    console.log('Отправляемые данные:', data);
-
+    // Отправка
     const btn = $('#addEquipmentModal .btn-primary');
     const originalHtml = btn.html();
     btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Сохранение...');
+
+    console.log('📦 ОТПРАВЛЯЕМЫЕ ДАННЫЕ:', data);
+    console.log('📤 duplex from #addEquipmentDuplexAdd =', $('#addEquipmentDuplexAdd').val());
 
     $.ajax({
         url: '/api/equipment',
@@ -1532,14 +1568,18 @@ function updateEquipment() {
         data.refresh_rate = parseInt($('#editEquipmentRefreshRate').val()) || null;
         data.panel_type = $('#editEquipmentPanelType').val();
         data.response_time = parseInt($('#editEquipmentResponseTime').val()) || null;
-        data.viewing_angle = $('#editEquipmentViewingAngle').val().trim();   // <-- ДОБАВЛЕНО
+        data.viewing_angle = $('#editEquipmentViewingAngle').val().trim();
         data.ports = $('#editEquipmentPorts').val().trim();
+        data.connection_type = $('#editEquipmentConnectionType').val();
     }
 
     if (type === 'Сетевое оборудование') {
         data.port_count = parseInt($('#editEquipmentPortCount').val()) || null;
         data.speed = $('#editEquipmentSpeed').val();
         data.ip_address = $('#editEquipmentIpAddress').val().trim();
+        data.network_type = $('#editEquipmentNetworkType').val();
+        data.poe = $('#editEquipmentPoE').val();
+        data.managed = $('#editEquipmentManaged').val();
     }
 
     if (['Принтер', 'МФУ'].includes(type)) {
@@ -1547,12 +1587,25 @@ function updateEquipment() {
         data.print_format = $('#editEquipmentPrintFormat').val();
         data.print_speed = parseInt($('#editEquipmentPrintSpeed').val()) || null;
         data.color_type = $('#editEquipmentColorType').val();
-        data.duplex = $('#editEquipmentDuplex').val();
+        // Для редактирования используем уникальный ID модалки редактирования
+        data.duplex = $('#editEquipmentDuplexAdd').val();
         data.printer_ports = $('#editEquipmentPrinterPorts').val().trim();
+        data.ip_address = $('#editEquipmentIpAddress').val().trim();
         if (type === 'МФУ') {
             data.scanner_resolution = $('#editEquipmentScannerResolution').val().trim();
             data.scanner_speed = $('#editEquipmentScannerSpeed').val().trim();
+            data.duplex_scanner = $('#editEquipmentDuplexScanner').val();
+            data.scan_format = $('#editEquipmentScanFormat').val();
         }
+    }
+
+    if (type === 'Сканер') {
+        data.duplex_scanner = $('#editEquipmentDuplexScanner').val();
+        data.scan_format = $('#editEquipmentScanFormat').val();
+        data.connection_type = $('#editEquipmentConnectionType').val();
+        data.color = $('#editEquipmentColor').val().trim();
+        data.scanner_resolution = $('#editEquipmentScannerResolution').val().trim();
+        data.scanner_speed = $('#editEquipmentScannerSpeed').val().trim();
     }
 
     if (type === 'ИБП') {
@@ -1574,7 +1627,7 @@ function updateEquipment() {
         }
     }
 
-    console.log('Отправка обновления:', data);
+    console.log('📦 ОТПРАВЛЯЕМЫЕ ДАННЫЕ (редактирование):', data);
 
     const btn = $('#editEquipmentModal .btn-primary');
     const originalHtml = btn.html();

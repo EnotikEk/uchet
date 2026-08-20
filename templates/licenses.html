@@ -108,7 +108,7 @@
     </div>
 </div>
 
-<!-- Модальное окно добавления лицензии -->
+<!-- Модальное окно добавления лицензии (обновлено: радио-кнопки статуса) -->
 <div class="modal fade" id="addLicenseModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -155,6 +155,23 @@
                             <small class="text-muted">Сколько уже активировано</small>
                         </div>
                     </div>
+                    <!-- ===== НОВЫЙ БЛОК СТАТУСА (РАДИО-КНОПКИ) ===== -->
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Статус</label>
+                            <div class="d-flex">
+                                <div class="form-check me-3">
+                                    <input class="form-check-input" type="radio" name="licenseStatus" id="licenseStatusActive" value="Активна" checked>
+                                    <label class="form-check-label" for="licenseStatusActive">Активна</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="licenseStatus" id="licenseStatusInactive" value="Не используется">
+                                    <label class="form-check-label" for="licenseStatusInactive">Не используется</label>
+                                </div>
+                            </div>
+                            <small class="text-muted">Текущий статус лицензии</small>
+                        </div>
+                    </div>
                 </form>
             </div>
             <div class="modal-footer">
@@ -165,7 +182,7 @@
     </div>
 </div>
 
-<!-- Модальное окно просмотра/редактирования лицензии -->
+<!-- Модальное окно просмотра/редактирования лицензии (обновлено: радио-кнопки статуса) -->
 <div class="modal fade" id="viewLicenseModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -223,6 +240,7 @@
 let licensesData = [];
 let currentLicenseData = null;
 
+// ========== ЗАГРУЗКА ==========
 function loadLicenses() {
     $('#licensesTableBody').html('<tr><td colspan="8" class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin me-2"></i>Загрузка данных...</td></tr>');
     
@@ -246,56 +264,65 @@ function loadLicenses() {
             if (xhr.responseJSON && xhr.responseJSON.error) {
                 errorMsg = xhr.responseJSON.error;
             }
-            $('#licensesTableBody').html(`<table><td colspan="8" class="text-center text-danger py-4">
+            $('#licensesTableBody').html(`<tr><td colspan="8" class="text-center text-danger py-4">
                 ❌ Ошибка загрузки: ${errorMsg}<br>
                 <button class="btn btn-outline-danger mt-2" onclick="loadLicenses()">Повторить</button>
-            </td
-            </tr>`);
+            </td></tr>`);
         }
     });
 }
 
+// ========== ОТОБРАЖЕНИЕ ==========
 function renderLicenses(data) {
     const tbody = $('#licensesTableBody');
     tbody.empty();
     
     if (!data || data.length === 0) {
-        tbody.html('<tr><td colspan="8" class="text-center text-muted py-4">📭 Нет лицензий. Нажмите "Добавить лицензию"</td</tr>');
+        tbody.html('<tr><td colspan="8" class="text-center text-muted py-4">📭 Нет лицензий. Нажмите "Добавить лицензию"</td></tr>');
         return;
     }
     
     for (let i = 0; i < data.length; i++) {
         const license = data[i];
         
-        let expiryText = license.expiry_date ? new Date(license.expiry_date).toLocaleDateString('ru-RU') : '—';
-        let statusClass = '';
+        const expiryText = license.expiry_date ? new Date(license.expiry_date).toLocaleDateString('ru-RU') : '—';
         let statusText = '';
+        let statusClass = '';
         
-        if (license.expiry_date) {
+        // ===== НОВАЯ ЛОГИКА =====
+        // 1. Если статус явно "Не используется" – оставляем его (серый цвет)
+        if (license.status === 'Не используется') {
+            statusText = 'Не используется';
+            statusClass = 'text-secondary';
+        }
+        // 2. Иначе вычисляем по дате
+        else {
             const today = new Date();
             const expiryDate = new Date(license.expiry_date);
-            const daysLeft = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
-            
-            if (daysLeft < 0) {
-                statusClass = 'text-danger fw-bold';
-                statusText = 'Просрочена';
-            } else if (daysLeft <= 30) {
-                statusClass = 'text-warning fw-bold';
-                statusText = `Истекает (${daysLeft} дн.)`;
-            } else {
-                statusClass = 'text-success';
+            // Если дата не указана – считаем активной (но такое редко)
+            if (!license.expiry_date) {
                 statusText = 'Активна';
+                statusClass = 'text-success';
+            } else {
+                const daysLeft = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
+                if (daysLeft < 0) {
+                    statusText = 'Просрочена';
+                    statusClass = 'text-danger fw-bold';
+                } else if (daysLeft <= 30) {
+                    statusText = `Истекает (${daysLeft} дн.)`;
+                    statusClass = 'text-warning fw-bold';
+                } else {
+                    statusText = 'Активна';
+                    statusClass = 'text-success';
+                }
             }
-        } else {
-            statusText = 'Активна';
-            statusClass = 'text-success';
         }
         
         const row = $(`
             <tr data-id="${license.id}" class="license-row" style="cursor: pointer;">
                 <td class="text-center">
                     <i class="fas fa-info-circle text-info" style="font-size: 1.2rem;"></i>
-                 </td>
+                </td>
                 <td style="vertical-align: middle;"><strong>${escapeHtml(license.product_name)}</strong></td>
                 <td style="vertical-align: middle;"><code class="small">${escapeHtml(license.product_key) || '—'}</code></td>
                 <td style="vertical-align: middle;" class="${statusClass}">${expiryText}<br><small>${statusText}</small></td>
@@ -307,20 +334,19 @@ function renderLicenses(data) {
                         <i class="fas fa-trash"></i>
                     </button>
                 </td>
-             </tr>
+            </tr>
         `);
         row.data('license-data', license);
         tbody.append(row);
     }
     
-    // Обработчик клика по строке для просмотра
+    // Обработчики событий (без изменений)
     $('.license-row').off('click').on('click', function(e) {
         if ($(e.target).closest('.delete-license-btn').length) return;
         const data = $(this).data('license-data');
         if (data) openLicenseView(data);
     });
     
-    // Обработчик удаления
     $('.delete-license-btn').off('click').on('click', function(e) {
         e.stopPropagation();
         const id = $(this).data('id');
@@ -328,6 +354,7 @@ function renderLicenses(data) {
     });
 }
 
+// ========== ПРОСМОТР ==========
 function openLicenseView(license) {
     currentLicenseData = license;
     $('#viewLicenseId').val(license.id);
@@ -338,27 +365,16 @@ function openLicenseView(license) {
     $('#viewLicenseQuantity').text(license.quantity || 0);
     $('#viewLicenseUsed').text(license.used || 0);
     
-    // Определяем статус для отображения
-    let statusText = 'Активна';
-    let statusClass = 'text-success';
-    if (license.expiry_date) {
-        const today = new Date();
-        const expiryDate = new Date(license.expiry_date);
-        const daysLeft = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
-        if (daysLeft < 0) {
-            statusText = 'Просрочена';
-            statusClass = 'text-danger';
-        } else if (daysLeft <= 30) {
-            statusText = `Истекает (осталось ${daysLeft} дн.)`;
-            statusClass = 'text-warning fw-bold';
-        }
-    }
+    // ===== ОТОБРАЖЕНИЕ СТАТУСА =====
+    let statusText = license.status || 'Активна';
+    let statusClass = statusText === 'Активна' ? 'text-success' : (statusText === 'Не используется' ? 'text-secondary' : 'text-danger');
     $('#viewLicenseStatus').html(`<span class="${statusClass}">${statusText}</span>`);
     
     disableLicenseEditMode();
     $('#viewLicenseModal').modal('show');
 }
 
+// ========== РЕДАКТИРОВАНИЕ (РЕЖИМ ПРАВКИ) ==========
 function enableLicenseEditMode() {
     const license = currentLicenseData;
     
@@ -368,6 +384,21 @@ function enableLicenseEditMode() {
     $('#viewLicenseCompany').html(`<input type="text" class="form-control form-control-sm" id="editLicenseCompany" value="${escapeHtml(license.company || '')}">`);
     $('#viewLicenseQuantity').html(`<input type="number" class="form-control form-control-sm" id="editLicenseQuantity" value="${license.quantity || 0}" min="1">`);
     $('#viewLicenseUsed').html(`<input type="number" class="form-control form-control-sm" id="editLicenseUsed" value="${license.used || 0}" min="0">`);
+    
+    // ===== СТАТУС – РАДИО-КНОПКИ =====
+    const status = license.status || 'Активна';
+    $('#viewLicenseStatus').html(`
+        <div class="d-flex">
+            <div class="form-check me-3">
+                <input class="form-check-input" type="radio" name="editLicenseStatus" id="editStatusActive" value="Активна" ${status === 'Активна' ? 'checked' : ''}>
+                <label class="form-check-label" for="editStatusActive">Активна</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="editLicenseStatus" id="editStatusInactive" value="Не используется" ${status === 'Не используется' ? 'checked' : ''}>
+                <label class="form-check-label" for="editStatusInactive">Не используется</label>
+            </div>
+        </div>
+    `);
     
     $('#viewLicenseFooter').html(`
         <button type="button" class="btn btn-success" id="saveLicenseBtn">
@@ -382,6 +413,7 @@ function enableLicenseEditMode() {
     $('#cancelLicenseEditBtn').off('click').on('click', cancelLicenseEdit);
 }
 
+// ========== СОХРАНЕНИЕ РЕДАКТИРОВАНИЯ ==========
 function saveLicenseEdit() {
     const id = $('#viewLicenseId').val();
     const data = {
@@ -390,7 +422,8 @@ function saveLicenseEdit() {
         expiry_date: $('#editLicenseExpiryDate').val(),
         company: $('#editLicenseCompany').val().trim(),
         quantity: parseInt($('#editLicenseQuantity').val()) || 0,
-        used: parseInt($('#editLicenseUsed').val()) || 0
+        used: parseInt($('#editLicenseUsed').val()) || 0,
+        status: $('input[name="editLicenseStatus"]:checked').val()   // берём из радио-кнопок
     };
     
     if (!data.product_name) {
@@ -427,6 +460,110 @@ function saveLicenseEdit() {
     });
 }
 
+// ========== ОТМЕНА РЕДАКТИРОВАНИЯ ==========
+function cancelLicenseEdit() {
+    if (currentLicenseData) {
+        openLicenseView(currentLicenseData);
+    }
+}
+
+// ========== ВЫХОД ИЗ РЕЖИМА РЕДАКТИРОВАНИЯ ==========
+function disableLicenseEditMode() {
+    if (!currentLicenseData) return;
+    
+    const license = currentLicenseData;
+    
+    $('#viewLicenseProductName').text(license.product_name || '—');
+    $('#viewLicenseProductKey').text(license.product_key || '—');
+    $('#viewLicenseExpiryDate').text(license.expiry_date ? new Date(license.expiry_date).toLocaleDateString('ru-RU') : '—');
+    $('#viewLicenseCompany').text(license.company || '—');
+    $('#viewLicenseQuantity').text(license.quantity || 0);
+    $('#viewLicenseUsed').text(license.used || 0);
+    
+    // ===== СТАТУС ТЕКСТОМ =====
+    let statusText = license.status || 'Активна';
+    let statusClass = statusText === 'Активна' ? 'text-success' : (statusText === 'Не используется' ? 'text-secondary' : 'text-danger');
+    $('#viewLicenseStatus').html(`<span class="${statusClass}">${statusText}</span>`);
+    
+    $('#viewLicenseFooter').html(`
+        <button type="button" class="btn btn-warning" id="editLicenseBtn">
+            <i class="fas fa-edit"></i> Редактировать
+        </button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+    `);
+    
+    $('#editLicenseBtn').off('click').on('click', enableLicenseEditMode);
+}
+
+// ========== УДАЛЕНИЕ ==========
+function deleteLicense(id) {
+    if (confirm('🗑️ Удалить лицензию? Это действие нельзя отменить.')) {
+        $.ajax({
+            url: `/api/licenses/${id}`,
+            method: 'DELETE',
+            success: function() { 
+                loadLicenses(); 
+                showMessage('✅ Лицензия удалена', 'success'); 
+            },
+            error: function(xhr) { 
+                const error = xhr.responseJSON;
+                showMessage(error?.error || '❌ Ошибка при удалении', 'danger'); 
+            }
+        });
+    }
+}
+
+// ========== ДОБАВЛЕНИЕ ==========
+function saveLicenseFromModal() {
+    const data = {
+        product_name: $('#licenseProductName').val().trim(),
+        product_key: $('#licenseProductKey').val().trim(),
+        expiry_date: $('#licenseExpiryDate').val(),
+        company: $('#licenseCompany').val().trim(),
+        quantity: parseInt($('#licenseQuantity').val()) || 0,
+        used: parseInt($('#licenseUsed').val()) || 0,
+        status: $('input[name="licenseStatus"]:checked').val()   // радио-кнопки
+    };
+    
+    if (!data.product_name) {
+        showMessage('Введите название продукта', 'danger');
+        return;
+    }
+    if (data.quantity < 1) {
+        showMessage('Количество должно быть не менее 1', 'danger');
+        return;
+    }
+    if (data.used > data.quantity) {
+        showMessage('Используемое количество не может превышать общее количество', 'danger');
+        return;
+    }
+    
+    $.ajax({
+        url: '/api/licenses',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success: function(response) {
+            if (response.success) {
+                showMessage('✅ Лицензия добавлена', 'success');
+                $('#addLicenseModal').modal('hide');
+                $('#addLicenseForm')[0].reset();
+                $('#licenseQuantity').val('1');
+                $('#licenseUsed').val('0');
+                $('#licenseStatusActive').prop('checked', true); // сброс на "Активна"
+                loadLicenses();
+            } else {
+                showMessage(response.error, 'danger');
+            }
+        },
+        error: function(xhr) {
+            const error = xhr.responseJSON;
+            showMessage(error?.error || '❌ Ошибка при добавлении', 'danger');
+        }
+    });
+}
+
+// ========== ИМПОРТ EXCEL ==========
 function importLicenseExcel() {
     const fileInput = document.getElementById('licenseExcelFile');
     const file = fileInput.files[0];
@@ -469,114 +606,7 @@ function importLicenseExcel() {
     });
 }
 
-function cancelLicenseEdit() {
-    if (currentLicenseData) {
-        openLicenseView(currentLicenseData);
-    }
-}
-
-function disableLicenseEditMode() {
-    if (!currentLicenseData) return;
-    
-    const license = currentLicenseData;
-    
-    $('#viewLicenseProductName').text(license.product_name || '—');
-    $('#viewLicenseProductKey').text(license.product_key || '—');
-    $('#viewLicenseExpiryDate').text(license.expiry_date ? new Date(license.expiry_date).toLocaleDateString('ru-RU') : '—');
-    $('#viewLicenseCompany').text(license.company || '—');
-    $('#viewLicenseQuantity').text(license.quantity || 0);
-    $('#viewLicenseUsed').text(license.used || 0);
-    
-    let statusText = 'Активна';
-    let statusClass = 'text-success';
-    if (license.expiry_date) {
-        const today = new Date();
-        const expiryDate = new Date(license.expiry_date);
-        const daysLeft = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
-        if (daysLeft < 0) {
-            statusText = 'Просрочена';
-            statusClass = 'text-danger';
-        } else if (daysLeft <= 30) {
-            statusText = `Истекает (осталось ${daysLeft} дн.)`;
-            statusClass = 'text-warning fw-bold';
-        }
-    }
-    $('#viewLicenseStatus').html(`<span class="${statusClass}">${statusText}</span>`);
-    
-    $('#viewLicenseFooter').html(`
-        <button type="button" class="btn btn-warning" id="editLicenseBtn">
-            <i class="fas fa-edit"></i> Редактировать
-        </button>
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
-    `);
-    
-    $('#editLicenseBtn').off('click').on('click', enableLicenseEditMode);
-}
-
-function deleteLicense(id) {
-    if (confirm('🗑️ Удалить лицензию? Это действие нельзя отменить.')) {
-        $.ajax({
-            url: `/api/licenses/${id}`,
-            method: 'DELETE',
-            success: function() { 
-                loadLicenses(); 
-                showMessage('✅ Лицензия удалена', 'success'); 
-            },
-            error: function(xhr) { 
-                const error = xhr.responseJSON;
-                showMessage(error?.error || '❌ Ошибка при удалении', 'danger'); 
-            }
-        });
-    }
-}
-
-function saveLicenseFromModal() {
-    const data = {
-        product_name: $('#licenseProductName').val().trim(),
-        product_key: $('#licenseProductKey').val().trim(),
-        expiry_date: $('#licenseExpiryDate').val(),
-        company: $('#licenseCompany').val().trim(),
-        quantity: parseInt($('#licenseQuantity').val()) || 0,
-        used: parseInt($('#licenseUsed').val()) || 0
-    };
-    
-    if (!data.product_name) {
-        showMessage('Введите название продукта', 'danger');
-        return;
-    }
-    if (data.quantity < 1) {
-        showMessage('Количество должно быть не менее 1', 'danger');
-        return;
-    }
-    if (data.used > data.quantity) {
-        showMessage('Используемое количество не может превышать общее количество', 'danger');
-        return;
-    }
-    
-    $.ajax({
-        url: '/api/licenses',
-        method: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify(data),
-        success: function(response) {
-            if (response.success) {
-                showMessage('✅ Лицензия добавлена', 'success');
-                $('#addLicenseModal').modal('hide');
-                $('#addLicenseForm')[0].reset();
-                $('#licenseQuantity').val('1');
-                $('#licenseUsed').val('0');
-                loadLicenses();
-            } else {
-                showMessage(response.error, 'danger');
-            }
-        },
-        error: function(xhr) {
-            const error = xhr.responseJSON;
-            showMessage(error?.error || '❌ Ошибка при добавлении', 'danger');
-        }
-    });
-}
-
+// ========== ПОИСК ==========
 function searchLicenses() {
     const searchTerm = $('#searchInput').val().toLowerCase();
     if (!searchTerm) {
@@ -584,15 +614,11 @@ function searchLicenses() {
         return;
     }
     
-    const filtered = [];
-    for (let i = 0; i < licensesData.length; i++) {
-        const license = licensesData[i];
-        if ((license.product_name && license.product_name.toLowerCase().includes(searchTerm)) ||
-            (license.product_key && license.product_key.toLowerCase().includes(searchTerm)) ||
-            (license.company && license.company.toLowerCase().includes(searchTerm))) {
-            filtered.push(license);
-        }
-    }
+    const filtered = licensesData.filter(license => 
+        (license.product_name && license.product_name.toLowerCase().includes(searchTerm)) ||
+        (license.product_key && license.product_key.toLowerCase().includes(searchTerm)) ||
+        (license.company && license.company.toLowerCase().includes(searchTerm))
+    );
     renderLicenses(filtered);
     $('#licensesStats').html(`<div class="alert alert-info">Найдено: ${filtered.length} из ${licensesData.length}</div>`);
 }
@@ -603,6 +629,7 @@ function resetSearch() {
     $('#licensesStats').empty();
 }
 
+// ========== ВСПОМОГАТЕЛЬНЫЕ ==========
 function escapeHtml(text) {
     if (!text) return '';
     const div = document.createElement('div');
@@ -623,6 +650,7 @@ function showMessage(message, type) {
     setTimeout(() => alertDiv.alert('close'), 3000);
 }
 
+// ========== ИНИЦИАЛИЗАЦИЯ ==========
 $(document).ready(function() {
     loadLicenses();
     
