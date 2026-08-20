@@ -973,106 +973,114 @@ function saveEquipment() {
 
     const typeDisplay = typeNames[type] || type;
 
+    // Инвентарный номер – НЕ ОБЯЗАТЕЛЕН
     let inventoryNumber = $('#addEquipmentInventory').val().trim();
-    if (!inventoryNumber) inventoryNumber = null;
+    if (inventoryNumber === '') inventoryNumber = null;
 
-    // Базовые данные
+    // ===== БАЗОВЫЕ ДАННЫЕ (общие для всех типов) =====
     const data = {
         type: typeDisplay,
-        brand: $('#addEquipmentBrand').val().trim(),
-        model: $('#addEquipmentModel').val().trim(),
-        serial_number: $('#addEquipmentSerial').val().trim(),
+        brand: $('#addEquipmentBrand').val().trim() || '',
+        model: $('#addEquipmentModel').val().trim() || '',
+        serial_number: $('#addEquipmentSerial').val().trim() || '',
         inventory_number: inventoryNumber,
         status: $('#addEquipmentStatus').val(),
-        responsible: $('#addEquipmentResponsible').val(),
-        mol: $('#addEquipmentMOL').val(),
-        room: $('#addEquipmentRoom').val(),
+        responsible: $('#addEquipmentResponsible').val() || '',
+        mol: $('#addEquipmentMOL').val() || '',
+        room: $('#addEquipmentRoom').val() || '',
         organization_id: $('#addEquipmentOrganization').val() || null,
         purchase_date: $('#addEquipmentPurchaseDate').val() || null,
-        notes: $('#addEquipmentNotes').val().trim()
+        notes: $('#addEquipmentNotes').val().trim() || ''
     };
 
-    // --- Специфические поля ---
+    // ===== СПЕЦИФИЧЕСКИЕ ПОЛЯ ПО ТИПАМ =====
 
-    // 1. Компьютер/ноутбук/сервер/моноблок/другое
+    // 1. Компьютер / Ноутбук / Сервер / Моноблок / Другое
     if (['computer', 'laptop', 'server', 'monoblock', 'other'].includes(type)) {
-        data.processor = $('#addEquipmentProcessor').val().trim();
+        data.processor = $('#addEquipmentProcessor').val().trim() || '';
         data.ram = parseInt($('#addEquipmentRam').val()) || null;
-        data.ram_type = $('#addEquipmentRamType').val();
+        data.ram_type = $('#addEquipmentRamType').val() || '';
         const disks = getStorageRows('add');
         data.storage = disks.join(' + ');
-        data.os = $('#addEquipmentOs').val().trim();
-        data.os_key = $('#addEquipmentOsKey').val().trim();
-        data.ip_address = $('#addEquipmentIpAddress').val().trim();
+        data.os = $('#addEquipmentOs').val().trim() || '';
+        data.os_key = $('#addEquipmentOsKey').val().trim() || '';
+        data.ip_address = $('#addEquipmentIpAddress').val().trim() || null;
     }
 
     // 2. Монитор
     if (type === 'monitor') {
         data.monitor_size = parseInt($('#addEquipmentMonitorSize').val()) || null;
-        data.resolution = $('#addEquipmentResolution').val();
+        data.resolution = $('#addEquipmentResolution').val() || '';
         data.refresh_rate = parseInt($('#addEquipmentRefreshRate').val()) || null;
-        data.panel_type = $('#addEquipmentPanelType').val();
+        data.panel_type = $('#addEquipmentPanelType').val() || '';
         data.response_time = parseInt($('#addEquipmentResponseTime').val()) || null;
-        data.viewing_angle = $('#addEquipmentViewingAngle').val().trim();   // <-- ДОБАВЛЕНО
-        data.ports = $('#addEquipmentPorts').val().trim();
+        data.viewing_angle = $('#addEquipmentViewingAngle').val().trim() || '';
+        data.ports = $('#addEquipmentPorts').val().trim() || '';
     }
 
     // 3. Сетевое оборудование
     if (type === 'network') {
         data.port_count = parseInt($('#addEquipmentPortCount').val()) || null;
-        data.speed = $('#addEquipmentSpeed').val();
-        data.ip_address = $('#addEquipmentIpAddress').val().trim();
+        data.speed = $('#addEquipmentSpeed').val() || '';
+        data.ip_address = $('#addEquipmentIpAddress').val().trim() || null;
     }
 
-    // 4. Принтер/МФУ
+    // 4. Принтер и МФУ (исправлено – только существующие поля)
     if (['printer', 'mfu'].includes(type)) {
         data.print_type = $('#addEquipmentPrintType').val();
         data.print_format = $('#addEquipmentPrintFormat').val();
         data.print_speed = parseInt($('#addEquipmentPrintSpeed').val()) || null;
         data.color_type = $('#addEquipmentColorType').val();
         data.duplex = $('#addEquipmentDuplex').val();
-        data.printer_ports = $('#addEquipmentPrinterPorts').val().trim();
-        data.ip_address = $('#addEquipmentIpAddress').val().trim();
+        data.printer_ports = ($('#addEquipmentPrinterPorts').val() || '').trim();
+        data.ip_address = ($('#addEquipmentIpAddress').val() || '').trim();
         if (type === 'mfu') {
-            data.scanner_resolution = $('#addEquipmentScannerResolution').val().trim();
-            data.scanner_speed = $('#addEquipmentScannerSpeed').val().trim();
+            data.scanner_resolution = ($('#addEquipmentScannerResolution').val() || '').trim();
+            data.scanner_speed = ($('#addEquipmentScannerSpeed').val() || '').trim();
         }
     }
 
     // 5. ИБП
     if (type === 'ups') {
-        data.ups_power = $('#addEquipmentUpsPower').val().trim();
-        data.ups_type = $('#addEquipmentUpsType').val();
+        data.ups_power = $('#addEquipmentUpsPower').val().trim() || '';
+        data.ups_type = $('#addEquipmentUpsType').val() || '';
         data.ups_outlets = parseInt($('#addEquipmentUpsOutlets').val()) || null;
-        data.ups_usb = $('#addEquipmentUpsUsb').val();
-        data.ups_runtime = parseInt($('#addEquipmentUpsRuntime').val()) || null;
+        // если есть другие поля – добавьте
     }
 
     // 6. Мышь/Клавиатура
     if (type === 'mouse_keyboard') {
-        data.connection_type = $('#addEquipmentConnectionType').val();
-        data.color = $('#addEquipmentColor').val().trim();
+        data.connection_type = $('#addEquipmentConnectionType').val() || '';
+        data.color = $('#addEquipmentColor').val().trim() || '';
         data.is_set = $('#addEquipmentIsSet').is(':checked') ? 1 : 0;
-        data.set_type = $('#addEquipmentSetType').val();
+        data.set_type = $('#addEquipmentSetType').val() || '';
     }
 
-    // 7. ВКС
+    // 7. ВКС (веб-камера/гарнитура/микрофон)
     if (type === 'pereferiya') {
-        data.connection_type = $('#addEquipmentConnectionTypeVKS').val();
-        data.color = $('#addEquipmentColorVKS').val().trim();
+        data.connection_type = $('#addEquipmentConnectionTypeVKS').val() || '';
+        data.color = $('#addEquipmentColorVKS').val().trim() || '';
         data.is_set = $('#addEquipmentIsSetVKS').is(':checked') ? 1 : 0;
-        data.set_type = $('#addEquipmentSetTypeVKS').val();
+        data.set_type = $('#addEquipmentSetTypeVKS').val() || '';
     }
 
     // 8. Периферия (внешний диск, колонки)
     if (['external_drive', 'speakers'].includes(type)) {
-        data.connection_type = $('#addEquipmentConnectionTypePeripheral').val();
-        data.color = $('#addEquipmentColorPeripheral').val().trim();
+        data.connection_type = $('#addEquipmentConnectionTypePeripheral').val() || '';
+        data.color = $('#addEquipmentColorPeripheral').val().trim() || '';
         if (type === 'external_drive') {
             data.storage = $('#addEquipmentStorageSize').val() ? `${$('#addEquipmentStorageSize').val()}GB` : '';
         }
     }
 
+    // 9. Сканер
+    if (type === 'scanner') {
+        data.duplex = $('#addEquipmentConnectionTypeScanner').val() || '';
+        data.scan_format = $('#addEquipmentPaperFormat').val() || '';
+        // можно добавить другие поля, если они есть
+    }
+
+    // ===== ОТПРАВКА НА СЕРВЕР =====
     console.log('Отправляемые данные:', data);
 
     const btn = $('#addEquipmentModal .btn-primary');

@@ -1846,6 +1846,13 @@ function enableEquipmentEditMode() {
                                 <option value="A3/A4" ${eq.scanner_resolution === 'A3/A4' ? 'selected' : ''}>A3/A4</option>
                             </select>
                         </div>
+                        <div class="col-4 mb-1">
+                            <label class="form-label">Двусторонний скан</label>
+                            <select class="form-select form-select-sm" id="editEquipmentDuplexScanner">
+                                <option value="Нет" ${eq.duplex_scanner === 'Нет' ? 'selected' : ''}>Нет</option>
+                                <option value="Да" ${eq.duplex_scanner === 'Да' ? 'selected' : ''}>Да</option>
+                            </select>
+                        </div>
                         ` : ''}
                     </div>
                 </div>
@@ -2093,15 +2100,16 @@ function saveEquipmentEdit() {
 
     // 5.4 Принтер / МФУ
     if (printerTypes.includes(type)) {
-        data.print_type = $('#editEquipmentPrintType').val() || '';
-        data.print_format = $('#editEquipmentPrintFormat').val() || '';
-        data.print_speed = parseInt($('#editEquipmentPrintSpeed').val()) || null;
-        data.color_type = $('#editEquipmentColorType').val() || '';
-        data.duplex = $('#editEquipmentDuplex').val() || '';
-        data.printer_ports = $('#editEquipmentPrinterPorts').val() || '';
-        if (type === 'МФУ') {
-            data.scanner_resolution = $('#editEquipmentScannerResolution').val() || '';
-            data.scanner_speed = $('#editEquipmentScannerSpeed').val() || '';
+        data.print_type = $('#addEquipmentPrintType').val();
+        data.print_format = $('#addEquipmentPrintFormat').val();
+        data.print_speed = parseInt($('#addEquipmentPrintSpeed').val()) || null;
+        data.color_type = $('#addEquipmentColorType').val();
+        data.duplex = $('#addEquipmentDuplex').val();
+        data.printer_ports = ($('#addEquipmentPrinterPorts').val() || '').trim();   // ✅
+        data.ip_address = ($('#addEquipmentIpAddress').val() || '').trim();
+        if (type === 'mfu') {
+            data.scanner_resolution = ($('#addEquipmentScannerResolution').val() || '').trim(); // ✅
+            data.scanner_speed = ($('#addEquipmentScannerSpeed').val() || '').trim();          // ✅
         }
     }
 

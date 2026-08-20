@@ -189,6 +189,14 @@ def init_db():
         )
     """)
 
+    # Добавляем колонку organization_id в Analytics
+    cursor.execute("PRAGMA table_info(Analytics)")
+    columns = [col[1] for col in cursor.fetchall()]
+    if 'organization_id' not in columns:
+        cursor.execute("ALTER TABLE Analytics ADD COLUMN organization_id INTEGER")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_analytics_organization ON Analytics(organization_id)")
+        print("✅ Добавлена колонка organization_id в таблицу Analytics")
+
     # Добавляем office, если его нет (для уже существующей таблицы)
     cursor.execute("PRAGMA table_info(Departments)")
     cols = [c[1] for c in cursor.fetchall()]
@@ -248,6 +256,7 @@ def init_db():
                 printer_ports TEXT,
                 scanner_resolution TEXT,
                 scanner_speed TEXT,
+                duplex_scanner TEXT, 
                 phone_number TEXT,
                 phone_ip TEXT,
                 sip_account TEXT,
@@ -305,6 +314,7 @@ def init_db():
             'print_speed': 'INTEGER',
             'color_type': 'TEXT',
             'duplex': 'TEXT',
+            'duplex_scanner': 'TEXT',
             'printer_ports': 'TEXT',
             'scanner_resolution': 'TEXT',
             'scanner_speed': 'TEXT',
@@ -548,6 +558,90 @@ def init_db():
     conn.commit()
     conn.close()
     print("✅ База данных инициализирована")
+
+def upgrade_db():
+    """Обновление схемы базы данных до актуальной версии"""
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # Проверяем наличие колонок в Equipment
+    cursor.execute("PRAGMA table_info(Equipment)")
+    existing_columns = [col[1] for col in cursor.fetchall()]
+
+    new_columns = {
+        'ram_type': 'TEXT',
+        'refresh_rate': 'INTEGER',
+        'panel_type': 'TEXT',
+        'response_time': 'INTEGER',
+        'ports': 'TEXT',
+        'network_type': 'TEXT',
+        'poe': 'TEXT',
+        'managed': 'TEXT',
+        'ip_address': 'TEXT',
+        'print_type': 'TEXT',
+        'print_format': 'TEXT',
+        'print_speed': 'INTEGER',
+        'color_type': 'TEXT',
+        'duplex': 'TEXT',
+        'printer_ports': 'TEXT',
+        'scanner_resolution': 'TEXT',
+        'scanner_speed': 'TEXT',
+        'phone_number': 'TEXT',
+        'phone_ip': 'TEXT',
+        'sip_account': 'TEXT',
+        'lines': 'INTEGER',
+        'phone_poe': 'TEXT',
+        'ups_power': 'TEXT',
+        'ups_type': 'TEXT',
+        'ups_outlets': 'INTEGER',
+        'ups_usb': 'TEXT',
+        'ups_runtime': 'INTEGER',
+        'connection_type': 'TEXT',
+        'color': 'TEXT',
+        'viewing_angle': 'TEXT'   # <-- добавлено
+    }
+
+    for col_name, col_type in new_columns.items():
+        if col_name not in existing_columns:
+            try:
+                cursor.execute(f"ALTER TABLE Equipment ADD COLUMN {col_name} {col_type}")
+                print(f"✅ Добавлена колонка {col_name} в таблицу Equipment")
+            except Exception as e:
+                print(f"⚠️ Ошибка добавления {col_name}: {e}")
+
+    # Проверяем наличие колонки organization_id в Catrigs (если нет – добавляем)
+    cursor.execute("PRAGMA table_info(Catrigs)")
+    catrigs_cols = [col[1] for col in cursor.fetchall()]
+    if 'organization_id' not in catrigs_cols:
+        try:
+            cursor.execute("ALTER TABLE Catrigs ADD COLUMN organization_id INTEGER")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_catrigs_organization ON Catrigs(organization_id)")
+            print("✅ Добавлена колонка organization_id в Catrigs")
+        except Exception as e:
+            print(f"⚠️ Ошибка добавления organization_id в Catrigs: {e}")
+
+    # Проверяем наличие колонки organization_id в Analytics
+    cursor.execute("PRAGMA table_info(Analytics)")
+    analytics_cols = [col[1] for col in cursor.fetchall()]
+    if 'organization_id' not in analytics_cols:
+        try:
+            cursor.execute("ALTER TABLE Analytics ADD COLUMN organization_id INTEGER")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_analytics_organization ON Analytics(organization_id)")
+            print("✅ Добавлена колонка organization_id в Analytics")
+        except Exception as e:
+            print(f"⚠️ Ошибка добавления organization_id в Analytics: {e}")
+
+    # Проверяем наличие колонки equipment_id в Catrigs
+    if 'equipment_id' not in catrigs_cols:
+        try:
+            cursor.execute("ALTER TABLE Catrigs ADD COLUMN equipment_id INTEGER")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_catrigs_equipment ON Catrigs(equipment_id)")
+            print("✅ Добавлена колонка equipment_id в Catrigs")
+        except Exception as e:
+            print(f"⚠️ Ошибка добавления equipment_id в Catrigs: {e}")
+
+    conn.commit()
+    conn.close()
 
 if __name__ == "__main__":
     init_db()

@@ -159,9 +159,7 @@
                                 <th style="text-align: center;"><i class="fas fa-boxes"></i> В наличии</th>
                                 <th style="text-align: center;"><i class="fas fa-balance-scale"></i> На балансе</th>
                                 <th style="text-align: center;"><i class="fas fa-shopping-cart"></i> Закупить</th>
-                                {% if session.get('role') == 'admin' and not session.get('organization_id') %}
-                                <th style="text-align: center;"><i class="fas fa-building"></i> Филиал</th>
-                                {% endif %}
+                                <!-- Колонка "Филиал" УБРАНА -->
                             </tr>
                         </thead>
                         <tbody id="analyticsTableBody">
@@ -373,6 +371,10 @@
                 </div>
             </div>
             <div class="modal-footer">
+                <!-- НОВАЯ КНОПКА РЕДАКТИРОВАНИЯ -->
+                <button type="button" class="btn btn-warning" id="editCompatibilityFromViewBtn">
+                    <i class="fas fa-edit"></i> Редактировать
+                </button>
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
             </div>
         </div>
@@ -1367,17 +1369,64 @@ function renderCompatibility(data) {
     });
 }
 
+// cartridges.html – заменить существующую функцию openCompatibilityView
+
 function openCompatibilityView(item) {
-    // Очищаем название МФУ от инвентарного номера
+    // Очищаем название МФУ от инвентарного номера для отображения
     let mfuDisplay = item.mfu || '—';
     if (mfuDisplay.includes(' (инв.')) {
         mfuDisplay = mfuDisplay.split(' (инв.')[0];
     }
-    
+
+    // Заполняем поля
     $('#viewCompatibilityCartridge').text(item.cartridge || '—');
     $('#viewCompatibilityMFU').text(mfuDisplay);
     $('#viewCompatibilityStatus').html('<span class="badge bg-success"><i class="fas fa-check-circle"></i> Совместим</span>');
+    // Сохраняем ID для редактирования
+    $('#viewCompatibilityId').val(item.id);
+
+    // Обработчик кнопки редактирования (однократно, удаляем старые)
+    $('#editCompatibilityFromViewBtn').off('click').on('click', function() {
+        const id = $('#viewCompatibilityId').val();
+        if (id) {
+            // Закрываем окно просмотра
+            $('#viewCompatibilityModal').modal('hide');
+            // Открываем редактирование
+            editCompatibility(id);
+        }
+    });
+
     $('#viewCompatibilityModal').modal('show');
+}
+
+// cartridges.html – добавить эту функцию
+
+function editCompatibility(id) {
+    // Найти запись в глобальном массиве compatibilityData
+    const item = compatibilityData.find(el => el.id == id);
+    if (!item) {
+        showMessage('Запись не найдена', 'danger');
+        return;
+    }
+
+    // Установить ID в скрытое поле формы редактирования
+    $('#editCompatibilityId').val(id);
+
+    // Заполнить поля формы
+    $('#compatCartridge').val(item.cartridge);
+    // Для МФУ – если в названии есть инвентарный номер, его нужно убрать для выбора
+    let mfuName = item.mfu;
+    if (mfuName.includes(' (инв.')) {
+        mfuName = mfuName.split(' (инв.')[0];
+    }
+    $('#compatMFU').val(mfuName);
+
+    // Изменить заголовок и текст кнопки
+    $('#compatModalTitle').html('<i class="fas fa-edit"></i> Редактировать совместимость');
+    $('#compatSaveBtn').text('Обновить');
+
+    // Открыть модальное окно добавления
+    $('#addCompatibilityModal').modal('show');
 }
 
 function deleteCompatibility(id) {
@@ -1598,7 +1647,7 @@ function renderAnalytics(data) {
     tbody.empty();
     
     if (!data || data.length === 0) {
-        tbody.html(`<tr><td colspan="7" class="text-center text-muted py-4">📭 Нет данных аналитики для вашего филиала</td></tr>`);
+        tbody.html(`<tr><td colspan="6" class="text-center text-muted py-4">📭 Нет данных аналитики для вашего филиала</td></tr>`);
         return;
     }
     
@@ -1609,22 +1658,23 @@ function renderAnalytics(data) {
         let writeOffClass = item.to_write_off > 0 ? 'text-warning fw-bold' : '';
         let inStockClass = item.in_stock > 0 ? 'text-success fw-bold' : 'text-muted';
         
-        const row = $(`
+        // Формируем строку ТОЛЬКО с 6 колонками
+        const rowHtml = `
             <tr data-cartridge="${escapeHtml(item.cartridge)}" class="analytics-row" style="cursor: pointer;">
-                <td class="text-center">
-                    <i class="fas fa-info-circle text-info" style="font-size: 1.2rem;"></i>
-                </td>
+                <td class="text-center"><i class="fas fa-info-circle text-info" style="font-size: 1.2rem;"></i></td>
                 <td style="vertical-align: middle;"><strong>${escapeHtml(item.cartridge)}</strong></td>
                 <td class="text-center ${writeOffClass}">${item.to_write_off || 0}</td>
                 <td class="text-center ${inStockClass}">${item.in_stock || 0}</td>
                 <td class="text-center">${item.on_balance || 0}</td>
                 <td class="text-center ${toBuyClass}">${item.to_buy || 0}</td>
             </tr>
-        `);
+        `;
+        const row = $(rowHtml);
         row.data('analytics-data', item);
         tbody.append(row);
     }
     
+    // Обработчик клика
     $('.analytics-row').off('click').on('click', function(e) {
         const data = $(this).data('analytics-data');
         if (data) openAnalyticsView(data);
@@ -1636,7 +1686,6 @@ function renderAnalytics(data) {
 // cartridges.html - ИСПРАВЛЕННАЯ ФУНКЦИЯ openAnalyticsView()
 
 function openAnalyticsView(item) {
-    console.log("Открытие аналитики:", item);
     currentAnalyticsData = item;
     
     $('#viewAnalyticsCartridge').text(item.cartridge || '—');
@@ -1644,7 +1693,8 @@ function openAnalyticsView(item) {
     $('#viewAnalyticsInStock').text(item.in_stock || 0);
     $('#viewAnalyticsOnBalance').text(item.on_balance || 0);
     $('#viewAnalyticsToBuy').text(item.to_buy || 0);
-    $('#viewAnalyticsOrganization').text(item.organization_id ? 'Филиал ' + item.organization_id : 'Общий');
+    // Показываем название филиала (из organization_name)
+    $('#viewAnalyticsOrganization').text(item.organization_name || 'Общий');
     
     disableAnalyticsEditMode();
     $('#viewAnalyticsModal').modal('show');

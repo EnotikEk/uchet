@@ -1,7 +1,10 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, send_file
-from database import get_db
 from datetime import datetime
-from auth import login_required, admin_required, hash_password, verify_password, get_user_organization_id, get_user_organization_name, get_organization_for_new_record, get_organization_filter, apply_organization_filter
+from auth import (login_required, admin_required, hash_password, verify_password,
+                  get_user_organization_id, get_user_organization_name,
+                  get_organization_for_new_record, get_organization_filter,
+                  apply_organization_filter, get_view_organization_id,
+                  get_organization_filter_for_view)
 import sqlite3
 import os
 import sys
@@ -9,15 +12,18 @@ import pandas as pd
 import openpyxl
 from io import BytesIO, StringIO
 
-from database import get_db, init_db
+from database import get_db, init_db, upgrade_db
 
-# Автоматическая инициализация БД при первом запуске
+# Автоматическая инициализация и обновление БД при первом запуске
 try:
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='Users'")
     if not cursor.fetchone():
         init_db()
+    else:
+        # Обновляем схему для существующей БД
+        upgrade_db()
     conn.close()
 except Exception as e:
     print(f"Ошибка при проверке БД: {e}")
@@ -1033,34 +1039,34 @@ def debug_analytics():
 @app.route('/api/analytics', methods=['GET'])
 @login_required
 def get_analytics():
-    """Получить аналитику"""
+    """Получить аналитику с названием филиала"""
     conn = get_db()
     cursor = conn.cursor()
     
     org_id = get_user_organization_id()
     is_admin = session.get('role') == 'admin'
     
-    # Если админ без филиала - показывает всё
+    # Базовый запрос с JOIN на Organizations
+    query = """
+        SELECT a.Cartridge, a.ToWriteOff, a.InStock, a.OnBalance, a.ToBuy,
+               a.organization_id, o.name as organization_name
+        FROM Analytics a
+        LEFT JOIN Organizations o ON a.organization_id = o.id
+    """
+    
+    # Фильтр по филиалу
     if is_admin and not org_id:
-        cursor.execute("""
-            SELECT Cartridge, ToWriteOff, InStock, OnBalance, ToBuy, organization_id 
-            FROM Analytics 
-            ORDER BY Cartridge
-        """)
+        # Админ без филиала – видит всё
+        query += " ORDER BY a.Cartridge"
+        params = []
     elif org_id:
-        cursor.execute("""
-            SELECT Cartridge, ToWriteOff, InStock, OnBalance, ToBuy, organization_id 
-            FROM Analytics 
-            WHERE organization_id = ?
-            ORDER BY Cartridge
-        """, (org_id,))
+        query += " WHERE a.organization_id = ? ORDER BY a.Cartridge"
+        params = [org_id]
     else:
-        cursor.execute("""
-            SELECT Cartridge, ToWriteOff, InStock, OnBalance, ToBuy, organization_id 
-            FROM Analytics 
-            WHERE organization_id IS NULL
-            ORDER BY Cartridge
-        """)
+        query += " WHERE a.organization_id IS NULL ORDER BY a.Cartridge"
+        params = []
+    
+    cursor.execute(query, params)
     
     analytics = []
     for row in cursor.fetchall():
@@ -1070,7 +1076,8 @@ def get_analytics():
             'in_stock': row[2],
             'on_balance': row[3],
             'to_buy': row[4],
-            'organization_id': row[5] if len(row) > 5 else None
+            'organization_id': row[5],
+            'organization_name': row[6] if row[6] else 'Без филиала'   # <-- название
         })
     
     conn.close()
