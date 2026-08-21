@@ -327,7 +327,19 @@ def init_db():
             address TEXT
         )
     """)
-    
+
+    # database.py – добавьте после создания Organizations
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS OrganizationAddresses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            organization_id INTEGER NOT NULL,
+            address TEXT NOT NULL,
+            FOREIGN KEY(organization_id) REFERENCES Organizations(id) ON DELETE CASCADE
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_org_addresses_org ON OrganizationAddresses(organization_id)")
+        
     # ========== ТАБЛИЦА ДЛЯ ПОЛЬЗОВАТЕЛЕЙ ==========
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS Users (
@@ -498,6 +510,13 @@ def init_db():
         """)
         print(f"✅ Мигрировано {cursor.rowcount} картриджей на связь с Equipment")
 
+    # В init_db() и upgrade_db() добавить:
+    cursor.execute("PRAGMA table_info(Equipment)")
+    columns = [col[1] for col in cursor.fetchall()]
+    if 'characteristics' not in columns:
+        cursor.execute("ALTER TABLE Equipment ADD COLUMN characteristics TEXT")
+        print("✅ Добавлена колонка characteristics в Equipment")
+
     # Добавляем колонку status в Licenses, если её нет
     cursor.execute("PRAGMA table_info(Licenses)")
     columns = [col[1] for col in cursor.fetchall()]
@@ -511,6 +530,40 @@ def init_db():
         cursor.execute("ALTER TABLE Rooms ADD COLUMN department_id INTEGER")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_rooms_department ON Rooms(department_id)")
         print("✅ Добавлено поле department_id в таблицу Rooms")
+
+        # Таблица Equipment
+    cursor.execute("PRAGMA table_info(Equipment)")
+    columns = [col[1] for col in cursor.fetchall()]
+    if 'address_id' not in columns:
+        cursor.execute("ALTER TABLE Equipment ADD COLUMN address_id INTEGER")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_equipment_address ON Equipment(address_id)")
+        cursor.execute("ALTER TABLE Equipment ADD FOREIGN KEY (address_id) REFERENCES OrganizationAddresses(id)")
+
+    # Таблица Catrigs
+    cursor.execute("PRAGMA table_info(Catrigs)")
+    if 'address_id' not in columns:
+        cursor.execute("ALTER TABLE Catrigs ADD COLUMN address_id INTEGER")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_catrigs_address ON Catrigs(address_id)")
+
+    # Таблица Licenses
+    cursor.execute("PRAGMA table_info(Licenses)")
+    if 'address_id' not in columns:
+        cursor.execute("ALTER TABLE Licenses ADD COLUMN address_id INTEGER")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_licenses_address ON Licenses(address_id)")
+
+    # Таблица Analytics
+    cursor.execute("PRAGMA table_info(Analytics)")
+    if 'address_id' not in columns:
+        cursor.execute("ALTER TABLE Analytics ADD COLUMN address_id INTEGER")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_analytics_address ON Analytics(address_id)")
+
+    # Таблица Departments
+    cursor.execute("PRAGMA table_info(Departments)")
+    if 'address_id' not in columns:
+        cursor.execute("ALTER TABLE Departments ADD COLUMN address_id INTEGER")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_departments_address ON Departments(address_id)")
+
+
 
     conn.commit()
     conn.close()
@@ -600,6 +653,46 @@ def upgrade_db():
             print("✅ Добавлена колонка equipment_id в Catrigs")
         except Exception as e:
             print(f"⚠️ Ошибка добавления equipment_id в Catrigs: {e}")
+
+    # В init_db() и upgrade_db() добавить:
+    cursor.execute("PRAGMA table_info(Equipment)")
+    columns = [col[1] for col in cursor.fetchall()]
+    if 'characteristics' not in columns:
+        cursor.execute("ALTER TABLE Equipment ADD COLUMN characteristics TEXT")
+        print("✅ Добавлена колонка characteristics в Equipment")
+
+    # В функции init_db() и upgrade_db() добавляем:
+    # Таблица Equipment
+    cursor.execute("PRAGMA table_info(Equipment)")
+    columns = [col[1] for col in cursor.fetchall()]
+    if 'address_id' not in columns:
+        cursor.execute("ALTER TABLE Equipment ADD COLUMN address_id INTEGER")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_equipment_address ON Equipment(address_id)")
+        cursor.execute("ALTER TABLE Equipment ADD FOREIGN KEY (address_id) REFERENCES OrganizationAddresses(id)")
+
+    # Таблица Catrigs
+    cursor.execute("PRAGMA table_info(Catrigs)")
+    if 'address_id' not in columns:
+        cursor.execute("ALTER TABLE Catrigs ADD COLUMN address_id INTEGER")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_catrigs_address ON Catrigs(address_id)")
+
+    # Таблица Licenses
+    cursor.execute("PRAGMA table_info(Licenses)")
+    if 'address_id' not in columns:
+        cursor.execute("ALTER TABLE Licenses ADD COLUMN address_id INTEGER")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_licenses_address ON Licenses(address_id)")
+
+    # Таблица Analytics
+    cursor.execute("PRAGMA table_info(Analytics)")
+    if 'address_id' not in columns:
+        cursor.execute("ALTER TABLE Analytics ADD COLUMN address_id INTEGER")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_analytics_address ON Analytics(address_id)")
+
+    # Таблица Departments
+    cursor.execute("PRAGMA table_info(Departments)")
+    if 'address_id' not in columns:
+        cursor.execute("ALTER TABLE Departments ADD COLUMN address_id INTEGER")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_departments_address ON Departments(address_id)")
 
     conn.commit()
     conn.close()

@@ -221,7 +221,7 @@
                         <p id="viewEquipmentType" class="mb-2">—</p>
                     </div>
                     <div class="col-md-6 mb-2">
-                        <label class="fw-bold">Бренд/Модель:</label>
+                        <label class="fw-bold">Модель:</label>
                         <p id="viewEquipmentModel" class="mb-2">—</p>
                     </div>
                     <div class="col-md-6 mb-2">
@@ -259,6 +259,10 @@
                     <div class="col-md-12 mb-2">
                         <label class="fw-bold">Характеристики:</label>
                         <p id="viewEquipmentSpecs" class="mb-2">—</p>
+                    </div>
+                    <div class="col-md-12 mb-2">
+                        <label class="fw-bold">Характеристики:</label>
+                        <p id="viewEquipmentCharacteristics" class="mb-2">—</p>
                     </div>
                     <div class="col-md-12 mb-2">
                         <label class="fw-bold">Примечание:</label>
@@ -1221,8 +1225,6 @@ function renderEquipment(data) {
                 <td style="vertical-align: middle;"><span class="badge bg-secondary">${typeIcon} ${escapeHtml(item.type) || '—'}</span></td>
                 <td style="vertical-align: middle;">
                     <strong>${escapeHtml(item.brand) || ''}</strong>
-                    ${item.brand && item.model ? '<br>' : ''}
-                    <small class="text-muted">${escapeHtml(item.model) || '—'}</small>
                 </td>
                 <td style="vertical-align: middle;"><code>${escapeHtml(item.serial_number) || '—'}</code></td>
                 <td style="vertical-align: middle;"><code>${escapeHtml(item.inventory_number) || '—'}</code></td>
@@ -1308,13 +1310,14 @@ function openEquipmentView(equipment) {
     currentEquipmentData = equipment;
     $('#viewEquipmentId').val(equipment.id);
     $('#viewEquipmentType').text(equipment.type || '—');
-    $('#viewEquipmentModel').text((equipment.brand ? equipment.brand + ' ' : '') + (equipment.model || '').trim() || '—');
+    $('#viewEquipmentModel').text(equipment.brand || '—');
     $('#viewEquipmentSerial').text(equipment.serial_number || '—');
     $('#viewEquipmentInventory').text(equipment.inventory_number || '—');
     $('#viewEquipmentMOL').text(equipment.mol || '—');
     $('#viewEquipmentResponsible').text(equipment.responsible || '—');
     $('#viewEquipmentRoom').text(equipment.room || '—');
     $('#viewEquipmentOrganization').text(equipment.organization || '—');
+    $('#viewEquipmentCharacteristics').text(equipment.characteristics || '—');
     $('#viewEquipmentStatus').text(equipment.status || 'В работе');
     $('#viewEquipmentPurchaseDate').text(equipment.purchase_date ? new Date(equipment.purchase_date).toLocaleDateString('ru-RU') : '—');
     $('#viewEquipmentWarrantyUntil').text(equipment.warranty_until ? new Date(equipment.warranty_until).toLocaleDateString('ru-RU') : '—');
@@ -1356,7 +1359,6 @@ function openEquipmentView(equipment) {
     if (equipment.color_type) specs.push(`Цветность: ${equipment.color_type}`);
     if (equipment.duplex) specs.push(`Двусторонняя печать: ${equipment.duplex}`);
     if (equipment.printer_ports) specs.push(`Интерфейсы: ${equipment.printer_ports}`);
-    if (equipment.scanner_resolution) specs.push(`Сканер: ${equipment.scanner_resolution}`);
     if (equipment.scanner_speed) specs.push(`Скорость сканера: ${equipment.scanner_speed}`);
     
     // Сканер (добавлены поля duplex_scanner и scan_format)
@@ -1364,14 +1366,6 @@ function openEquipmentView(equipment) {
     if (equipment.duplex_scanner) specs.push(`Двусторонний скан: ${equipment.duplex_scanner}`);
     if (equipment.scan_format) specs.push(`Формат скана: ${equipment.scan_format}`);
 
-    
-    // IP-телефон
-    if (equipment.phone_number) specs.push(`Номер: ${equipment.phone_number}`);
-    if (equipment.phone_ip) specs.push(`IP телефона: ${equipment.phone_ip}`);
-    if (equipment.sip_account) specs.push(`SIP: ${equipment.sip_account}`);
-    if (equipment.lines) specs.push(`Линий: ${equipment.lines}`);
-    if (equipment.phone_poe) specs.push(`PoE: ${equipment.phone_poe}`);
-    
     // ИБП
     if (equipment.ups_power) specs.push(`Мощность: ${equipment.ups_power}`);
     if (equipment.ups_type) specs.push(`Тип ИБП: ${equipment.ups_type}`);
@@ -1380,7 +1374,7 @@ function openEquipmentView(equipment) {
     if (equipment.ups_runtime) specs.push(`Автономия: ${equipment.ups_runtime} мин`);
     
     // Периферия
-    if (equipment.connection_type && !['Монитор','Принтер','МФУ','Сетевое оборудование','IP-телефон'].includes(equipment.type)) {
+    if (equipment.connection_type && !['Монитор','Сетевое оборудование','IP-телефон'].includes(equipment.type)) {
         specs.push(`Подключение: ${equipment.connection_type}`);
     }
     if (equipment.color) specs.push(`Цвет: ${equipment.color}`);
@@ -1419,13 +1413,14 @@ function disableEquipmentEditMode() {
     
     // Базовые поля (оставляем как есть)
     $('#viewEquipmentType').text(eq.type || '—');
-    $('#viewEquipmentModel').text((eq.brand ? eq.brand + ' ' : '') + (eq.model || '').trim() || '—');
+    $('#viewEquipmentModel').text(eq.brand || '—');
     $('#viewEquipmentSerial').text(eq.serial_number || '—');
     $('#viewEquipmentInventory').text(eq.inventory_number || '—');
     $('#viewEquipmentMOL').text(eq.mol || '—');
     $('#viewEquipmentResponsible').text(eq.responsible || '—');
     $('#viewEquipmentRoom').text(eq.room || '—');
     $('#viewEquipmentOrganization').text(eq.organization || '—');
+    $('#viewEquipmentCharacteristics').text(eq.characteristics || '—');
     $('#viewEquipmentStatus').text(eq.status || 'В работе');
     $('#viewEquipmentPurchaseDate').text(eq.purchase_date ? new Date(eq.purchase_date).toLocaleDateString('ru-RU') : '—');
     $('#viewEquipmentDepartment').text(eq.department_name || '—');
@@ -1469,19 +1464,11 @@ function disableEquipmentEditMode() {
     if (eq.color_type) specs.push(`Цветность: ${eq.color_type}`);
     if (eq.duplex) specs.push(`Двусторонняя печать: ${eq.duplex}`);
     if (eq.printer_ports) specs.push(`Интерфейсы: ${eq.printer_ports}`);
-    if (eq.scanner_resolution) specs.push(`Сканер: ${eq.scanner_resolution}`);
     if (eq.scanner_speed) specs.push(`Скорость сканера: ${eq.scanner_speed}`);
     
     // Сканер (добавлены поля duplex_scanner и scan_format)
     if (eq.duplex_scanner) specs.push(`Двусторонний скан: ${eq.duplex_scanner}`);
     if (eq.scan_format) specs.push(`Формат скана: ${eq.scan_format}`);
-    
-    // IP-телефон
-    if (eq.phone_number) specs.push(`Номер: ${eq.phone_number}`);
-    if (eq.phone_ip) specs.push(`IP телефона: ${eq.phone_ip}`);
-    if (eq.sip_account) specs.push(`SIP: ${eq.sip_account}`);
-    if (eq.lines) specs.push(`Линий: ${eq.lines}`);
-    if (eq.phone_poe) specs.push(`PoE: ${eq.phone_poe}`);
     
     // ИБП
     if (eq.ups_power) specs.push(`Мощность: ${eq.ups_power}`);
@@ -1491,7 +1478,7 @@ function disableEquipmentEditMode() {
     if (eq.ups_runtime) specs.push(`Автономия: ${eq.ups_runtime} мин`);
     
     // Периферия
-    if (eq.connection_type && !['Монитор','Принтер','МФУ','Сетевое оборудование','IP-телефон'].includes(eq.type)) {
+    if (eq.connection_type && !['Монитор','Сетевое оборудование','IP-телефон'].includes(eq.type)) {
         specs.push(`Подключение: ${eq.connection_type}`);
     }
     if (eq.color) specs.push(`Цвет: ${eq.color}`);
@@ -1560,14 +1547,16 @@ function enableEquipmentEditMode() {
     $('#viewEquipmentType').html(`<span class="badge bg-secondary">${escapeHtml(eq.type) || '—'}</span><input type="hidden" id="editEquipmentType" value="${escapeHtml(eq.type)}">`);
     $('#viewEquipmentModel').html(`
         <div class="row">
-            <div class="col-6"><input type="text" class="form-control form-control-sm" id="editEquipmentBrand" placeholder="Бренд" value="${escapeHtml(eq.brand || '')}"></div>
-            <div class="col-6"><input type="text" class="form-control form-control-sm" id="editEquipmentModel" placeholder="Модель" value="${escapeHtml(eq.model || '')}"></div>
+            <div class="col-12"><input type="text" class="form-control form-control-sm" id="editEquipmentBrand" placeholder="Введите модель" value="${escapeHtml(eq.brand || '')}"></div>
         </div>
     `);
     $('#viewEquipmentSerial').html(`<input type="text" class="form-control form-control-sm" id="editEquipmentSerial" value="${escapeHtml(eq.serial_number || '')}">`);
     let inventoryHtml = `<input type="text" class="form-control form-control-sm" id="editEquipmentInventory" value="${escapeHtml(eq.inventory_number || '')}">`;
     inventoryHtml += `<small class="text-muted d-block">Необязательное поле</small>`;
     $('#viewEquipmentInventory').html(inventoryHtml);
+    $('#viewEquipmentCharacteristics').html(
+        `<textarea class="form-control form-control-sm" id="editEquipmentCharacteristics" rows="2">${escapeHtml(eq.characteristics || '')}</textarea>`
+    );
 
     // Сотрудники
     let molOptions = '<option value="">Выберите МОЛ</option>';
@@ -1904,16 +1893,6 @@ function enableEquipmentEditMode() {
                             </select>
                         </div>
                     </div>
-                    <div class="row">
-                        <div class="col-6 mb-1">
-                            <label class="form-label">Разрешение сканера</label>
-                            <input type="text" class="form-control form-control-sm" id="editEquipmentScannerResolution" placeholder="Разрешение" value="${escapeHtml(eq.scanner_resolution || '')}">
-                        </div>
-                        <div class="col-6 mb-1">
-                            <label class="form-label">Скорость сканера</label>
-                            <input type="text" class="form-control form-control-sm" id="editEquipmentScannerSpeed" placeholder="Скорость" value="${escapeHtml(eq.scanner_speed || '')}">
-                        </div>
-                    </div>
                 </div>
             </div>
         `;
@@ -2091,7 +2070,7 @@ function saveEquipmentEdit() {
     const data = {
         type: type,
         brand: $('#editEquipmentBrand').val() || '',
-        model: $('#editEquipmentModel').val() || '',
+        model: '',
         serial_number: $('#editEquipmentSerial').val() || '',
         inventory_number: inventoryNumber,
         responsible: $('#editEquipmentResponsible').val() || '',
@@ -2101,6 +2080,7 @@ function saveEquipmentEdit() {
         status: $('#editEquipmentStatus').val() || 'В работе',
         purchase_date: $('#editEquipmentPurchaseDate').val() || null,
         price: parseFloat($('#editEquipmentPrice').val()) || 0,
+        characteristics: $('#editEquipmentCharacteristics').val() || '',
         notes: $('#editEquipmentNotes').val() || ''
     };
 
@@ -2150,26 +2130,26 @@ function saveEquipmentEdit() {
         data.managed = $('#editEquipmentManaged').val() || '';
     }
 
-    // Принтер / МФУ (все поля)
+    // Принтер / МФУ
     if (printerTypes.includes(type)) {
         data.print_type = $('#editEquipmentPrintType').val();
         data.print_format = $('#editEquipmentPrintFormat').val();
         data.print_speed = parseInt($('#editEquipmentPrintSpeed').val()) || null;
         data.color_type = $('#editEquipmentColorType').val();
-        data.duplex = $('#editEquipmentDuplex').val();
+        data.duplex = $('#editEquipmentDuplexAdd').val();
         data.printer_ports = ($('#editEquipmentPrinterPorts').val() || '').trim();
         data.ip_address = ($('#editEquipmentIpAddress').val() || '').trim();
         if (type === 'МФУ') {
             data.scanner_resolution = ($('#editEquipmentScannerResolution').val() || '').trim();
             data.scanner_speed = ($('#editEquipmentScannerSpeed').val() || '').trim();
             data.duplex_scanner = $('#editEquipmentDuplexScanner').val();
+            data.scan_format = $('#editEquipmentScanFormat').val();
         }
     }
 
     // Сканер (дуплекс и формат)
     if (scannerTypes.includes(type)) {
         data.duplex_scanner = $('#editEquipmentDuplexScanner').val();
-        data.scan_format = $('#editEquipmentScanFormat').val();
         data.scanner_resolution = $('#editEquipmentScanFormat').val(); // fallback
     }
 
@@ -2682,7 +2662,6 @@ function openEditEquipmentModal(equipment) {
     $('#editEquipmentId').val(equipment.id);
     $('#editEquipmentType').val(equipment.type);
     $('#editEquipmentBrand').val(equipment.brand || '');
-    $('#editEquipmentModel').val(equipment.model || '');
     $('#editEquipmentSerial').val(equipment.serial_number || '');
     $('#editEquipmentInventory').val(equipment.inventory_number || '');
     $('#editEquipmentStatus').val(equipment.status || 'В работе');
@@ -2798,7 +2777,6 @@ function updateEquipment() {
     const data = {
         type: equipmentType,
         brand: $('#editEquipmentBrand').val(),
-        model: $('#editEquipmentModel').val(),
         serial_number: $('#editEquipmentSerial').val(),
         inventory_number: inventoryNumber,
         processor: $('#editEquipmentProcessor').val(),

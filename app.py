@@ -2131,16 +2131,28 @@ def search_licenses():
 def api_get_organizations():
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, name, address FROM Organizations ORDER BY name")
-    organizations = []
-    for row in cursor.fetchall():
-        organizations.append({
-            'id': row[0],
-            'name': row[1],
-            'address': row[2] if row[2] else ''
-        })
+    cursor.execute("SELECT id, name FROM Organizations ORDER BY name")
+    orgs = cursor.fetchall()
+    result = []
+    for org in orgs:
+        cursor.execute("SELECT address FROM OrganizationAddresses WHERE organization_id = ?", (org[0],))
+        addresses = [row[0] for row in cursor.fetchall()]
+        result.append({'id': org[0], 'name': org[1], 'addresses': addresses})
     conn.close()
-    return jsonify(organizations)
+    return jsonify(result)
+@app.route('/api/organizations/<int:id>', methods=['GET'])
+@login_required
+def api_get_organization(id):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, name FROM Organizations WHERE id = ?", (id,))
+    org = cursor.fetchone()
+    if not org:
+        return jsonify({'error': 'Не найдено'}), 404
+    cursor.execute("SELECT address FROM OrganizationAddresses WHERE organization_id = ?", (id,))
+    addresses = [row[0] for row in cursor.fetchall()]
+    conn.close()
+    return jsonify({'id': org[0], 'name': org[1], 'addresses': addresses})
 
 @app.route('/api/organizations/list', methods=['GET'])
 @login_required
@@ -2156,13 +2168,21 @@ def api_get_organizations_list():
 @login_required
 def api_add_organization():
     data = request.json
+    name = data.get('name')
+    addresses = data.get('addresses', [])
+    if not name:
+        return jsonify({'success': False, 'error': 'Введите название'}), 400
     conn = get_db()
     cursor = conn.cursor()
     try:
-        cursor.execute("INSERT INTO Organizations (name, address) VALUES (?, ?)", 
-                      (data.get('name'), data.get('address')))
+        cursor.execute("INSERT INTO Organizations (name) VALUES (?)", (name,))
+        org_id = cursor.lastrowid
+        for addr in addresses:
+            if addr.strip():
+                cursor.execute("INSERT INTO OrganizationAddresses (organization_id, address) VALUES (?, ?)",
+                               (org_id, addr.strip()))
         conn.commit()
-        return jsonify({'success': True, 'id': cursor.lastrowid})
+        return jsonify({'success': True, 'id': org_id})
     except Exception as e:
         conn.rollback()
         return jsonify({'success': False, 'error': str(e)}), 400
@@ -2173,11 +2193,19 @@ def api_add_organization():
 @login_required
 def api_update_organization(id):
     data = request.json
+    name = data.get('name')
+    addresses = data.get('addresses', [])
+    if not name:
+        return jsonify({'success': False, 'error': 'Введите название'}), 400
     conn = get_db()
     cursor = conn.cursor()
     try:
-        cursor.execute("UPDATE Organizations SET name=?, address=? WHERE id=?", 
-                      (data.get('name'), data.get('address'), id))
+        cursor.execute("UPDATE Organizations SET name=? WHERE id=?", (name, id))
+        cursor.execute("DELETE FROM OrganizationAddresses WHERE organization_id = ?", (id,))
+        for addr in addresses:
+            if addr.strip():
+                cursor.execute("INSERT INTO OrganizationAddresses (organization_id, address) VALUES (?, ?)",
+                               (id, addr.strip()))
         conn.commit()
         return jsonify({'success': True})
     except Exception as e:
@@ -2821,7 +2849,7 @@ def equipment_page():
 @login_required
 def add_equipment():
     data = request.json
-    print("📦 ПОЛУЧЕННЫЕ ДАННЫЕ:", data)  # <-- ОТЛАДКА
+    print("📦 ПОЛУЧЕННЫЕ ДАННЫЕ:", data)
 
     conn = get_db()
     cursor = conn.cursor()
@@ -2831,6 +2859,7 @@ def add_equipment():
         is_admin = session.get('role') == 'admin'
         view_org_id = session.get('view_organization_id')
         
+        # Проверка уникальности инвентарного номера
         inventory_number = data.get('inventory_number', '').strip() if data.get('inventory_number') else None
         if inventory_number:
             if org_id:
@@ -2878,6 +2907,7 @@ def add_equipment():
         
         current_user_id = session.get('user_id')
         
+        # Форматирование дат
         purchase_date = data.get('purchase_date')
         if purchase_date and purchase_date != '':
             if '.' in purchase_date:
@@ -2896,13 +2926,14 @@ def add_equipment():
         else:
             warranty_until = None
         
+        # Определение филиала для сохранения
         save_org_id = None
         if is_admin and view_org_id and view_org_id != '__ALL__' and view_org_id != '__NONE__':
             save_org_id = view_org_id
         elif org_id:
             save_org_id = org_id
         
-        # ===== ВСТАВКА – duplex ПЕРЕДАЁТСЯ ЯВНО =====
+        # ===== ВСТАВКА – 61 колонка, 61 значение =====
         cursor.execute("""
         INSERT INTO Equipment (
             type, brand, model, serial_number, inventory_number,
@@ -2917,9 +2948,10 @@ def add_equipment():
             connection_type, color,
             is_set, set_type, 
             responsible_employee, mol_employee, room_id, organization_id, status,
-            purchase_date, warranty_until, price, supplier, notes,
+            purchase_date, warranty_until, price, supplier,
+            characteristics, notes,
             created_by, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
     """, (
         data.get('type'), data.get('brand'), data.get('model'),
         data.get('serial_number'), inventory_number,
@@ -2930,9 +2962,7 @@ def add_equipment():
         data.get('port_count'), data.get('speed'), data.get('network_type'),
         data.get('poe'), data.get('managed'), data.get('ip_address'),
         data.get('print_type'), data.get('print_format'), data.get('print_speed'),
-        data.get('color_type'),
-        data.get('duplex'),  # <-- ЭТО ГЛАВНОЕ
-        data.get('printer_ports'),
+        data.get('color_type'), data.get('duplex'), data.get('printer_ports'),
         data.get('scanner_resolution'), data.get('scanner_speed'),
         data.get('duplex_scanner'), data.get('scan_format'),
         data.get('phone_number'), data.get('phone_ip'), data.get('sip_account'),
@@ -2944,7 +2974,8 @@ def add_equipment():
         responsible_id, mol_id, room_id, save_org_id,
         data.get('status', 'В работе'),
         purchase_date, warranty_until, data.get('price'),
-        data.get('supplier'), data.get('notes'),
+        data.get('supplier'),
+        data.get('characteristics'), data.get('notes'),
         current_user_id
     ))
         
@@ -2971,8 +3002,6 @@ def update_equipment(id):
         
         org_id = get_user_organization_id()
 
-        # Инвентарный номер - НЕ ОБЯЗАТЕЛЕН для всех типов
-        # Проверяем уникальность ТОЛЬКО если номер указан
         if new_inventory:
             if org_id:
                 cursor.execute("SELECT id FROM Equipment WHERE inventory_number = ? AND id != ? AND organization_id = ?", (new_inventory, id, org_id))
@@ -2985,7 +3014,6 @@ def update_equipment(id):
                     'success': False, 
                     'error': f'Оборудование с инвентарным номером "{new_inventory}" уже существует в вашем филиале!'
                 }), 400
-        # Если номер не указан - просто сохраняем NULL, проверку НЕ делаем
                 
         responsible_id = None
         if data.get('responsible'):
@@ -3007,7 +3035,6 @@ def update_equipment(id):
                 cursor.execute("INSERT INTO Employees (Department_Fullname) VALUES (?)", (data.get('mol'),))
                 mol_id = cursor.lastrowid
         
-        # ===== ОБРАБОТКА КАБИНЕТА =====
         room_id = None
         room_number = data.get('room', '').strip()
         if room_number:
@@ -3040,7 +3067,7 @@ def update_equipment(id):
         else:
             warranty_until = None
         
-        # ===== UPDATE с добавлением viewing_angle =====
+        # UPDATE
         cursor.execute("""
         UPDATE Equipment SET
             type=?, brand=?, model=?, serial_number=?, inventory_number=?,
@@ -3049,13 +3076,14 @@ def update_equipment(id):
             port_count=?, speed=?, network_type=?, poe=?, managed=?, ip_address=?,
             print_type=?, print_format=?, print_speed=?, color_type=?, duplex=?, printer_ports=?,
             scanner_resolution=?, scanner_speed=?,
-            duplex_scanner=?, scan_format=?,   -- <-- ДОБАВЛЕНЫ
+            duplex_scanner=?, scan_format=?,  
             phone_number=?, phone_ip=?, sip_account=?, lines=?, phone_poe=?,
             ups_power=?, ups_type=?, ups_outlets=?, ups_usb=?, ups_runtime=?,
             connection_type=?, color=?,
             is_set=?, set_type=?,
             responsible_employee=?, mol_employee=?, room_id=?, organization_id=?, status=?,
-            purchase_date=?, warranty_until=?, price=?, supplier=?, notes=?,
+            purchase_date=?, warranty_until=?, price=?, supplier=?,
+            characteristics=?, notes=?,
             updated_by=?, updated_at=datetime('now')
         WHERE id=?
     """, (
@@ -3070,7 +3098,7 @@ def update_equipment(id):
         data.get('print_type'), data.get('print_format'), data.get('print_speed'),
         data.get('color_type'), data.get('duplex'), data.get('printer_ports'),
         data.get('scanner_resolution'), data.get('scanner_speed'),
-        data.get('duplex_scanner'), data.get('scan_format'),  # <-- ДОБАВЛЕНЫ
+        data.get('duplex_scanner'), data.get('scan_format'),
         data.get('phone_number'), data.get('phone_ip'), data.get('sip_account'),
         data.get('lines'), data.get('phone_poe'),
         data.get('ups_power'), data.get('ups_type'), data.get('ups_outlets'),
@@ -3080,7 +3108,8 @@ def update_equipment(id):
         responsible_id, mol_id, room_id, organization_id,
         data.get('status', 'В работе'),
         purchase_date, warranty_until, data.get('price'),
-        data.get('supplier'), data.get('notes'),
+        data.get('supplier'),
+        data.get('characteristics'), data.get('notes'),
         current_user_id, id
     ))
         
@@ -3118,6 +3147,7 @@ def import_equipment_excel():
         
         org_id = get_organization_for_new_record()
         
+        # Маппинг названий колонок (ключевые слова для поиска)
         col_mapping = {
             'inventory': ['инвентарный номер', 'инв. номер', 'инвентарный'],
             'model': ['модель', 'model'],
@@ -3141,7 +3171,7 @@ def import_equipment_excel():
             return None
         
         for sheet_name, sheet_df in df.items():
-            # Только лист "Виленский"
+            # Обрабатываем только лист "Виленский" (можно расширить)
             if sheet_name != 'Виленский':
                 continue
             
@@ -3153,18 +3183,16 @@ def import_equipment_excel():
             
             cols = sheet_df.columns.tolist()
             
-            # ===== УТОЧНЁННЫЙ ПОИСК СТОЛБЦА "Наименование оборудования" =====
+            # Ищем колонки по ключевым словам
             col_model_bgu = None
             for col in cols:
                 col_lower = col.lower().strip()
                 if 'наименование оборудования' in col_lower and 'как в бгу' not in col_lower:
                     col_model_bgu = col
                     break
-
             if not col_model_bgu:
-                col_model_bgu = find_column(cols, col_mapping['model_bgu'])  # fallback
+                col_model_bgu = find_column(cols, col_mapping['model_bgu'])
             
-            # Остальные колонки ищем как обычно
             col_inventory = find_column(cols, col_mapping['inventory'])
             col_model = find_column(cols, col_mapping['model'])
             col_serial = find_column(cols, col_mapping['serial'])
@@ -3183,21 +3211,33 @@ def import_equipment_excel():
             total_rows = len(sheet_df)
             
             for idx, row in sheet_df.iterrows():
-                # Пропускаем строки 26-34 (индексы 24-32)
-                if 24 <= idx <= 32:
-                    skipped += 1
-                    skipped_indices.append(idx + 2)  # номер строки в Excel
-                    continue
-                
                 try:
+                    # Читаем инвентарный номер
                     inventory_raw = row[col_inventory] if pd.notna(row[col_inventory]) else ''
                     inventory = str(inventory_raw).strip() if inventory_raw != '' else ''
                     if inventory == 'nan':
                         inventory = ''
                     
-                    model_name = str(row[col_model]).strip() if col_model and pd.notna(row[col_model]) else ''
+                    # ===== МОДЕЛЬ (сохраняется в brand) =====
+                    brand_value = ''
+                    if col_model and pd.notna(row[col_model]):
+                        brand_value = str(row[col_model]).strip()
+                    if not brand_value and col_model_bgu and pd.notna(row[col_model_bgu]):
+                        brand_value = str(row[col_model_bgu]).strip()
+                    if not brand_value and col_tech_spec and pd.notna(row[col_tech_spec]):
+                        brand_value = str(row[col_tech_spec]).strip()
+                    # =========================================
+                    
+                    # ===== ХАРАКТЕРИСТИКИ (сохраняются в characteristics) =====
+                    characteristics = ''
+                    if col_tech_spec and pd.notna(row[col_tech_spec]):
+                        characteristics = str(row[col_tech_spec]).strip()
+                    # =========================================================
+                    
+                    # Серийный номер
                     serial = str(row[col_serial]).strip() if col_serial and pd.notna(row[col_serial]) else ''
                     
+                    # Кабинет
                     room_raw = row[col_room] if col_room and pd.notna(row[col_room]) else ''
                     room = ''
                     if room_raw != '':
@@ -3209,22 +3249,34 @@ def import_equipment_excel():
                         else:
                             room = str(room_raw).strip()
                     
+                    # Ответственный сотрудник (имя)
                     responsible = str(row[col_responsible]).strip() if col_responsible and pd.notna(row[col_responsible]) else ''
-                    status = str(row[col_status]).strip() if col_status and pd.notna(row[col_status]) else ''
+                    
+                    # ===== СТАТУС (с поддержкой "Простаивает") =====
+                    status_raw = str(row[col_status]).strip() if col_status and pd.notna(row[col_status]) else ''
+                    if not status_raw:
+                        status = 'В работе'
+                    else:
+                        status_lower = status_raw.lower()
+                        if 'простаивает' in status_lower:
+                            status = 'Простаивает'
+                        elif 'ремонт' in status_lower:
+                            status = 'Ремонт'
+                        elif 'списано' in status_lower:
+                            status = 'Списано'
+                        elif 'резерв' in status_lower:
+                            status = 'На складе'
+                        else:
+                            status = 'В работе'
+                    # =======================================================
+                    
+                    # Примечания (notes) – отдельно
                     notes = str(row[col_notes]).strip() if col_notes and pd.notna(row[col_notes]) else ''
-                    type_name = str(row[col_type]).strip() if col_type and pd.notna(row[col_type]) else ''
-                    model_bgu = str(row[col_model_bgu]).strip() if col_model_bgu and pd.notna(row[col_model_bgu]) else ''
-                    tech_spec = str(row[col_tech_spec]).strip() if col_tech_spec and pd.notna(row[col_tech_spec]) else ''
                     
-                    if not model_name and model_bgu:
-                        model_name = model_bgu
-                    if not model_name and tech_spec:
-                        model_name = tech_spec
-                    
-                    # ===== ОПРЕДЕЛЯЕМ ТИП ТОЛЬКО ИЗ СТОЛБЦА "Наименование оборудования" =====
+                    # Тип оборудования – определяем по колонке "Наименование оборудования как в БГУ"
                     equipment_type = 'Другое'
-                    if model_bgu:
-                        type_lower = model_bgu.lower().strip()
+                    if col_model_bgu and pd.notna(row[col_model_bgu]):
+                        type_lower = str(row[col_model_bgu]).lower().strip()
                         type_mapping = {
                             'системный блок': 'Компьютер',
                             'ноутбук': 'Ноутбук',
@@ -3242,22 +3294,6 @@ def import_equipment_excel():
                             'камера': 'Веб-камера/Гарнитура/Микрофон',
                             'гарнитура': 'Веб-камера/Гарнитура/Микрофон',
                             'микрофон': 'Веб-камера/Гарнитура/Микрофон',
-                            # синонимы для надёжности
-                            'системный': 'Компьютер',
-                            'компьютер': 'Компьютер',
-                            'принтер': 'Принтер',
-                            'сканер': 'Сканер',
-                            'мфу': 'МФУ',
-                            'моноблок': 'Моноблок',
-                            'колонки': 'Колонки',
-                            'сетевое': 'Сетевое оборудование',
-                            'роутер': 'Сетевое оборудование',
-                            'switch': 'Сетевое оборудование',
-                            'ups': 'ИБП',
-                            'мышь': 'Мышь/Клавиатура',
-                            'клавиатура': 'Мышь/Клавиатура',
-                            'внешний': 'Внешний диск',
-                            'диск': 'Внешний диск',
                         }
                         found = False
                         for key, value in type_mapping.items():
@@ -3268,43 +3304,16 @@ def import_equipment_excel():
                         if not found:
                             equipment_type = 'Другое'
                     else:
-                        # Если столбец "Наименование оборудования" пуст, используем запасной вариант (по type_name)
-                        if type_name:
-                            type_lower = type_name.lower()
-                            # минимальное сопоставление для type_name (можно оставить как fallback)
+                        # fallback: если нет колонки БГУ, но есть тип
+                        if col_type and pd.notna(row[col_type]):
+                            type_lower = str(row[col_type]).lower()
                             if 'ноутбук' in type_lower:
                                 equipment_type = 'Ноутбук'
                             elif 'системный' in type_lower or 'компьютер' in type_lower:
                                 equipment_type = 'Компьютер'
-                            elif 'моноблок' in type_lower:
-                                equipment_type = 'Моноблок'
-                            elif 'монитор' in type_lower:
-                                equipment_type = 'Монитор'
-                            elif 'мфу' in type_lower:
-                                equipment_type = 'МФУ'
-                            elif 'принтер' in type_lower:
-                                equipment_type = 'Принтер'
-                            elif 'сканер' in type_lower:
-                                equipment_type = 'Сканер'
-                            elif 'колонки' in type_lower:
-                                equipment_type = 'Колонки'
-                            elif 'камера' in type_lower:
-                                equipment_type = 'Веб-камера/Гарнитура/Микрофон'
-                            # и т.д. (можно расширить, но главное, что это fallback)
+                            # ... можно добавить другие
                     
-                    # Статус
-                    if not status:
-                        status = 'В работе'
-                    elif 'ремонт' in status.lower():
-                        status = 'Ремонт'
-                    elif 'списано' in status.lower():
-                        status = 'Списано'
-                    elif 'резерв' in status.lower() or 'простаивает' in status.lower():
-                        status = 'На складе'
-                    else:
-                        status = 'В работе'
-                    
-                    # Ответственный сотрудник
+                    # Находим или создаём сотрудника (ответственного)
                     responsible_id = None
                     if responsible and responsible != 'nan':
                         cursor.execute("SELECT id FROM Employees WHERE Department_Fullname = ?", (responsible,))
@@ -3315,7 +3324,7 @@ def import_equipment_excel():
                             cursor.execute("INSERT INTO Employees (Department_Fullname) VALUES (?)", (responsible,))
                             responsible_id = cursor.lastrowid
                     
-                    # Кабинет (только номер, отдел не трогаем)
+                    # Находим или создаём кабинет
                     room_id = None
                     if room and room != 'nan' and room != '':
                         cursor.execute("SELECT id FROM Rooms WHERE Number = ?", (room,))
@@ -3333,30 +3342,31 @@ def import_equipment_excel():
                         existing = cursor.fetchone()
                     
                     if existing:
-                        # Обновляем
+                        # Обновляем – модель (brand), характеристики, остальное
                         cursor.execute("""
                             UPDATE Equipment SET
                                 type = ?,
-                                brand = '',
-                                model = ?,
+                                brand = ?,
+                                model = '',
                                 serial_number = ?,
                                 room_id = ?,
                                 responsible_employee = ?,
                                 status = ?,
-                                notes = ?
+                                notes = ?,
+                                characteristics = ?
                             WHERE id = ?
-                        """, (equipment_type, model_name, serial, room_id, responsible_id, status, notes, existing[0]))
+                        """, (equipment_type, brand_value, serial, room_id, responsible_id, status, notes, characteristics, existing[0]))
                         updated += 1
                     else:
-                        # Добавляем
+                        # Добавляем – model = ''
                         cursor.execute("""
                             INSERT INTO Equipment (
                                 type, brand, model, serial_number, inventory_number,
-                                room_id, responsible_employee, status, notes,
+                                room_id, responsible_employee, status, notes, characteristics,
                                 organization_id, created_at, created_by
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)
-                        """, (equipment_type, '', model_name, serial, inventory if inventory else None,
-                              room_id, responsible_id, status, notes,
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)
+                        """, (equipment_type, brand_value, '', serial, inventory if inventory else None,
+                              room_id, responsible_id, status, notes, characteristics,
                               org_id, session.get('user_id')))
                         added += 1
                     
@@ -4075,18 +4085,21 @@ def get_equipment():
             e.port_count, e.speed, e.network_type, e.poe, e.managed, e.ip_address,
             e.print_type, e.print_format, e.print_speed, e.color_type, e.duplex, e.printer_ports,
             e.scanner_resolution, e.scanner_speed,
-            e.duplex_scanner, e.scan_format,   -- <-- добавлены
+            e.duplex_scanner, e.scan_format,
             e.phone_number, e.phone_ip, e.sip_account, e.lines, e.phone_poe,
             e.ups_power, e.ups_type, e.ups_outlets, e.ups_usb, e.ups_runtime,
             e.connection_type, e.color,
             e.is_set, e.set_type,
+            e.characteristics,
+            e.notes,
             COALESCE(resp_emp.Department_Fullname, '') as responsible,
             COALESCE(mol_emp.Department_Fullname, '') as mol,
             rm.Number as room,
             d.name as department_name,
             org.name as organization,
             e.organization_id, e.status, e.purchase_date, e.warranty_until,
-            e.price, e.supplier, e.notes, e.created_at,
+            e.price, e.supplier,
+            e.created_at,
             u.username as created_by_username, u.full_name as created_by_fullname
         FROM Equipment e
         LEFT JOIN Employees resp_emp ON e.responsible_employee = resp_emp.id
@@ -4135,8 +4148,8 @@ def get_equipment():
             'printer_ports': row[30] or '',
             'scanner_resolution': row[31] or '',
             'scanner_speed': row[32] or '',
-            'duplex_scanner': row[33] or '',      # <-- новое поле
-            'scan_format': row[34] or '',          # <-- новое поле
+            'duplex_scanner': row[33] or '',
+            'scan_format': row[34] or '',
             'phone_number': row[35] or '',
             'phone_ip': row[36] or '',
             'sip_account': row[37] or '',
@@ -4151,20 +4164,21 @@ def get_equipment():
             'color': row[46] or '',
             'is_set': row[47] if len(row) > 47 else 0,
             'set_type': row[48] if len(row) > 48 else '',
-            'responsible': row[49] if len(row) > 49 else '',
-            'mol': row[50] if len(row) > 50 else '',
-            'room': row[51] if len(row) > 51 else '',
-            'department_name': row[52] if len(row) > 52 else '',
-            'organization': row[53] if len(row) > 53 else '',
-            'organization_id': row[54] if len(row) > 54 else None,
-            'status': row[55] if len(row) > 55 else 'В работе',
-            'purchase_date': row[56] if len(row) > 56 and row[56] else '',
-            'warranty_until': row[57] if len(row) > 57 and row[57] else '',
-            'price': float(row[58]) if len(row) > 58 and row[58] else 0,
-            'supplier': row[59] if len(row) > 59 else '',
-            'notes': row[60] if len(row) > 60 else '',
-            'created_at': row[61] if len(row) > 61 else None,
-            'created_by': row[62] if len(row) > 62 else row[63] if len(row) > 63 else ''
+            'characteristics': row[49] if len(row) > 49 else '',
+            'notes': row[50] if len(row) > 50 else '',
+            'responsible': row[51] if len(row) > 51 else '',
+            'mol': row[52] if len(row) > 52 else '',
+            'room': row[53] if len(row) > 53 else '',
+            'department_name': row[54] if len(row) > 54 else '',
+            'organization': row[55] if len(row) > 55 else '',
+            'organization_id': row[56] if len(row) > 56 else None,
+            'status': row[57] if len(row) > 57 else 'В работе',
+            'purchase_date': row[58] if len(row) > 58 and row[58] else '',
+            'warranty_until': row[59] if len(row) > 59 and row[59] else '',
+            'price': float(row[60]) if len(row) > 60 and row[60] else 0,
+            'supplier': row[61] if len(row) > 61 else '',
+            'created_at': row[62] if len(row) > 62 else None,
+            'created_by': row[63] if len(row) > 63 else row[64] if len(row) > 64 else ''
         })
     
     conn.close()
@@ -4351,16 +4365,18 @@ def search_equipment():
             COALESCE(mol_emp.Department_Fullname, '—') as mol,
             r.Number as room, 
             org.name as organization,
-            d.name as department_name,          -- <-- ДОБАВЛЕНО
+            d.name as department_name,
             e.created_at, 
             u.username as created_by,
             e.monitor_size, e.resolution, e.port_count, e.speed,
-            e.os_key, e.purchase_date, e.warranty_until, e.price, e.supplier, e.notes
+            e.os_key, e.purchase_date, e.warranty_until, e.price, e.supplier,
+            e.notes,
+            e.characteristics
         FROM Equipment e
         LEFT JOIN Employees resp_emp ON e.responsible_employee = resp_emp.id
         LEFT JOIN Employees mol_emp ON e.mol_employee = mol_emp.id
         LEFT JOIN Rooms r ON e.room_id = r.id
-        LEFT JOIN Departments d ON r.Number = d.office   -- <-- ДОБАВЛЕН JOIN
+        LEFT JOIN Departments d ON r.Number = d.office
         LEFT JOIN Organizations org ON e.organization_id = org.id
         LEFT JOIN Users u ON e.created_by = u.id
         WHERE 1=1 {filter_condition}
@@ -4405,7 +4421,7 @@ def search_equipment():
             'mol': row[12] or '',
             'room': row[13] or '',
             'organization': row[14] or '',
-            'department_name': row[15] or '',      # <-- ДОБАВЛЕНО
+            'department_name': row[15] or '',
             'created_at': row[16] if len(row) > 16 else None,
             'created_by': row[17] if len(row) > 17 else None,
             'monitor_size': row[18] if len(row) > 18 else '',
@@ -4417,16 +4433,12 @@ def search_equipment():
             'warranty_until': row[24] if len(row) > 24 else '',
             'price': row[25] if len(row) > 25 else 0,
             'supplier': row[26] if len(row) > 26 else '',
-            'notes': row[27] if len(row) > 27 else ''
+            'notes': row[27] if len(row) > 27 else '',
+            'characteristics': row[28] if len(row) > 28 else ''
         })
     
     conn.close()
     return jsonify(equipment)
-
-
-@app.route('/about')
-def about():
-    return render_template('about.html')
 
 # ========== ОТЧЕТ ПО ОБОРУДОВАНИЮ ==========
 

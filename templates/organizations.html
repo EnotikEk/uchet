@@ -63,7 +63,7 @@
                             <tr>
                                 <th style="width: 60px; text-align: center;"><i class="fas fa-info-circle"></i> Детали</th>
                                 <th><i class="fas fa-building"></i> Название организации</th>
-                                <th><i class="fas fa-map-marker-alt"></i> Адрес</th>
+                                <th><i class="fas fa-map-marker-alt"></i> Адреса</th>
                                 <th style="width: 60px; text-align: center;"><i class="fas fa-trash"></i> Удалить</th>
                             </tr>
                         </thead>
@@ -665,8 +665,10 @@ function resetDepartmentSearch() {
                         <p id="viewOrganizationName" class="mb-2">—</p>
                     </div>
                     <div class="col-md-12 mb-2">
-                        <label class="fw-bold">Адрес:</label>
-                        <p id="viewOrganizationAddress" class="mb-2">—</p>
+                        <label class="fw-bold">Адреса:</label>
+                        <div id="viewOrganizationAddressesWrapper">
+                            <p id="viewOrganizationAddressesList" class="mb-2">—</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -774,8 +776,14 @@ function resetDepartmentSearch() {
                         <input type="text" class="form-control" id="orgName" required placeholder="Введите название организации">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Адрес</label>
-                        <input type="text" class="form-control" id="orgAddress" placeholder="Введите адрес организации">
+                        <label class="form-label">Адреса</label>
+                        <div id="addAddressesContainer">
+                            <!-- Строки адресов будут добавляться сюда -->
+                        </div>
+                        <button type="button" class="btn btn-outline-primary btn-sm mt-1" onclick="addAddressRow('add')">
+                            <i class="fas fa-plus"></i> Добавить адрес
+                        </button>
+                        <small class="text-muted d-block">Нажмите «Добавить адрес», чтобы указать несколько адресов</small>
                     </div>
                 </form>
             </div>
@@ -833,27 +841,32 @@ function loadOrganizations() {
 function renderOrganizations(data) {
     const tbody = $('#organizationsTableBody');
     tbody.empty();
-    
     if (!data || data.length === 0) {
-        tbody.html('<tr><td colspan="4" class="text-center text-muted py-4">📭 Нет организаций. Нажмите "Добавить организацию"</td</tr>');
+        tbody.html('<tr><td colspan="4" class="text-center text-muted py-4">📭 Нет организаций. Нажмите "Добавить организацию"</td></tr>');
         return;
     }
-    
     for (let i = 0; i < data.length; i++) {
         const item = data[i];
+        const addresses = item.addresses || [];
+        const addressCount = addresses.length;
         const row = $(`
             <tr data-id="${item.id}" class="organization-row" style="cursor: pointer;">
                 <td class="text-center">
                     <i class="fas fa-info-circle text-info" style="font-size: 1.2rem;"></i>
-                 </td>
+                </td>
                 <td style="vertical-align: middle;"><strong>${escapeHtml(item.name)}</strong></td>
-                <td style="vertical-align: middle;">${escapeHtml(item.address) || '—'}</td>
+                <td style="vertical-align: middle;">
+                    <span class="badge bg-info">${addressCount}</span>
+                    <button class="btn btn-sm btn-outline-info view-addresses-btn" data-id="${item.id}" title="Просмотреть адреса">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </td>
                 <td class="text-center">
                     <button class="btn btn-sm btn-danger delete-org-btn" data-id="${item.id}">
                         <i class="fas fa-trash"></i>
                     </button>
                 </td>
-              </tr>
+            </tr>
         `);
         row.data('organization-data', item);
         tbody.append(row);
@@ -873,21 +886,54 @@ function renderOrganizations(data) {
 }
 
 function openOrganizationView(org) {
-    currentOrganizationData = org;
-    $('#viewOrganizationId').val(org.id);
-    $('#viewOrganizationName').text(org.name || '—');
-    $('#viewOrganizationAddress').text(org.address || '—');
-    
-    disableOrganizationEditMode();
-    $('#viewOrganizationModal').modal('show');
+    // Загружаем свежие данные с сервера
+    $.ajax({
+        url: '/api/organizations/' + org.id,
+        method: 'GET',
+        success: function(data) {
+            currentOrganizationData = data;
+            $('#viewOrganizationId').val(data.id);
+            $('#viewOrganizationName').text(data.name || '—');
+            const addresses = data.addresses || [];
+            const list = $('#viewOrganizationAddressesList');
+            if (addresses.length === 0) {
+                list.text('—');
+            } else {
+                list.html(addresses.map(a => `<div>• ${escapeHtml(a)}</div>`).join(''));
+            }
+            const editContainer = document.getElementById('editAddressesContainer');
+            if (editContainer) editContainer.innerHTML = '';
+            disableOrganizationEditMode();
+            $('#viewOrganizationModal').modal('show');
+        },
+        error: function() {
+            showMessage('Ошибка загрузки данных организации', 'danger');
+        }
+    });
 }
+
+
 
 function enableOrganizationEditMode() {
     const org = currentOrganizationData;
-    
     $('#viewOrganizationName').html(`<input type="text" class="form-control form-control-sm" id="editOrganizationName" value="${escapeHtml(org.name || '')}">`);
-    $('#viewOrganizationAddress').html(`<input type="text" class="form-control form-control-sm" id="editOrganizationAddress" value="${escapeHtml(org.address || '')}">`);
-    
+    // Контейнер для адресов
+    const container = document.createElement('div');
+    container.id = 'editAddressesContainer';
+    $('#viewOrganizationAddressesList').replaceWith(container);
+    const addresses = org.addresses || [];
+    if (addresses.length === 0) {
+        addAddressRow('edit', '');
+    } else {
+        addresses.forEach(addr => addAddressRow('edit', addr));
+    }
+    const addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.className = 'btn btn-outline-primary btn-sm mt-1';
+    addBtn.innerHTML = '<i class="fas fa-plus"></i> Добавить адрес';
+    addBtn.onclick = function() { addAddressRow('edit', ''); };
+    container.parentNode.appendChild(addBtn);
+
     $('#viewOrganizationFooter').html(`
         <button type="button" class="btn btn-success" id="saveOrganizationBtn">
             <i class="fas fa-save"></i> Сохранить
@@ -896,32 +942,29 @@ function enableOrganizationEditMode() {
             <i class="fas fa-times"></i> Отмена
         </button>
     `);
-    
     $('#saveOrganizationBtn').off('click').on('click', saveOrganizationEdit);
     $('#cancelOrganizationEditBtn').off('click').on('click', cancelOrganizationEdit);
 }
 
+
+
 function saveOrganizationEdit() {
     const id = $('#viewOrganizationId').val();
-    const data = {
-        name: $('#editOrganizationName').val().trim(),
-        address: $('#editOrganizationAddress').val().trim()
-    };
-    
-    if (!data.name) {
+    const name = $('#editOrganizationName').val().trim();
+    const addresses = getAddresses('edit');
+    if (!name) {
         showMessage('Введите название организации', 'danger');
         return;
     }
-    
     $.ajax({
         url: `/api/organizations/${id}`,
         method: 'PUT',
         contentType: 'application/json',
-        data: JSON.stringify(data),
+        data: JSON.stringify({ name: name, addresses: addresses }),
         success: function(response) {
             if (response.success) {
                 showMessage('✅ Организация обновлена', 'success');
-                loadOrganizations();
+                loadOrganizations(); // обновляем таблицу
                 $('#viewOrganizationModal').modal('hide');
             } else {
                 showMessage(response.error, 'danger');
@@ -933,19 +976,41 @@ function saveOrganizationEdit() {
     });
 }
 
+
+
 function cancelOrganizationEdit() {
     if (currentOrganizationData) {
+        // Просто переоткрываем просмотр
         openOrganizationView(currentOrganizationData);
     }
 }
 
 function disableOrganizationEditMode() {
     if (!currentOrganizationData) return;
-    
     const org = currentOrganizationData;
-    
+    // Восстанавливаем отображение названия
     $('#viewOrganizationName').text(org.name || '—');
-    $('#viewOrganizationAddress').text(org.address || '—');
+    // Восстанавливаем список адресов
+    const wrapper = document.getElementById('viewOrganizationAddressesWrapper');
+    // Удаляем контейнер редактирования и кнопку, если они есть
+    const editContainer = document.getElementById('editAddressesContainer');
+    if (editContainer) editContainer.remove();
+    const addBtn = wrapper.querySelector('.btn-outline-primary');
+    if (addBtn) addBtn.remove();
+    // Удаляем старый список, если он есть
+    const oldList = document.getElementById('viewOrganizationAddressesList');
+    if (oldList) oldList.remove();
+    // Создаём новый список
+    const newList = document.createElement('p');
+    newList.id = 'viewOrganizationAddressesList';
+    newList.className = 'mb-2';
+    const addresses = org.addresses || [];
+    if (addresses.length === 0) {
+        newList.textContent = '—';
+    } else {
+        newList.innerHTML = addresses.map(a => `<div>• ${escapeHtml(a)}</div>`).join('');
+    }
+    wrapper.appendChild(newList);
     
     $('#viewOrganizationFooter').html(`
         <button type="button" class="btn btn-warning" id="editOrganizationBtn">
@@ -953,9 +1018,9 @@ function disableOrganizationEditMode() {
         </button>
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
     `);
-    
     $('#editOrganizationBtn').off('click').on('click', enableOrganizationEditMode);
 }
+
 
 function deleteOrganization(id) {
     if (confirm('🗑️ Удалить организацию? Это действие нельзя отменить.')) {
@@ -975,26 +1040,27 @@ function deleteOrganization(id) {
 
 function saveOrganization() {
     const name = $('#orgName').val().trim();
-    const address = $('#orgAddress').val().trim();
-    
+    const addresses = getAddresses('add');
     if (!name) {
         showWarning('Введите название организации');
         return;
     }
-    
     $.ajax({
         url: '/api/organizations',
         method: 'POST',
         contentType: 'application/json',
-        data: JSON.stringify({
-            name: name,
-            address: address
-        }),
+        data: JSON.stringify({ name: name, addresses: addresses }),
         success: function(response) {
             if (response.success) {
                 showMessage('✅ Организация добавлена', 'success');
                 $('#addOrganizationModal').modal('hide');
                 $('#addOrganizationForm')[0].reset();
+                // Очищаем контейнер адресов
+                const container = document.getElementById('addAddressesContainer');
+                if (container) {
+                    container.innerHTML = '';
+                    addAddressRow('add', '');
+                }
                 loadOrganizations();
             } else {
                 showMessage(response.error, 'danger');
@@ -1029,6 +1095,66 @@ function resetSearch() {
     $('#searchInput').val('');
     renderOrganizations(organizationsData);
     $('#orgStats').empty();
+}
+
+// ===== УПРАВЛЕНИЕ АДРЕСАМИ =====
+function addAddressRow(mode, addressText = '') {
+    const containerId = mode === 'add' ? 'addAddressesContainer' : 'editAddressesContainer';
+    let container = document.getElementById(containerId);
+    if (!container) {
+        // Если контейнера нет (например, в режиме edit), создадим его внутри wrapper
+        if (mode === 'edit') {
+            const wrapper = document.getElementById('viewOrganizationAddressesWrapper');
+            if (wrapper) {
+                container = document.createElement('div');
+                container.id = 'editAddressesContainer';
+                wrapper.innerHTML = '';
+                wrapper.appendChild(container);
+            }
+        }
+        if (!container) return;
+    }
+    const row = document.createElement('div');
+    row.className = 'row address-row mb-1';
+    row.innerHTML = `
+        <div class="col-10">
+            <input type="text" class="form-control form-control-sm address-input" placeholder="Введите адрес" value="${escapeHtml(addressText)}">
+        </div>
+        <div class="col-2 text-end">
+            <button type="button" class="btn btn-sm btn-outline-danger remove-address-btn" onclick="this.closest('.address-row').remove()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `;
+    container.appendChild(row);
+}
+
+function getAddresses(mode) {
+    const containerId = mode === 'add' ? 'addAddressesContainer' : 'editAddressesContainer';
+    const container = document.getElementById(containerId);
+    if (!container) return [];
+    const inputs = container.querySelectorAll('.address-input');
+    const addresses = [];
+    inputs.forEach(input => {
+        const val = input.value.trim();
+        if (val) addresses.push(val);
+    });
+    return addresses;
+}
+
+function populateAddresses(containerId, addresses) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.innerHTML = '';
+    if (!addresses || addresses.length === 0) {
+        // Добавим одну пустую строку
+        addAddressRow(containerId === 'editAddressesContainer' ? 'edit' : 'add', '');
+        return;
+    }
+    addresses.forEach(addr => {
+        const mode = containerId === 'editAddressesContainer' ? 'edit' : 'add';
+        addAddressRow(mode, addr);
+    });
 }
 
 // ==================== ФУНКЦИИ ДЛЯ SELECT ОРГАНИЗАЦИЙ ====================
@@ -1438,6 +1564,15 @@ $(document).ready(function() {
     
     $('#orgTabs button[data-bs-target="#employeesTab"]').on('shown.bs.tab', function() {
         loadEmployees();
+    });
+
+    $('#addOrganizationModal').on('show.bs.modal', function() {
+    // Очищаем и добавляем одну пустую строку
+        const container = document.getElementById('addAddressesContainer');
+        if (container) {
+            container.innerHTML = '';
+            addAddressRow('add', '');
+        }
     });
 
     $('#departmentSearchInput').on('keypress', function(e) {
