@@ -495,9 +495,20 @@
                         <label class="form-label">Файл Excel (.xlsx, .xls)</label>
                         <input type="file" class="form-control" id="equipmentExcelFile" accept=".xlsx,.xls" required>
                         <small class="text-muted">
-                            Поддерживаются листы "Виленский" и "Седова".
-                            Оборудование обновляется по инвентарному номеру.
+                            Поддерживаются листы "Виленский" и "Седова". Выберите нужные ниже.
                         </small>
+                    </div>
+                    <div id="sheetSelectionBlock" style="display: none;">
+                        <div class="mb-3">
+                            <label class="form-label">Выберите листы для импорта <span class="text-danger">*</span></label>
+                            <div id="sheetCheckboxes"></div>
+                            <div class="mt-2">
+                                <button type="button" class="btn btn-sm btn-outline-secondary" id="toggleSheetsBtn">
+                                    <i class="fas fa-check-double"></i> Выбрать все
+                                </button>
+                            </div>
+                            <small class="text-muted">Отметьте листы, которые нужно импортировать</small>
+                        </div>
                     </div>
                     <div class="alert alert-warning">
                         <i class="fas fa-exclamation-triangle"></i>
@@ -512,7 +523,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                <button type="button" class="btn btn-info" style="color: white;" onclick="importEquipmentExcel()">
+                <button type="button" class="btn btn-info" id="importEquipmentBtn" style="color: white; display: none;" onclick="importEquipmentExcel()">
                     <i class="fas fa-upload"></i> Импортировать
                 </button>
             </div>
@@ -525,6 +536,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 // ============================================================
 // ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
@@ -565,7 +577,6 @@ function loadRoomsList() {
             },
             error: function(xhr) {
                 console.error("Ошибка загрузки кабинетов:", xhr);
-                // Пробуем получить из оборудования
                 $.ajax({
                     url: '/api/equipment',
                     method: 'GET',
@@ -658,8 +669,6 @@ function toggleReportFields() {
         }
     }
 }
-
-// equipment.html - ИСПРАВЛЕННАЯ ФУНКЦИЯ
 
 function generateAndPrintReport() {
     const reportType = $('#reportType').val();
@@ -1139,7 +1148,6 @@ function renderEquipment(data) {
             if (item.refresh_rate) specs.push(`Частота: ${item.refresh_rate} Гц`);
             if (item.panel_type) specs.push(`Матрица: ${item.panel_type}`);
             if (item.response_time) specs.push(`Отклик: ${item.response_time} мс`);
-            // 👇 УГОЛ ОБЗОРА – ДОБАВЛЕНА СТРОКА
             if (item.viewing_angle) specs.push(`Угол обзора: ${item.viewing_angle}`);
             if (item.ports) specs.push(`Интерф.: ${item.ports}`);
             if (item.connection_type) specs.push(`Подкл.: ${item.connection_type}`);
@@ -1361,8 +1369,7 @@ function openEquipmentView(equipment) {
     if (equipment.printer_ports) specs.push(`Интерфейсы: ${equipment.printer_ports}`);
     if (equipment.scanner_speed) specs.push(`Скорость сканера: ${equipment.scanner_speed}`);
     
-    // Сканер (добавлены поля duplex_scanner и scan_format)
-    // ===== СКАНЕР =====
+    // Сканер
     if (equipment.duplex_scanner) specs.push(`Двусторонний скан: ${equipment.duplex_scanner}`);
     if (equipment.scan_format) specs.push(`Формат скана: ${equipment.scan_format}`);
 
@@ -1466,7 +1473,7 @@ function disableEquipmentEditMode() {
     if (eq.printer_ports) specs.push(`Интерфейсы: ${eq.printer_ports}`);
     if (eq.scanner_speed) specs.push(`Скорость сканера: ${eq.scanner_speed}`);
     
-    // Сканер (добавлены поля duplex_scanner и scan_format)
+    // Сканер
     if (eq.duplex_scanner) specs.push(`Двусторонний скан: ${eq.duplex_scanner}`);
     if (eq.scan_format) specs.push(`Формат скана: ${eq.scan_format}`);
     
@@ -2233,6 +2240,127 @@ function deleteEquipment(id) {
     }
 }
 
+// ============================================================
+// ИМПОРТ ИЗ EXCEL – ИСПРАВЛЕННАЯ ВЕРСИЯ
+// ============================================================
+
+// Обработчик выбора файла
+$(document).on('change', '#equipmentExcelFile', function(e) {
+    const file = e.target.files[0];
+    if (!file) {
+        $('#sheetSelectionBlock').hide();
+        $('#importEquipmentBtn').hide();
+        return;
+    }
+
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (!['xlsx', 'xls'].includes(ext)) {
+        showMessage('Пожалуйста, выберите файл Excel (.xlsx или .xls)', 'danger');
+        $(this).val('');
+        $('#sheetSelectionBlock').hide();
+        $('#importEquipmentBtn').hide();
+        return;
+    }
+
+    if (typeof XLSX === 'undefined') {
+        showMessage('Библиотека XLSX не загружена. Проверьте подключение к интернету.', 'danger');
+        $(this).val('');
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheetNames = workbook.SheetNames;
+
+            if (sheetNames.length === 0) {
+                showMessage('В файле нет листов', 'warning');
+                $('#sheetSelectionBlock').hide();
+                $('#importEquipmentBtn').hide();
+                return;
+            }
+
+            const container = $('#sheetCheckboxes');
+            container.empty();
+
+            let html = '';
+            for (let i = 0; i < sheetNames.length; i++) {
+                const name = sheetNames[i];
+                const checked = (name === 'Виленский' || name === 'Седова') ? 'checked' : '';
+                html += `
+                    <div class="form-check">
+                        <input class="form-check-input sheet-checkbox" type="checkbox" value="${escapeHtml(name)}" id="sheet_${i}" ${checked}>
+                        <label class="form-check-label" for="sheet_${i}">${escapeHtml(name)}</label>
+                    </div>
+                `;
+            }
+            container.html(html);
+
+            updateToggleButtonText();
+            $('#sheetSelectionBlock').show();
+            $('#importEquipmentBtn').show();
+
+            // При изменении любого чекбокса обновляем текст кнопки
+            $('.sheet-checkbox').on('change', updateToggleButtonText);
+
+        } catch (error) {
+            console.error('Ошибка чтения Excel:', error);
+            showMessage('Не удалось прочитать файл. Убедитесь, что это корректный Excel-файл.', 'danger');
+            $('#sheetSelectionBlock').hide();
+            $('#importEquipmentBtn').hide();
+            $('#equipmentExcelFile').val('');
+        }
+    };
+    reader.readAsArrayBuffer(file);
+});
+
+// Функция обновления текста кнопки "Выбрать все / Снять все"
+function updateToggleButtonText() {
+    const checkboxes = $('.sheet-checkbox');
+    const total = checkboxes.length;
+    const checked = checkboxes.filter(':checked').length;
+    const btn = $('#toggleSheetsBtn');
+
+    if (total === 0) {
+        btn.html('<i class="fas fa-check-double"></i> Выбрать все');
+        return;
+    }
+
+    if (checked === total) {
+        btn.html('<i class="fas fa-check-double"></i> Снять все');
+    } else {
+        btn.html('<i class="fas fa-check-double"></i> Выбрать все');
+    }
+}
+
+// Обработчик клика по кнопке "Выбрать все / Снять все"
+$(document).on('click', '#toggleSheetsBtn', function() {
+    const checkboxes = $('.sheet-checkbox');
+    const total = checkboxes.length;
+    const checked = checkboxes.filter(':checked').length;
+
+    if (checked === total) {
+        // Если все выбраны – снимаем все
+        checkboxes.prop('checked', false);
+    } else {
+        // Иначе выбираем все
+        checkboxes.prop('checked', true);
+    }
+    updateToggleButtonText();
+});
+
+// Функция получения выбранных листов
+function getSelectedSheets() {
+    const selected = [];
+    $('.sheet-checkbox:checked').each(function() {
+        selected.push($(this).val());
+    });
+    return selected;
+}
+
+// Основная функция импорта
 function importEquipmentExcel() {
     const fileInput = document.getElementById('equipmentExcelFile');
     const file = fileInput.files[0];
@@ -2242,10 +2370,17 @@ function importEquipmentExcel() {
         return;
     }
 
+    const selectedSheets = getSelectedSheets();
+    if (selectedSheets.length === 0) {
+        showMessage('Выберите хотя бы один лист для импорта', 'warning');
+        return;
+    }
+
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('sheets', JSON.stringify(selectedSheets));
 
-    const btn = $('#importEquipmentModal .btn-info');
+    const btn = $('#importEquipmentBtn');
     const originalHtml = btn.html();
     btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Импорт...');
 
@@ -2257,10 +2392,17 @@ function importEquipmentExcel() {
         contentType: false,
         success: function(response) {
             if (response.success) {
-                showMessage(response.message, 'success');
+                let msg = `✅ Импорт завершён: добавлено ${response.added}, обновлено ${response.updated}, пропущено ${response.skipped}`;
+                if (response.errors && response.errors.length > 0) {
+                    msg += `\n⚠️ Ошибки:\n${response.errors.join('\n')}`;
+                }
+                showMessage(msg, 'success');
                 $('#importEquipmentModal').modal('hide');
                 fileInput.value = '';
-                loadEquipment(); // перезагружаем таблицу
+                $('#sheetSelectionBlock').hide();
+                $('#importEquipmentBtn').hide();
+                $('#sheetCheckboxes').empty();
+                loadEquipment();
             } else {
                 showMessage(response.error || 'Ошибка при импорте', 'danger');
             }
@@ -2274,6 +2416,10 @@ function importEquipmentExcel() {
         }
     });
 }
+
+// ============================================================
+// ОСТАЛЬНЫЕ ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// ============================================================
 
 function getTypeIcon(type) {
     const icons = {
@@ -2302,7 +2448,7 @@ function getStatusClass(status) {
         'Ремонт': 'bg-warning',
         'На складе': 'bg-info',
         'Списано': 'bg-secondary',
-        'Простаивает': 'bg-warning text-dark'   // добавлено
+        'Простаивает': 'bg-warning text-dark'
     };
     return classes[status] || 'bg-secondary';
 }
@@ -2313,7 +2459,7 @@ function getStatusColorForPrint(status) {
         'Ремонт': '#ffc107',
         'На складе': '#17a2b8',
         'Списано': '#6c757d',
-        'Простаивает': '#fd7e14'   // оранжевый, добавлено
+        'Простаивает': '#fd7e14'
     };
     return colors[status] || '#007bff';
 }
@@ -2573,7 +2719,6 @@ function showMessage(message, type) {
 // ФУНКЦИИ ДЛЯ РАБОТЫ С КАБИНЕТАМИ В РЕЖИМЕ РЕДАКТИРОВАНИЯ
 // ============================================================
 
-// Загрузка списка кабинетов для datalist в режиме редактирования
 function loadRoomsForEditDatalist() {
     $.ajax({
         url: '/api/rooms/search',
@@ -2595,7 +2740,6 @@ function loadRoomsForEditDatalist() {
     });
 }
 
-// Добавление нового кабинета из режима редактирования
 function addNewRoomFromEdit() {
     const currentRoom = $('#editEquipmentRoom').val().trim();
     if (!currentRoom) {
@@ -2639,13 +2783,10 @@ function addNewRoomFromEdit() {
     });
 }
 
-// Загрузка кабинетов при открытии модального окна просмотра/редактирования
 $('#viewEquipmentModal').on('show.bs.modal', function() {
-    // Загружаем кабинеты для режима редактирования
     loadRoomsForEditDatalist();
 });
 
-// Обработчик Enter в поле кабинета для редактирования
 $(document).on('keypress', '#editEquipmentRoom', function(e) {
     if (e.which === 13) {
         e.preventDefault();
@@ -2840,7 +2981,6 @@ function loadOrganizationsForSelect() {
 // ИНИЦИАЛИЗАЦИЯ
 // ============================================================
 
-
 $(document).ready(function() {
     loadEquipment();
     loadEmployeesList();
@@ -2855,7 +2995,6 @@ $(document).ready(function() {
         });
         loadEmployeesList();
     });
-    
     
     $('#printReportModal').on('hidden.bs.modal', function() {
         $('#reportType').val('mol');
@@ -2872,12 +3011,11 @@ $(document).ready(function() {
             return false;
         }
     });
-    // Загрузка кабинетов при открытии модального окна просмотра/редактирования
+    
     $('#viewEquipmentModal').on('show.bs.modal', function() {
         loadRoomsForEditDatalist();
     });
     
-    // Обработчик Enter в поле кабинета для редактирования
     $(document).on('keypress', '#editEquipmentRoom', function(e) {
         if (e.which === 13) {
             e.preventDefault();
@@ -2888,7 +3026,6 @@ $(document).ready(function() {
         }
     });
     
-    // Обработчик Enter в поле кабинета для добавления (если не обработано в modals)
     $(document).on('keypress', '#addEquipmentRoom', function(e) {
         if (e.which === 13) {
             e.preventDefault();
@@ -2899,7 +3036,6 @@ $(document).ready(function() {
         }
     });
 
-    
     $(document).on('change', '#editEquipmentIsSet', function() {
         if ($('#editEquipmentIsSet').closest('form').find('#editEquipmentSetType').length) {
             const type = $('#editEquipmentType').val();

@@ -3124,6 +3124,435 @@ def update_equipment(id):
 @app.route('/api/equipment/import-excel', methods=['POST'])
 @login_required
 def import_equipment_excel():
+    import json
+    import traceback
+    import math
+    import re
+
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'error': 'Файл не выбран'}), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'success': False, 'error': 'Файл не выбран'}), 400
+
+    if not file.filename.endswith(('.xlsx', '.xls')):
+        return jsonify({'success': False, 'error': 'Поддерживаются только файлы Excel (.xlsx, .xls)'}), 400
+
+    sheets_json = request.form.get('sheets')
+    try:
+        selected_sheets = json.loads(sheets_json) if sheets_json else []
+    except json.JSONDecodeError:
+        selected_sheets = []
+
+    try:
+        df_dict = pd.read_excel(file, sheet_name=None)
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Ошибка чтения Excel: {str(e)}'}), 400
+
+    conn = get_db()
+    cursor = conn.cursor()
+    added = 0
+    updated = 0
+    skipped = 0
+    errors = []
+    skipped_reasons = {}
+
+    org_id = get_organization_for_new_record()
+    print(f"[ИМПОРТ] Филиал пользователя (org_id): {org_id}")
+
+    if org_id is None:
+        print("[ИМПОРТ] ВНИМАНИЕ: у пользователя нет филиала. Сотрудники, отделы и оборудование будут созданы без филиала (NULL).")
+
+    # # МАППИНГ КОЛОНОК (расширен для ответственного)
+    # col_mapping = {
+    #     'inventory': ['инвентарный номер', 'инв. номер', 'инвентарный', 'инв.№', 'инв №', 'инвентарный номер (бгу)'],
+    #     'model': ['модель', 'model'],
+    #     'serial': ['серийный номер', 'серийный', 's/n', 'sn'],
+    #     'room': ['кабинет', 'местонахождение', 'кабинет/место', 'помещение'],
+    #     'responsible': [
+    #         'ответственный сотрудник', 'ответственный', 'сотрудник', 'фио', 'пользователь',
+    #         'фио сотрудника', 'исполнитель', 'владелец', 'кто использует', 'ФИО', 'Ф.И.О.'
+    #     ],
+    #     'department': ['отдел', 'подразделение', 'ответственный отдел', 'департамент', 'структурное подразделение', 'наименование отдела'],
+    #     'status': ['текущее состояние', 'состояние', 'статус'],
+    #     'notes': ['примечания', 'примечание', 'дефекты'],
+    #     'type': ['наименование оборудования', 'тип оборудования', 'тип', 'наименование', 'оборудование'],
+    #     'model_bgu': ['наименование оборудования'],
+    #     'tech_spec': ['технические характеристики', 'характеристики'],
+    #     'mol': ['материально-ответственное лицо', 'мол', 'материально ответственное', 'м.о.л.', 'мол (материально-ответственное лицо)']
+    # }
+
+    col_mapping = {
+                'inventory': ['инвентарный номер', 'инв. номер', 'инвентарный'],
+                'model': ['модель', 'model'],
+                'serial': ['серийный номер', 'серийный', 's/n', 'sn'],
+                'room': ['кабинет', 'местонахождение', 'кабинет (местонахождение)'],
+                'responsible': ['ответственный сотрудник', 'ответственный', 'сотрудник'],
+                'department': ['ответственный отдел', 'отдел', 'подразделение'],
+                'status': ['текущее состояние', 'состояние', 'статус'],
+                'notes': ['примечания', 'примечание', 'дефекты'],
+                'type': ['наименование оборудования', 'тип оборудования'],
+                'model_bgu': ['наименование оборудования'],
+                'tech_spec': ['технические характеристики', 'характеристики'],
+                'mol': ['материально-ответственное лицо', 'мол', 'материально ответственное', 'м.о.л.', 'мол (материально-ответственное лицо)'] 
+            }
+
+    def find_column(df_columns, keywords):
+        for col in df_columns:
+            col_lower = col.lower().strip()
+            for kw in keywords:
+                if kw in col_lower:
+                    return col
+        return None
+
+    if selected_sheets:
+        sheets_to_process = {name: df_dict.get(name) for name in selected_sheets if name in df_dict}
+    else:
+        sheets_to_process = {name: df for name, df in df_dict.items() if not df.empty}
+
+    if not sheets_to_process:
+        return jsonify({'success': False, 'error': 'Не выбрано ни одного листа для импорта'}), 400
+
+    for sheet_name, sheet_df in sheets_to_process.items():
+        if sheet_df.empty:
+            errors.append(f"Лист '{sheet_name}' пуст")
+            continue
+
+        cols = sheet_df.columns.tolist()
+        print(f"\n[ИМПОРТ] Лист: {sheet_name}")
+        print(f"[ИМПОРТ] Все колонки: {cols}")
+
+        col_inventory = find_column(cols, col_mapping['inventory'])
+        col_department = find_column(cols, col_mapping['department'])
+        col_room = find_column(cols, col_mapping['room'])
+        col_responsible = find_column(cols, col_mapping['responsible'])   
+        col_mol = find_column(cols, col_mapping['mol'])
+        col_model_bgu = find_column(cols, col_mapping['model_bgu'])
+        col_model = find_column(cols, col_mapping['model'])
+        col_serial = find_column(cols, col_mapping['serial'])
+        col_status = find_column(cols, col_mapping['status'])
+        col_notes = find_column(cols, col_mapping['notes'])
+        col_type = find_column(cols, col_mapping['type'])
+        col_tech_spec = find_column(cols, col_mapping['tech_spec'])
+
+        print(f"[ИМПОРТ] Найдены колонки:")
+        print(f"  Инвентарный номер: {col_inventory}")
+        print(f"  Отдел: {col_department}")
+        print(f"  Кабинет: {col_room}")
+        print(f"  ОТВЕТСТВЕННЫЙ (должен быть ФИО): {col_responsible}")
+        print(f"  МОЛ: {col_mol}")
+        print(f"  ТИП (Наименование оборудования): {col_type}")
+
+        # Проверка: если колонка типа не найдена – останавливаем импорт
+        if not col_type:
+            error_msg = f"Лист '{sheet_name}': НЕ НАЙДЕНА колонка 'Наименование оборудования'! Переименуйте колонку в Excel."
+            errors.append(error_msg)
+            print(f"[ИМПОРТ] ОШИБКА: {error_msg}")
+            continue
+
+        # Если колонка ответственного не найдена – выводим предупреждение
+        if not col_responsible:
+            print(f"[ИМПОРТ] ВНИМАНИЕ: не найдена колонка 'Ответственный сотрудник'. Сотрудники НЕ будут созданы!")
+            print("[ИМПОРТ] Убедитесь, что колонка называется 'Ответственный сотрудник', 'ФИО', 'Сотрудник' и т.п.")
+
+        total_rows = len(sheet_df)
+        print(f"[ИМПОРТ] Всего строк в листе '{sheet_name}': {total_rows}")
+
+        processed = 0
+        for idx, row in sheet_df.iterrows():
+            try:
+                # 1. Инвентарный номер (если пустой – ставим None)
+                inventory = None
+                if col_inventory and pd.notna(row[col_inventory]):
+                    inv_raw = row[col_inventory]
+                    if isinstance(inv_raw, float) and not math.isnan(inv_raw):
+                        if inv_raw.is_integer():
+                            inventory = str(int(inv_raw))
+                        else:
+                            inventory = str(inv_raw)
+                    else:
+                        inv_str = str(inv_raw).strip()
+                        if inv_str not in ('', 'nan', 'none', 'null', '—', '-', '_'):
+                            inventory = inv_str
+
+                if inventory is None:
+                    print(f"[ИМПОРТ] Строка {idx+2}: инвентарный номер пустой -> будет NULL")
+                else:
+                    print(f"[ИМПОРТ] Строка {idx+2}: инвентарный номер = '{inventory}'")
+
+                # 2. Отдел
+                department_name = ''
+                if col_department and pd.notna(row[col_department]):
+                    department_name = str(row[col_department]).strip()
+
+                department_id = None
+                if department_name:
+                    cursor.execute(
+                        "SELECT id FROM Departments WHERE name = ? AND organization_id = ?",
+                        (department_name, org_id)
+                    )
+                    dept = cursor.fetchone()
+                    if dept:
+                        department_id = dept[0]
+                    else:
+                        cursor.execute(
+                            "INSERT INTO Departments (name, organization_id) VALUES (?, ?)",
+                            (department_name, org_id)
+                        )
+                        department_id = cursor.lastrowid
+                        print(f"[ИМПОРТ] Строка {idx+2}: создан отдел '{department_name}' (id={department_id}, org={org_id})")
+                        conn.commit()
+
+                # 3. Кабинет
+                room_number = ''
+                if col_room and pd.notna(row[col_room]):
+                    room_raw = row[col_room]
+                    if isinstance(room_raw, float):
+                        try:
+                            room_number = str(int(room_raw))
+                        except:
+                            room_number = str(room_raw)
+                    else:
+                        room_number = str(room_raw).strip()
+
+                room_id = None
+                if room_number:
+                    cursor.execute("SELECT id, department_id FROM Rooms WHERE Number = ?", (room_number,))
+                    room = cursor.fetchone()
+                    if room:
+                        room_id = room[0]
+                        if room[1] != department_id:
+                            cursor.execute("UPDATE Rooms SET department_id = ? WHERE id = ?", (department_id, room_id))
+                            conn.commit()
+                    else:
+                        cursor.execute(
+                            "INSERT INTO Rooms (Number, department_id) VALUES (?, ?)",
+                            (room_number, department_id)
+                        )
+                        room_id = cursor.lastrowid
+                        print(f"[ИМПОРТ] Строка {idx+2}: создан кабинет '{room_number}' (id={room_id})")
+                        conn.commit()
+
+                    if department_id and room_number:
+                        cursor.execute(
+                            "UPDATE Departments SET office = ? WHERE id = ? AND (office IS NULL OR office != ?)",
+                            (room_number, department_id, room_number)
+                        )
+                        if cursor.rowcount > 0:
+                            print(f"[ИМПОРТ] Строка {idx+2}: обновлён office у отдела '{department_name}' -> '{room_number}'")
+                            conn.commit()
+
+                # 4. ОТВЕТСТВЕННЫЙ СОТРУДНИК (из col_responsible)
+                responsible_name = ''
+                if col_responsible and pd.notna(row[col_responsible]):
+                    responsible_name = str(row[col_responsible]).strip()
+                    print(f"[ИМПОРТ] Строка {idx+2}: ответственный из Excel = '{responsible_name}'")
+                else:
+                    print(f"[ИМПОРТ] Строка {idx+2}: ответственный не указан в Excel")
+
+                responsible_id = None
+                if responsible_name:
+                    # Ищем сотрудника по имени (без учёта филиала)
+                    cursor.execute("SELECT id FROM Employees WHERE Department_Fullname = ?", (responsible_name,))
+                    emp = cursor.fetchone()
+                    if emp:
+                        responsible_id = emp[0]
+                        print(f"[ИМПОРТ] Строка {idx+2}: найден существующий сотрудник '{responsible_name}' (id={responsible_id})")
+                    else:
+                        # Создаём нового сотрудника с филиалом текущего пользователя
+                        cursor.execute(
+                            "INSERT INTO Employees (Department_Fullname, Organization_id) VALUES (?, ?)",
+                            (responsible_name, org_id)
+                        )
+                        responsible_id = cursor.lastrowid
+                        print(f"[ИМПОРТ] Строка {idx+2}: создан новый сотрудник '{responsible_name}' (id={responsible_id}, филиал={org_id})")
+                        conn.commit()
+                else:
+                    print(f"[ИМПОРТ] Строка {idx+2}: ответственный не будет установлен (NULL)")
+
+                # 5. МОЛ
+                mol_name = ''
+                if col_mol and pd.notna(row[col_mol]):
+                    mol_name = str(row[col_mol]).strip()
+
+                mol_id = None
+                if mol_name:
+                    cursor.execute("SELECT id FROM Employees WHERE Department_Fullname = ?", (mol_name,))
+                    emp = cursor.fetchone()
+                    if emp:
+                        mol_id = emp[0]
+                    else:
+                        cursor.execute(
+                            "INSERT INTO Employees (Department_Fullname, Organization_id) VALUES (?, ?)",
+                            (mol_name, org_id)
+                        )
+                        mol_id = cursor.lastrowid
+                        conn.commit()
+
+                # 6. ТИП ОБОРУДОВАНИЯ (из col_type)
+                equipment_type = 'Другое'
+                type_raw = ''
+                if col_type and pd.notna(row[col_type]):
+                    type_raw = str(row[col_type]).strip()
+                elif col_model_bgu and pd.notna(row[col_model_bgu]):
+                    type_raw = str(row[col_model_bgu]).strip()
+
+                if type_raw:
+                    type_clean = re.sub(r'\s+', ' ', type_raw).strip()
+                    type_lower = type_clean.lower()
+                    computer_keywords = ['системный', 'системник', 'компьютер', 'пк', 'pc']
+                    if any(keyword in type_lower for keyword in computer_keywords):
+                        equipment_type = 'Компьютер'
+                    else:
+                        type_mapping = {
+                            'ноутбук': 'Ноутбук', 'лэптоп': 'Ноутбук', 'laptop': 'Ноутбук',
+                            'моноблок': 'Моноблок', 'all-in-one': 'Моноблок',
+                            'монитор': 'Монитор', 'дисплей': 'Монитор', 'monitor': 'Монитор',
+                            'принтер': 'Принтер', 'printer': 'Принтер',
+                            'мфу': 'МФУ',
+                            'сканер': 'Сканер', 'scanner': 'Сканер',
+                            'сетевое оборудование': 'Сетевое оборудование',
+                            'коммутатор': 'Сетевое оборудование',
+                            'маршрутизатор': 'Сетевое оборудование',
+                            'роутер': 'Сетевое оборудование',
+                            'switch': 'Сетевое оборудование',
+                            'router': 'Сетевое оборудование',
+                            'ибп': 'ИБП', 'бесперебойник': 'ИБП', 'ups': 'ИБП',
+                            'мышь': 'Мышь/Клавиатура', 'клавиатура': 'Мышь/Клавиатура',
+                            'мышь/клавиатура': 'Мышь/Клавиатура',
+                            'mouse': 'Мышь/Клавиатура', 'keyboard': 'Мышь/Клавиатура',
+                            'внешний диск': 'Внешний диск', 'external drive': 'Внешний диск',
+                            'колонки': 'Колонки', 'speakers': 'Колонки',
+                            'веб-камера': 'Веб-камера/Гарнитура/Микрофон',
+                            'камера': 'Веб-камера/Гарнитура/Микрофон',
+                            'гарнитура': 'Веб-камера/Гарнитура/Микрофон',
+                            'микрофон': 'Веб-камера/Гарнитура/Микрофон',
+                            'webcam': 'Веб-камера/Гарнитура/Микрофон',
+                            'headset': 'Веб-камера/Гарнитура/Микрофон',
+                        }
+                        found = False
+                        for key, value in type_mapping.items():
+                            if key in type_lower:
+                                equipment_type = value
+                                found = True
+                                break
+                        if not found:
+                            equipment_type = type_clean.title()
+
+                # 7. Остальные поля
+                brand_value = ''
+                if col_model and pd.notna(row[col_model]):
+                    brand_value = str(row[col_model]).strip()
+                if not brand_value and col_model_bgu and pd.notna(row[col_model_bgu]):
+                    brand_value = str(row[col_model_bgu]).strip()
+                if not brand_value and col_tech_spec and pd.notna(row[col_tech_spec]):
+                    brand_value = str(row[col_tech_spec]).strip()
+
+                characteristics = ''
+                if col_tech_spec and pd.notna(row[col_tech_spec]):
+                    characteristics = str(row[col_tech_spec]).strip()
+
+                serial = ''
+                if col_serial and pd.notna(row[col_serial]):
+                    serial = str(row[col_serial]).strip()
+
+                status_raw = ''
+                if col_status and pd.notna(row[col_status]):
+                    status_raw = str(row[col_status]).strip()
+                status = 'В работе' if not status_raw else (
+                    'Простаивает' if 'простаивает' in status_raw.lower() else
+                    'Ремонт' if 'ремонт' in status_raw.lower() else
+                    'Списано' if 'списано' in status_raw.lower() else
+                    'На складе' if 'резерв' in status_raw.lower() else 'В работе'
+                )
+
+                notes = ''
+                if col_notes and pd.notna(row[col_notes]):
+                    notes = str(row[col_notes]).strip()
+
+                # 8. Оборудование
+                if inventory is None:
+                    cursor.execute("""
+                        INSERT INTO Equipment (
+                            type, brand, model, serial_number, inventory_number,
+                            room_id, responsible_employee, mol_employee,
+                            status, notes, characteristics,
+                            organization_id, created_at, created_by
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)
+                    """, (equipment_type, brand_value, '', serial, None,
+                          room_id, responsible_id, mol_id, status, notes, characteristics,
+                          org_id, session.get('user_id'))
+                    )
+                    added += 1
+                else:
+                    cursor.execute("SELECT id FROM Equipment WHERE inventory_number = ?", (inventory,))
+                    existing = cursor.fetchone()
+                    if existing:
+                        cursor.execute("""
+                            UPDATE Equipment SET
+                                type = ?, brand = ?, model = '',
+                                serial_number = ?, room_id = ?,
+                                responsible_employee = ?, mol_employee = ?,
+                                status = ?, notes = ?, characteristics = ?,
+                                organization_id = ?, updated_at = datetime('now'), updated_by = ?
+                            WHERE id = ?
+                        """, (equipment_type, brand_value, serial, room_id,
+                              responsible_id, mol_id, status, notes, characteristics,
+                              org_id, session.get('user_id'), existing[0]))
+                        updated += 1
+                    else:
+                        cursor.execute("""
+                            INSERT INTO Equipment (
+                                type, brand, model, serial_number, inventory_number,
+                                room_id, responsible_employee, mol_employee,
+                                status, notes, characteristics,
+                                organization_id, created_at, created_by
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)
+                        """, (equipment_type, brand_value, '', serial, inventory,
+                              room_id, responsible_id, mol_id, status, notes, characteristics,
+                              org_id, session.get('user_id'))
+                        )
+                        added += 1
+
+                conn.commit()
+                processed += 1
+
+            except Exception as e:
+                errors.append(f"Строка {idx+2} (лист {sheet_name}): {str(e)}")
+                skipped += 1
+                print(f"[ИМПОРТ] ОШИБКА в строке {idx+2}: {str(e)}")
+
+        print(f"[ИМПОРТ] Лист '{sheet_name}': обработано {processed} строк из {total_rows}")
+
+    conn.close()
+
+    # Формируем отчёт
+    skip_details = ""
+    if skipped_reasons:
+        skip_details = "\n\nПричины пропуска:\n" + "\n".join([f"  - {k}: {v} раз" for k, v in list(skipped_reasons.items())[:10]])
+
+    result_message = f"✅ Импорт завершён: добавлено {added}, обновлено {updated}, пропущено {skipped}{skip_details}"
+    if errors:
+        result_message += f"\n⚠️ Ошибки: {len(errors)}\n" + "\n".join(errors[:10])
+
+    return jsonify({
+        'success': True,
+        'added': added,
+        'updated': updated,
+        'skipped': skipped,
+        'message': result_message,
+        'errors': errors[:20],
+        'details': {
+            'total_added': added,
+            'total_updated': updated,
+            'total_skipped': skipped
+        }
+    })
+
+@app.route('/api/equipment/import-excel/sheets', methods=['POST'])
+@login_required
+def get_excel_sheets():
     if 'file' not in request.files:
         return jsonify({'success': False, 'error': 'Файл не выбран'}), 400
     
@@ -3135,268 +3564,11 @@ def import_equipment_excel():
         return jsonify({'success': False, 'error': 'Поддерживаются только файлы Excel (.xlsx, .xls)'}), 400
     
     try:
-        df = pd.read_excel(file, sheet_name=None)
-        conn = get_db()
-        cursor = conn.cursor()
-        
-        added = 0
-        updated = 0
-        skipped = 0
-        errors = []
-        skipped_indices = []
-        
-        org_id = get_organization_for_new_record()
-        
-        # Маппинг названий колонок (ключевые слова для поиска)
-        col_mapping = {
-            'inventory': ['инвентарный номер', 'инв. номер', 'инвентарный'],
-            'model': ['модель', 'model'],
-            'serial': ['серийный номер', 'серийный', 's/n', 'sn'],
-            'room': ['кабинет', 'местонахождение', 'кабинет (местонахождение)'],
-            'responsible': ['ответственный сотрудник', 'ответственный', 'сотрудник'],
-            'department': ['ответственный отдел', 'отдел', 'подразделение'],
-            'status': ['текущее состояние', 'состояние', 'статус'],
-            'notes': ['примечания', 'примечание', 'дефекты'],
-            'type': ['наименование оборудования', 'тип оборудования'],
-            'model_bgu': ['наименование оборудования'],
-            'tech_spec': ['технические характеристики', 'характеристики']
-        }
-        
-        def find_column(df_columns, keywords):
-            for col in df_columns:
-                col_lower = col.lower().strip()
-                for kw in keywords:
-                    if kw in col_lower:
-                        return col
-            return None
-        
-        for sheet_name, sheet_df in df.items():
-            # Обрабатываем только лист "Виленский" (можно расширить)
-            if sheet_name != 'Виленский':
-                continue
-            
-            if sheet_df.empty:
-                continue
-            
-            if sheet_df.shape[1] < 2:
-                continue
-            
-            cols = sheet_df.columns.tolist()
-            
-            # Ищем колонки по ключевым словам
-            col_model_bgu = None
-            for col in cols:
-                col_lower = col.lower().strip()
-                if 'наименование оборудования' in col_lower and 'как в бгу' not in col_lower:
-                    col_model_bgu = col
-                    break
-            if not col_model_bgu:
-                col_model_bgu = find_column(cols, col_mapping['model_bgu'])
-            
-            col_inventory = find_column(cols, col_mapping['inventory'])
-            col_model = find_column(cols, col_mapping['model'])
-            col_serial = find_column(cols, col_mapping['serial'])
-            col_room = find_column(cols, col_mapping['room'])
-            col_responsible = find_column(cols, col_mapping['responsible'])
-            col_department = find_column(cols, col_mapping['department'])
-            col_status = find_column(cols, col_mapping['status'])
-            col_notes = find_column(cols, col_mapping['notes'])
-            col_type = find_column(cols, col_mapping['type'])
-            col_tech_spec = find_column(cols, col_mapping['tech_spec'])
-            
-            if not col_inventory:
-                errors.append(f"Лист '{sheet_name}': не найдена колонка 'Инвентарный номер'")
-                continue
-            
-            total_rows = len(sheet_df)
-            
-            for idx, row in sheet_df.iterrows():
-                try:
-                    # Читаем инвентарный номер
-                    inventory_raw = row[col_inventory] if pd.notna(row[col_inventory]) else ''
-                    inventory = str(inventory_raw).strip() if inventory_raw != '' else ''
-                    if inventory == 'nan':
-                        inventory = ''
-                    
-                    # ===== МОДЕЛЬ (сохраняется в brand) =====
-                    brand_value = ''
-                    if col_model and pd.notna(row[col_model]):
-                        brand_value = str(row[col_model]).strip()
-                    if not brand_value and col_model_bgu and pd.notna(row[col_model_bgu]):
-                        brand_value = str(row[col_model_bgu]).strip()
-                    if not brand_value and col_tech_spec and pd.notna(row[col_tech_spec]):
-                        brand_value = str(row[col_tech_spec]).strip()
-                    # =========================================
-                    
-                    # ===== ХАРАКТЕРИСТИКИ (сохраняются в characteristics) =====
-                    characteristics = ''
-                    if col_tech_spec and pd.notna(row[col_tech_spec]):
-                        characteristics = str(row[col_tech_spec]).strip()
-                    # =========================================================
-                    
-                    # Серийный номер
-                    serial = str(row[col_serial]).strip() if col_serial and pd.notna(row[col_serial]) else ''
-                    
-                    # Кабинет
-                    room_raw = row[col_room] if col_room and pd.notna(row[col_room]) else ''
-                    room = ''
-                    if room_raw != '':
-                        if isinstance(room_raw, float):
-                            try:
-                                room = str(int(room_raw))
-                            except:
-                                room = str(room_raw)
-                        else:
-                            room = str(room_raw).strip()
-                    
-                    # Ответственный сотрудник (имя)
-                    responsible = str(row[col_responsible]).strip() if col_responsible and pd.notna(row[col_responsible]) else ''
-                    
-                    # ===== СТАТУС (с поддержкой "Простаивает") =====
-                    status_raw = str(row[col_status]).strip() if col_status and pd.notna(row[col_status]) else ''
-                    if not status_raw:
-                        status = 'В работе'
-                    else:
-                        status_lower = status_raw.lower()
-                        if 'простаивает' in status_lower:
-                            status = 'Простаивает'
-                        elif 'ремонт' in status_lower:
-                            status = 'Ремонт'
-                        elif 'списано' in status_lower:
-                            status = 'Списано'
-                        elif 'резерв' in status_lower:
-                            status = 'На складе'
-                        else:
-                            status = 'В работе'
-                    # =======================================================
-                    
-                    # Примечания (notes) – отдельно
-                    notes = str(row[col_notes]).strip() if col_notes and pd.notna(row[col_notes]) else ''
-                    
-                    # Тип оборудования – определяем по колонке "Наименование оборудования как в БГУ"
-                    equipment_type = 'Другое'
-                    if col_model_bgu and pd.notna(row[col_model_bgu]):
-                        type_lower = str(row[col_model_bgu]).lower().strip()
-                        type_mapping = {
-                            'системный блок': 'Компьютер',
-                            'ноутбук': 'Ноутбук',
-                            'моноблок': 'Моноблок',
-                            'монитор': 'Монитор',
-                            'мфу': 'МФУ',
-                            'принтер': 'Принтер',
-                            'сканер': 'Сканер',
-                            'колонки': 'Колонки',
-                            'сетевое оборудование': 'Сетевое оборудование',
-                            'ибп': 'ИБП',
-                            'мышь/клавиатура': 'Мышь/Клавиатура',
-                            'внешний диск': 'Внешний диск',
-                            'веб-камера': 'Веб-камера/Гарнитура/Микрофон',
-                            'камера': 'Веб-камера/Гарнитура/Микрофон',
-                            'гарнитура': 'Веб-камера/Гарнитура/Микрофон',
-                            'микрофон': 'Веб-камера/Гарнитура/Микрофон',
-                        }
-                        found = False
-                        for key, value in type_mapping.items():
-                            if key in type_lower:
-                                equipment_type = value
-                                found = True
-                                break
-                        if not found:
-                            equipment_type = 'Другое'
-                    else:
-                        # fallback: если нет колонки БГУ, но есть тип
-                        if col_type and pd.notna(row[col_type]):
-                            type_lower = str(row[col_type]).lower()
-                            if 'ноутбук' in type_lower:
-                                equipment_type = 'Ноутбук'
-                            elif 'системный' in type_lower or 'компьютер' in type_lower:
-                                equipment_type = 'Компьютер'
-                            # ... можно добавить другие
-                    
-                    # Находим или создаём сотрудника (ответственного)
-                    responsible_id = None
-                    if responsible and responsible != 'nan':
-                        cursor.execute("SELECT id FROM Employees WHERE Department_Fullname = ?", (responsible,))
-                        emp = cursor.fetchone()
-                        if emp:
-                            responsible_id = emp[0]
-                        else:
-                            cursor.execute("INSERT INTO Employees (Department_Fullname) VALUES (?)", (responsible,))
-                            responsible_id = cursor.lastrowid
-                    
-                    # Находим или создаём кабинет
-                    room_id = None
-                    if room and room != 'nan' and room != '':
-                        cursor.execute("SELECT id FROM Rooms WHERE Number = ?", (room,))
-                        r = cursor.fetchone()
-                        if r:
-                            room_id = r[0]
-                        else:
-                            cursor.execute("INSERT INTO Rooms (Number) VALUES (?)", (room,))
-                            room_id = cursor.lastrowid
-                    
-                    # Проверяем существование по инвентарному номеру (если он есть)
-                    existing = None
-                    if inventory:
-                        cursor.execute("SELECT id, organization_id FROM Equipment WHERE inventory_number = ?", (inventory,))
-                        existing = cursor.fetchone()
-                    
-                    if existing:
-                        # Обновляем – модель (brand), характеристики, остальное
-                        cursor.execute("""
-                            UPDATE Equipment SET
-                                type = ?,
-                                brand = ?,
-                                model = '',
-                                serial_number = ?,
-                                room_id = ?,
-                                responsible_employee = ?,
-                                status = ?,
-                                notes = ?,
-                                characteristics = ?
-                            WHERE id = ?
-                        """, (equipment_type, brand_value, serial, room_id, responsible_id, status, notes, characteristics, existing[0]))
-                        updated += 1
-                    else:
-                        # Добавляем – model = ''
-                        cursor.execute("""
-                            INSERT INTO Equipment (
-                                type, brand, model, serial_number, inventory_number,
-                                room_id, responsible_employee, status, notes, characteristics,
-                                organization_id, created_at, created_by
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)
-                        """, (equipment_type, brand_value, '', serial, inventory if inventory else None,
-                              room_id, responsible_id, status, notes, characteristics,
-                              org_id, session.get('user_id')))
-                        added += 1
-                    
-                    conn.commit()
-                    
-                except Exception as e:
-                    errors.append(f"Строка {idx+2} (лист {sheet_name}): {str(e)}")
-                    skipped += 1
-        
-        conn.close()
-        
-        result_message = f"✅ Импорт завершён: добавлено {added}, обновлено {updated}, пропущено {skipped}"
-        if errors:
-            result_message += f"\n⚠️ Ошибки: {len(errors)}\n" + "\n".join(errors[:10])
-        
-        return jsonify({
-            'success': True,
-            'added': added,
-            'updated': updated,
-            'skipped': skipped,
-            'total_rows': total_rows if 'total_rows' in locals() else 0,
-            'skipped_indices': skipped_indices,
-            'message': result_message,
-            'errors': errors[:20]
-        })
-        
+        # Читаем только имена листов без полной загрузки данных
+        xl = pd.ExcelFile(file)
+        sheets = xl.sheet_names
+        return jsonify({'success': True, 'sheets': sheets})
     except Exception as e:
-        print(f"ERROR [IMPORT EQUIPMENT]: {str(e)}")
-        import traceback
-        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 400
 
 @app.route('/api/equipment/<int:id>', methods=['DELETE'])
@@ -4105,7 +4277,7 @@ def get_equipment():
         LEFT JOIN Employees resp_emp ON e.responsible_employee = resp_emp.id
         LEFT JOIN Employees mol_emp ON e.mol_employee = mol_emp.id
         LEFT JOIN Rooms rm ON e.room_id = rm.id
-        LEFT JOIN Departments d ON rm.Number = d.office
+        LEFT JOIN Departments d ON rm.department_id = d.id
         LEFT JOIN Organizations org ON e.organization_id = org.id
         LEFT JOIN Users u ON e.created_by = u.id
         WHERE 1=1 {filter_condition}
