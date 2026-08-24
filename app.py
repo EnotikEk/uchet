@@ -3421,11 +3421,9 @@ def delete_equipment(id):
     finally:
         conn.close()
 
-
 @app.route('/about')
 def about():
     return render_template('about.html')
-
 
 @app.route('/api/equipment/<int:id>/movements', methods=['GET'])
 @login_required
