@@ -494,9 +494,6 @@
                     <div class="mb-3">
                         <label class="form-label">Файл Excel (.xlsx, .xls)</label>
                         <input type="file" class="form-control" id="equipmentExcelFile" accept=".xlsx,.xls" required>
-                        <small class="text-muted">
-                            Поддерживаются листы "Виленский" и "Седова". Выберите нужные ниже.
-                        </small>
                     </div>
                     <div id="sheetSelectionBlock" style="display: none;">
                         <div class="mb-3">
@@ -555,9 +552,14 @@ function loadEmployeesList() {
     $.ajax({
         url: '/api/employees',
         method: 'GET',
+        dataType: 'json',
         success: function(data) {
             employeesList = data;
-            updateEmployeeSelects();
+            // Обновляем все datalist'ы после загрузки
+            updateAllDatalists();
+        },
+        error: function() {
+            console.error('Ошибка загрузки сотрудников');
         }
     });
 }
@@ -643,6 +645,82 @@ function updateRoomSelects() {
 // ============================================================
 // ФУНКЦИИ ДЛЯ ПЕЧАТИ ОТЧЕТА
 // ============================================================
+
+// ===== БЫСТРОЕ ДОБАВЛЕНИЕ СОТРУДНИКА (без модального окна) =====
+// ===== БЫСТРОЕ ДОБАВЛЕНИЕ СОТРУДНИКА =====
+function quickAddEmployee(inputId, datalistId) {
+    const input = document.getElementById(inputId);
+    const name = input.value.trim();
+    if (!name) {
+        showMessage('Введите ФИО сотрудника', 'warning');
+        return;
+    }
+
+    const btn = input.closest('.input-group').querySelector('.btn');
+    const originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+    $.ajax({
+        url: '/api/employees',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ name: name }),
+        success: function(response) {
+            if (response.success) {
+                showMessage('✅ Сотрудник добавлен', 'success');
+                // Обновляем все datalist'ы
+                updateAllDatalists();
+                // Оставляем введённое значение
+                input.value = name;
+            } else {
+                showMessage(response.error || 'Ошибка при добавлении', 'danger');
+            }
+        },
+        error: function(xhr) {
+            const error = xhr.responseJSON;
+            showMessage(error?.error || '❌ Ошибка при добавлении', 'danger');
+        },
+        complete: function() {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
+    });
+}
+// ===== ОБНОВЛЕНИЕ ВСЕХ DATALIST'ОВ =====
+function updateAllDatalists() {
+    $.ajax({
+        url: '/api/employees',
+        method: 'GET',
+        dataType: 'json',
+        success: function(data) {
+            const names = data.map(item => item.name || item);
+            // Список ID всех datalist'ов, которые используются в формах
+            const datalistIds = [
+                'molDatalist',           // для добавления МОЛ
+                'responsibleDatalist',   // для добавления Ответственного
+                'editMolDatalist',       // для редактирования МОЛ
+                'editResponsibleDatalist' // для редактирования Ответственного
+            ];
+            datalistIds.forEach(id => {
+                const dl = document.getElementById(id);
+                if (dl) {
+                    dl.innerHTML = '';
+                    names.forEach(name => {
+                        const opt = document.createElement('option');
+                        opt.value = name;
+                        dl.appendChild(opt);
+                    });
+                }
+            });
+            // Обновляем глобальный массив сотрудников
+            employeesList = data;
+        },
+        error: function() {
+            console.error('Ошибка обновления списка сотрудников');
+        }
+    });
+}
 
 function toggleReportFields() {
     const reportType = $('#reportType').val();
@@ -1485,7 +1563,7 @@ function disableEquipmentEditMode() {
     if (eq.ups_runtime) specs.push(`Автономия: ${eq.ups_runtime} мин`);
     
     // Периферия
-    if (eq.connection_type && !['Монитор','Сетевое оборудование','IP-телефон'].includes(eq.type)) {
+    if (eq.connection_type && !['Монитор','Сетевое оборудование','IP-телефон', 'Моноблок'].includes(eq.type)) {
         specs.push(`Подключение: ${eq.connection_type}`);
     }
     if (eq.color) specs.push(`Цвет: ${eq.color}`);
@@ -1531,10 +1609,10 @@ function enableEquipmentEditMode() {
         return;
     }
 
-    // Определяем типы
+    // Определяем группы типов
     const peripheralTypes = ['Мышь/Клавиатура', 'Веб-камера', 'Гарнитура', 'Колонки', 'Внешний диск', 'Док-станция', 'Мышь', 'Клавиатура', 'ИБП', 'Веб-камера/Гарнитура/Микрофон'];
     const computerTypes = ['Компьютер', 'Ноутбук', 'Сервер', 'Моноблок'];
-    const monitorTypes = ['Монитор'];
+    const monitorTypes = ['Монитор', 'Моноблок'];   // <-- ДОБАВЛЕН МОНОБЛОК
     const printerTypes = ['Принтер', 'МФУ'];
     const scannerTypes = ['Сканер'];
     const networkTypes = ['Сетевое оборудование', 'IP-телефон'];
@@ -1550,7 +1628,7 @@ function enableEquipmentEditMode() {
     const isMouseKeyboard = eq.type === 'Мышь/Клавиатура' || eq.type === 'Мышь' || eq.type === 'Клавиатура';
     const isVKS = eq.type === 'Веб-камера' || eq.type === 'Гарнитура' || eq.type === 'Микрофон' || eq.type === 'Веб-камера/Гарнитура/Микрофон';
 
-    // Базовые поля
+    // ---------- БАЗОВЫЕ ПОЛЯ ----------
     $('#viewEquipmentType').html(`<span class="badge bg-secondary">${escapeHtml(eq.type) || '—'}</span><input type="hidden" id="editEquipmentType" value="${escapeHtml(eq.type)}">`);
     $('#viewEquipmentModel').html(`
         <div class="row">
@@ -1565,28 +1643,55 @@ function enableEquipmentEditMode() {
         `<textarea class="form-control form-control-sm" id="editEquipmentCharacteristics" rows="2">${escapeHtml(eq.characteristics || '')}</textarea>`
     );
 
-    // Сотрудники
-    let molOptions = '<option value="">Выберите МОЛ</option>';
+    // ----- МОЛ (input + datalist + кнопка +) -----
+    let molOptions = '';
     if (employeesList && employeesList.length > 0) {
         for (let i = 0; i < employeesList.length; i++) {
             const empName = employeesList[i].name || employeesList[i];
-            const selected = (eq.mol === empName) ? 'selected' : '';
-            molOptions += `<option value="${escapeHtml(empName)}" ${selected}>${escapeHtml(empName)}</option>`;
+            molOptions += `<option value="${escapeHtml(empName)}">`;
         }
     }
-    $('#viewEquipmentMOL').html(`<select class="form-select form-select-sm" id="editEquipmentMOL">${molOptions}</select>`);
+    const molInputId = 'editEquipmentMOLInput';
+    const molDatalistId = 'editMolDatalist';
+    $('#viewEquipmentMOL').html(`
+        <div class="input-group input-group-sm">
+            <input type="text" class="form-control" id="${molInputId}" 
+                   placeholder="Введите ФИО" list="${molDatalistId}" 
+                   value="${escapeHtml(eq.mol || '')}">
+            <datalist id="${molDatalistId}">${molOptions}</datalist>
+            <button class="btn btn-outline-success btn-sm" type="button" 
+                    onclick="quickAddEmployee('${molInputId}', '${molDatalistId}')" 
+                    title="Добавить сотрудника">
+                <i class="fas fa-plus"></i>
+            </button>
+        </div>
+    `);
 
-    let respOptions = '<option value="">Выберите ответственного</option>';
+    // ----- Ответственный (input + datalist + кнопка +) -----
+    let respOptions = '';
     if (employeesList && employeesList.length > 0) {
         for (let i = 0; i < employeesList.length; i++) {
             const empName = employeesList[i].name || employeesList[i];
-            const selected = (eq.responsible === empName) ? 'selected' : '';
-            respOptions += `<option value="${escapeHtml(empName)}" ${selected}>${escapeHtml(empName)}</option>`;
+            respOptions += `<option value="${escapeHtml(empName)}">`;
         }
     }
-    $('#viewEquipmentResponsible').html(`<select class="form-select form-select-sm" id="editEquipmentResponsible">${respOptions}</select>`);
+    const respInputId = 'editEquipmentResponsibleInput';
+    const respDatalistId = 'editResponsibleDatalist';
+    $('#viewEquipmentResponsible').html(`
+        <div class="input-group input-group-sm">
+            <input type="text" class="form-control" id="${respInputId}" 
+                   placeholder="Введите ФИО" list="${respDatalistId}" 
+                   value="${escapeHtml(eq.responsible || '')}">
+            <datalist id="${respDatalistId}">${respOptions}</datalist>
+            <button class="btn btn-outline-success btn-sm" type="button" 
+                    onclick="quickAddEmployee('${respInputId}', '${respDatalistId}')" 
+                    title="Добавить сотрудника">
+                <i class="fas fa-plus"></i>
+            </button>
+        </div>
+    `);
 
-    // Кабинет
+    // Кабинет (с datalist и кнопкой добавления)
     const roomHtml = `
         <div class="input-group">
             <input type="text" class="form-control form-control-sm" id="editEquipmentRoom" 
@@ -1611,7 +1716,7 @@ function enableEquipmentEditMode() {
     }
     $('#viewEquipmentOrganization').html(`<select class="form-select form-select-sm" id="editEquipmentOrganization">${orgOptions}</select>`);
 
-    // Статус - ИСПРАВЛЕННЫЙ БЛОК С "Простаивает"
+    // Статус
     $('#viewEquipmentStatus').html(`
         <select class="form-select form-select-sm" id="editEquipmentStatus">
             <option value="В работе" ${eq.status === 'В работе' ? 'selected' : ''}>В работе</option>
@@ -1626,10 +1731,10 @@ function enableEquipmentEditMode() {
         $('#viewEquipmentPrice').html(`<input type="number" class="form-control form-control-sm" id="editEquipmentPrice" value="${eq.price || 0}" step="0.01">`);
     }
 
-    // ----- СПЕЦИФИЧЕСКИЕ ПОЛЯ -----
+    // ---------- СПЕЦИФИЧЕСКИЕ ПОЛЯ (по типам) ----------
     let specsHtml = '';
 
-    // 1. Системные
+    // 1. СИСТЕМНЫЕ ХАРАКТЕРИСТИКИ (Компьютер, Ноутбук, Сервер, Моноблок, Другое)
     if (isComputer) {
         specsHtml = `
             <div class="card mb-2">
@@ -1680,9 +1785,10 @@ function enableEquipmentEditMode() {
         `;
         setTimeout(function() { populateStorageRows(eq.storage || '', 'edit'); }, 50);
     }
-    // 2. Монитор
-    else if (isMonitor) {
-        specsHtml = `
+
+    // 2. ПАРАМЕТРЫ ДИСПЛЕЯ (Монитор И Моноблок) – теперь это ОТДЕЛЬНЫЙ if
+    if (isMonitor) {
+        specsHtml += `
             <div class="card mb-2">
                 <div class="card-header bg-light py-1">
                     <small class="fw-bold"><i class="fas fa-tv"></i> Параметры дисплея</small>
@@ -1727,26 +1833,27 @@ function enableEquipmentEditMode() {
                         </div>
                     </div>
                     <div class="row">
-                        <div class="col-6 mb-1">
-                            <label class="form-label">Тип подключения</label>
-                            <select class="form-select form-select-sm" id="editEquipmentConnectionType">
-                                <option value="HDMI" ${eq.connection_type === 'HDMI' ? 'selected' : ''}>HDMI</option>
-                                <option value="DisplayPort" ${eq.connection_type === 'DisplayPort' ? 'selected' : ''}>DisplayPort</option>
-                                <option value="VGA" ${eq.connection_type === 'VGA' ? 'selected' : ''}>VGA</option>
-                            </select>
-                        </div>
-                        <div class="col-6 mb-1">
-                            <label class="form-label">Интерфейсы</label>
-                            <input type="text" class="form-control form-control-sm" id="editEquipmentPorts" placeholder="HDMI, DisplayPort" value="${eq.ports || ''}">
+                        <div class="col-12 mb-1">
+                            <label class="form-label">Типы подключения</label>
+                            <div id="editConnectionContainer"></div>
+                            <button type="button" class="btn btn-outline-primary btn-sm mt-1" onclick="addConnectionRow('edit')">
+                                <i class="fas fa-plus"></i> Добавить подключение
+                            </button>
+                            <small class="text-muted d-block">Нажмите «Добавить подключение», чтобы указать несколько типов</small>
                         </div>
                     </div>
                 </div>
             </div>
         `;
+        setTimeout(function() {
+            const connections = eq.connection_type ? eq.connection_type.split(',').map(s => s.trim()).filter(s => s) : [];
+            populateConnections('editConnectionContainer', connections);
+        }, 50);
     }
-    // 3. Сетевое оборудование
-    else if (isNetwork) {
-        specsHtml = `
+
+    // 3. СЕТЕВОЕ ОБОРУДОВАНИЕ
+    if (isNetwork) {
+        specsHtml += `
             <div class="card mb-2">
                 <div class="card-header bg-light py-1">
                     <small class="fw-bold"><i class="fas fa-network-wired"></i> Сетевые параметры</small>
@@ -1797,9 +1904,10 @@ function enableEquipmentEditMode() {
             </div>
         `;
     }
-    // 4. Принтер / МФУ
-    else if (isPrinter) {
-        specsHtml = `
+
+    // 4. ПРИНТЕР / МФУ
+    if (isPrinter) {
+        specsHtml += `
             <div class="card mb-2">
                 <div class="card-header bg-light py-1">
                     <small class="fw-bold"><i class="fas fa-print"></i> Параметры печати</small>
@@ -1836,14 +1944,10 @@ function enableEquipmentEditMode() {
                         </div>
                         <div class="col-4 mb-1">
                             <label class="form-label">Двусторонняя печать</label>
-                            <select class="form-select form-select-sm" id="editEquipmentDuplex">
+                            <select class="form-select form-select-sm" id="editEquipmentDuplexAdd">
                                 <option value="Нет" ${eq.duplex === 'Нет' ? 'selected' : ''}>Нет</option>
                                 <option value="Да" ${eq.duplex === 'Да' ? 'selected' : ''}>Да</option>
                             </select>
-                        </div>
-                        <div class="col-4 mb-1">
-                            <label class="form-label">Скорость печати (стр/мин)</label>
-                            <input type="number" class="form-control form-control-sm" id="editEquipmentPrintSpeed" placeholder="Скорость" value="${eq.print_speed || ''}">
                         </div>
                     </div>
                     <div class="row">
@@ -1875,9 +1979,10 @@ function enableEquipmentEditMode() {
             </div>
         `;
     }
-    // 5. Сканер
-    else if (isScanner) {
-        specsHtml = `
+
+    // 5. СКАНЕР
+    if (isScanner) {
+        specsHtml += `
             <div class="card mb-2">
                 <div class="card-header bg-light py-1">
                     <small class="fw-bold"><i class="fas fa-scanner"></i> Параметры сканера</small>
@@ -1904,9 +2009,10 @@ function enableEquipmentEditMode() {
             </div>
         `;
     }
+
     // 6. ИБП
-    else if (isUps) {
-        specsHtml = `
+    if (isUps) {
+        specsHtml += `
             <div class="card mb-2">
                 <div class="card-header bg-light py-1">
                     <small class="fw-bold"><i class="fas fa-battery-full"></i> Параметры ИБП</small>
@@ -1934,9 +2040,10 @@ function enableEquipmentEditMode() {
             </div>
         `;
     }
-    // 7. Периферия
-    else if (isPeripheral) {
-        specsHtml = `
+
+    // 7. ПЕРИФЕРИЯ (мышь/клавиатура, ВКС, колонки, диск и т.д.)
+    if (isPeripheral) {
+        specsHtml += `
             <div class="card mb-2">
                 <div class="card-header bg-light py-1">
                     <small class="fw-bold"><i class="fas fa-plug"></i> Параметры периферии</small>
@@ -2009,8 +2116,10 @@ function enableEquipmentEditMode() {
                 </div>
             </div>
         `;
-    } else {
-        // Другое
+    }
+
+    // Если никакой блок не подошёл – показываем упрощённый вариант (для "Другое")
+    if (!isComputer && !isMonitor && !isNetwork && !isPrinter && !isScanner && !isUps && !isPeripheral) {
         specsHtml = `
             <div class="card mb-2">
                 <div class="card-header bg-light py-1">
@@ -2033,11 +2142,14 @@ function enableEquipmentEditMode() {
         `;
     }
 
+    // Вставляем сгенерированные спецполя
     $('#viewEquipmentSpecs').html(specsHtml);
 
+    // ---------- ДОПОЛНИТЕЛЬНЫЕ ПОЛЯ ----------
     $('#viewEquipmentDepartment').html(`<span class="badge bg-info">${escapeHtml(eq.department_name || '—')}</span>`);
     $('#viewEquipmentNotes').html(`<textarea class="form-control form-control-sm" id="editEquipmentNotes" rows="2">${escapeHtml(eq.notes || '')}</textarea>`);
 
+    // ---------- ФУТЕР С КНОПКАМИ ----------
     $('#viewEquipmentFooter').html(`
         <button type="button" class="btn btn-success" id="saveEquipmentBtn">
             <i class="fas fa-save"></i> Сохранить
@@ -2047,6 +2159,7 @@ function enableEquipmentEditMode() {
         </button>
     `);
 
+    // ---------- ПРИВЯЗКА СОБЫТИЙ ----------
     $('#saveEquipmentBtn').off('click').on('click', saveEquipmentEdit);
     $('#cancelEquipmentEditBtn').off('click').on('click', cancelEquipmentEdit);
 }
@@ -2073,15 +2186,15 @@ function saveEquipmentEdit() {
         inventoryNumber = null;
     }
 
-    // Базовые данные
+    // Базовые данные – берём из input'ов
     const data = {
         type: type,
         brand: $('#editEquipmentBrand').val() || '',
         model: '',
         serial_number: $('#editEquipmentSerial').val() || '',
         inventory_number: inventoryNumber,
-        responsible: $('#editEquipmentResponsible').val() || '',
-        mol: $('#editEquipmentMOL').val() || '',
+        responsible: $('#editEquipmentResponsibleInput').val() || '',
+        mol: $('#editEquipmentMOLInput').val() || '',
         room: $('#editEquipmentRoom').val() || '',
         organization_id: $('#editEquipmentOrganization').val() || null,
         status: $('#editEquipmentStatus').val() || 'В работе',
@@ -2092,8 +2205,8 @@ function saveEquipmentEdit() {
     };
 
     // Специфические поля по типам
-    const systemTypes = ['Компьютер', 'Ноутбук', 'Сервер', 'Моноблок', 'Другое'];
-    const monitorTypes = ['Монитор'];
+    const computerTypes = ['Компьютер', 'Ноутбук', 'Сервер', 'Моноблок'];
+    const monitorTypes = ['Монитор', 'Моноблок'];   // <-- ДОБАВЛЕН МОНОБЛОК
     const networkTypes = ['Сетевое оборудование', 'IP-телефон'];
     const printerTypes = ['Принтер', 'МФУ'];
     const scannerTypes = ['Сканер'];
@@ -2101,7 +2214,7 @@ function saveEquipmentEdit() {
     const peripheralTypes = ['Мышь/Клавиатура', 'Веб-камера', 'Гарнитура', 'Колонки', 'Внешний диск', 'Док-станция', 'Мышь', 'Клавиатура'];
 
     // Системные
-    if (systemTypes.includes(type)) {
+    if (computerTypes.includes(type)) {
         data.processor = $('#editEquipmentProcessor').val() || '';
         data.ram = parseInt($('#editEquipmentRam').val()) || null;
         data.ram_type = $('#editEquipmentRamType').val() || '';
@@ -2115,16 +2228,17 @@ function saveEquipmentEdit() {
         data.os_key = $('#editEquipmentOsKey').val() || '';
     }
 
-    // Монитор
+    // Монитор и Моноблок (теперь оба типа попадают сюда)
     if (monitorTypes.includes(type)) {
         data.monitor_size = parseInt($('#editEquipmentMonitorSize').val()) || null;
         data.resolution = $('#editEquipmentResolution').val() || '';
         data.refresh_rate = parseInt($('#editEquipmentRefreshRate').val()) || null;
         data.panel_type = $('#editEquipmentPanelType').val() || '';
         data.response_time = parseInt($('#editEquipmentResponseTime').val()) || null;
+        data.viewing_angle = $('#editEquipmentViewingAngle').val().trim() || '';
         data.ports = $('#editEquipmentPorts').val() || '';
-        data.connection_type = $('#editEquipmentConnectionType').val() || '';
-        data.viewing_angle = $('#editEquipmentViewingAngle').val().trim();
+        const connections = getConnections('edit');
+        data.connection_type = connections.join(', ');
     }
 
     // Сетевое
@@ -2143,13 +2257,13 @@ function saveEquipmentEdit() {
         data.print_format = $('#editEquipmentPrintFormat').val();
         data.print_speed = parseInt($('#editEquipmentPrintSpeed').val()) || null;
         data.color_type = $('#editEquipmentColorType').val();
-        data.duplex = $('#editEquipmentDuplexAdd').val();
+        data.duplex = $('#editEquipmentDuplexAdd').val();   // <-- проверьте ID
         data.printer_ports = ($('#editEquipmentPrinterPorts').val() || '').trim();
         data.ip_address = ($('#editEquipmentIpAddress').val() || '').trim();
         if (type === 'МФУ') {
             data.scanner_resolution = ($('#editEquipmentScannerResolution').val() || '').trim();
             data.scanner_speed = ($('#editEquipmentScannerSpeed').val() || '').trim();
-            data.duplex_scanner = $('#editEquipmentDuplexScanner').val();
+            data.duplex_scanner = $('#editEquipmentDuplexScanner').val();   // <-- проверьте ID
             data.scan_format = $('#editEquipmentScanFormat').val();
         }
     }
@@ -2986,6 +3100,10 @@ $(document).ready(function() {
     loadEmployeesList();
     loadOrganizationsForSelect();
     loadRoomsList();
+
+    $('#viewEquipmentModal').on('show.bs.modal', function() {
+        updateAllDatalists();
+    });
     
     $('#printReportModal').on('show.bs.modal', function() {
         loadRoomsList().then(() => {

@@ -39,21 +39,32 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">МОЛ (Материально-ответственное лицо)</label>
-                            <select class="form-select" id="addEquipmentMOL">
-                                <option value="">Выберите МОЛ</option>
-                                {% for emp in employees %}
-                                <option value="{{ emp }}">{{ emp }}</option>
-                                {% endfor %}
-                            </select>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="addEquipmentMOLInput" placeholder="Введите ФИО" list="molDatalist">
+                                <datalist id="molDatalist">
+                                    {% for emp in employees %}
+                                    <option value="{{ emp }}">
+                                    {% endfor %}
+                                </datalist>
+                                <button class="btn btn-outline-success" type="button" onclick="quickAddEmployee('addEquipmentMOLInput', 'molDatalist')" title="Добавить сотрудника">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
                         </div>
+
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Ответственный пользователь</label>
-                            <select class="form-select" id="addEquipmentResponsible">
-                                <option value="">Выберите ответственного</option>
-                                {% for emp in employees %}
-                                <option value="{{ emp }}">{{ emp }}</option>
-                                {% endfor %}
-                            </select>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="addEquipmentResponsibleInput" placeholder="Введите ФИО" list="responsibleDatalist">
+                                <datalist id="responsibleDatalist">
+                                    {% for emp in employees %}
+                                    <option value="{{ emp }}">
+                                    {% endfor %}
+                                </datalist>
+                                <button class="btn btn-outline-success" type="button" onclick="quickAddEmployee('addEquipmentResponsibleInput', 'responsibleDatalist')" title="Добавить сотрудника">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <div class="row">
@@ -173,12 +184,20 @@
                                         <input type="number" class="form-control" id="addEquipmentResponseTime" placeholder="4">
                                     </div>
                                     <div class="col-md-4 mb-2">
-                                        <label class="form-label">Интерфейсы</label>
-                                        <input type="text" class="form-control" id="addEquipmentPorts" placeholder="HDMI, DisplayPort">
-                                    </div>
-                                    <div class="col-md-4 mb-2">
                                         <label class="form-label">Угол обзора</label>
                                         <input type="text" class="form-control" id="addEquipmentViewingAngle" placeholder="178°">
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-12 mb-2">
+                                        <label class="form-label">Типы подключения</label>
+                                        <div id="addConnectionContainer">
+                                            <!-- Строки подключений будут добавляться сюда -->
+                                        </div>
+                                        <button type="button" class="btn btn-outline-primary btn-sm mt-1" onclick="addConnectionRow('add')">
+                                            <i class="fas fa-plus"></i> Добавить подключение
+                                        </button>
+                                        <small class="text-muted d-block">Нажмите «Добавить подключение», чтобы указать несколько типов</small>
                                     </div>
                                 </div>
                             </div>
@@ -298,7 +317,7 @@
                                             <option value="Цветной">Цветной</option>
                                         </select>
                                     </div>
-                                    <div class="col-4 mb-2">
+                                    <div class="col-md-4 mb-2">
                                         <label class="form-label">Двусторонняя печать</label>
                                         <select class="form-select" id="addEquipmentDuplexAdd">
                                             <option value="Нет">Нет</option>
@@ -548,302 +567,6 @@
     </div>
 </div>
 
-<!-- Модальное окно редактирования оборудования -->
-<div class="modal fade" id="editEquipmentModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header bg-warning">
-                <h5 class="modal-title"><i class="fas fa-edit"></i> Редактировать оборудование</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <form id="editEquipmentForm">
-                    <input type="hidden" id="editEquipmentId">
-
-                    <div class="row">
-                        <div class="col-md-12 mb-3">
-                            <label class="form-label">Тип оборудования <span class="text-danger">*</span></label>
-                            <select class="form-select" id="editEquipmentType" required onchange="updateEditForm()">
-                                <option value="Компьютер">🖲️ Компьютер</option>
-                                <option value="Ноутбук">💻 Ноутбук</option>
-                                <option value="Монитор">🖥️ Монитор</option>
-                                <option value="Сервер">🗄️ Сервер</option>
-                                <option value="Сетевое оборудование">🌐 Сетевое оборудование</option>
-                                <option value="Принтер">🖨️ Принтер</option>
-                                <option value="МФУ">🖨️ МФУ</option>
-                                <option value="Сканер">📠 Сканер</option>
-                                <option value="Мышь/Клавиатура">🖱️ Мышь/Клавиатура</option>
-                                <option value="Внешний диск">💾 Внешний диск</option>
-                                <option value="Веб-камера">📷 Веб-камера</option>
-                                <option value="Гарнитура">🎧 Гарнитура</option>
-                                <option value="Колонки">🔊 Колонки</option>
-                                <option value="Другое">📦 Другое</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Бренд</label>
-                            <input type="text" class="form-control" id="editEquipmentBrand">
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Модель</label>
-                            <input type="text" class="form-control" id="editEquipmentModel">
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Серийный номер</label>
-                            <input type="text" class="form-control" id="editEquipmentSerial">
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Инвентарный номер</label>
-                            <input type="text" class="form-control" id="editEquipmentInventory">
-                        </div>
-                    </div>
-
-                    <!-- Динамические поля для редактирования -->
-                    <div id="editDynamicFields">
-                        <!-- Системные характеристики (редактирование) -->
-                        <div id="editSystemFields" style="display: none;">
-                            <div class="card mb-3">
-                                <div class="card-header bg-light">
-                                    <h6 class="mb-0"><i class="fas fa-microchip"></i> Системные характеристики</h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="row">
-                                        <div class="col-md-6 mb-2">
-                                            <label class="form-label">Процессор</label>
-                                            <input type="text" class="form-control" id="editEquipmentProcessor" placeholder="Intel Core i5-12400">
-                                        </div>
-                                        <div class="col-md-3 mb-2">
-                                            <label class="form-label">ОЗУ (ГБ)</label>
-                                            <input type="number" class="form-control" id="editEquipmentRam" placeholder="16" min="1" step="1">
-                                        </div>
-                                        <div class="col-md-3 mb-2">
-                                            <label class="form-label">Тип ОЗУ</label>
-                                            <select class="form-select" id="editEquipmentRamType">
-                                                <option value="">-- Выберите --</option>
-                                                <option value="DDR2">DDR2</option>
-                                                <option value="DDR3">DDR3</option>
-                                                <option value="DDR4">DDR4</option>
-                                                <option value="DDR5">DDR5</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div class="row">
-                                        <!-- Блок для дисков (редактирование) -->
-                                        <div class="col-md-3 mb-2">
-
-                                            <label class="form-label">Накопители (диски)</label>
-                                            <div id="editStorageContainer">
-                                                <!-- Строки будут добавлены динамически через populateStorageRows -->
-                                            </div>
-                                            <button type="button" class="btn btn-outline-primary btn-sm mt-1" onclick="addStorageRow('edit')">
-                                                <i class="fas fa-plus"></i> Добавить диск
-                                            </button>
-                                            <small class="text-muted d-block">Нажмите «Добавить диск», чтобы указать несколько накопителей</small>
-
-                                        </div>
-                                        <div class="col-md-6 mb-2">
-                                            <label class="form-label">Операционная система</label>
-                                            <input type="text" class="form-control" id="editEquipmentOs" placeholder="Windows 10 Pro, Ubuntu 22.04">
-                                        </div>
-                                    </div>
-                                    <div class="row">
-                                        <div class="col-md-12 mb-2">
-                                            <label class="form-label">Ключ ОС</label>
-                                            <input type="text" class="form-control" id="editEquipmentOsKey" placeholder="XXXXX-XXXXX-XXXXX-XXXXX-XXXXX">
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Параметры монитора -->
-                        <div id="editMonitorFields" style="display: none;">
-                            <div class="card mb-3">
-                                <div class="card-header bg-light">
-                                    <h6 class="mb-0"><i class="fas fa-tv"></i> Параметры дисплея</h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="row">
-                                        <div class="col-md-4 mb-2">
-                                            <label class="form-label">Диагональ (дюймы)</label>
-                                            <input type="number" class="form-control" id="editEquipmentMonitorSize">
-                                        </div>
-                                        <div class="col-md-4 mb-2">
-                                            <label class="form-label">Разрешение</label>
-                                            <select class="form-select" id="editEquipmentResolution">
-                                                <option value="">-- Выберите --</option>
-                                                <option value="1920x1080">Full HD (1920x1080)</option>
-                                                <option value="2560x1440">2K (2560x1440)</option>
-                                                <option value="3840x2160">4K (3840x2160)</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-4 mb-2">
-                                            <label class="form-label">Частота (Гц)</label>
-                                            <input type="number" class="form-control" id="editEquipmentRefreshRate">
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Сетевые параметры -->
-                        <div id="editNetworkFields" style="display: none;">
-                            <div class="card mb-3">
-                                <div class="card-header bg-light">
-                                    <h6 class="mb-0"><i class="fas fa-network-wired"></i> Сетевые параметры</h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="row">
-                                        <div class="col-md-4 mb-2">
-                                            <label class="form-label">Количество портов</label>
-                                            <input type="number" class="form-control" id="editEquipmentPortCount">
-                                        </div>
-                                        <div class="col-md-4 mb-2">
-                                            <label class="form-label">Скорость портов</label>
-                                            <select class="form-select" id="editEquipmentSpeed">
-                                                <option value="">-- Выберите --</option>
-                                                <option value="100 Mbps">100 Mbps</option>
-                                                <option value="1 Gbps">1 Gbps</option>
-                                                <option value="10 Gbps">10 Gbps</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-4 mb-2">
-                                            <label class="form-label">IP адрес</label>
-                                            <input type="text" class="form-control" id="editEquipmentIpAddress">
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Периферия (мышь/клавиатура) -->
-                        <div id="editPeripheralFields" style="display: none;">
-                            <div class="card mb-3">
-                                <div class="card-header bg-light">
-                                    <h6 class="mb-0"><i class="fas fa-plug"></i> Параметры периферии</h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="row">
-                                        <div class="col-md-6 mb-2">
-                                            <label class="form-label">Тип подключения</label>
-                                            <select class="form-select" id="editEquipmentConnectionType">
-                                                <option value="USB">USB</option>
-                                                <option value="Bluetooth">Bluetooth</option>
-                                                <option value="Wireless">Беспроводной</option>
-                                                <option value="PS/2">PS/2</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-6 mb-2">
-                                            <label class="form-label">Цвет</label>
-                                            <input type="text" class="form-control" id="editEquipmentColor">
-                                        </div>
-                                    </div>
-                                    <div class="row">
-                                        <div class="col-md-6 mb-2">
-                                            <div class="form-check form-switch mt-2">
-                                                <input class="form-check-input" type="checkbox" id="editEquipmentIsSet" style="width: 3rem; height: 1.5rem;">
-                                                <label class="form-check-label fw-bold" for="editEquipmentIsSet">
-                                                    <i class="fas fa-box"></i> Комплект
-                                                </label>
-                                                <div class="form-text small">Отметьте, если это комплект</div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6 mb-2">
-                                            <label class="form-label">Комплектация</label>
-                                            <select class="form-select" id="editEquipmentSetType">
-                                                <option value="Клавиатура">Только клавиатура</option>
-                                                <option value="Мышь">Только мышь</option>
-                                                <option value="Клавиатура+Мышь">Клавиатура + Мышь</option>
-                                                <option value="Веб-камера">Веб-камера</option>
-                                                <option value="Гарнитура">Гарнитура</option>
-                                                <option value="Веб-камера+Гарнитура">Веб-камера + Гарнитура</option>
-                                            </select>
-                                            <div class="form-text small">Выберите состав комплекта</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Общие поля -->
-                    <!-- Общие поля (сотрудники, кабинет, филиал, статус) -->
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">МОЛ (Материально-ответственное лицо)</label>
-                            <select class="form-select" id="addEquipmentMOL">
-                                <option value="">Выберите МОЛ</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Ответственный пользователь</label>
-                            <select class="form-select" id="addEquipmentResponsible">
-                                <option value="">Выберите ответственного</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <!-- equipment_modals.html - блок с кабинетом в editEquipmentModal -->
-                        <div class="mb-3">
-                            <label class="form-label">Кабинет</label>
-                            <div class="input-group">
-                                <input type="text" class="form-control" id="editEquipmentRoom"
-                                    placeholder="Номер кабинета" list="editEquipmentRoomsList">
-                                <datalist id="editEquipmentRoomsList">
-                                    <!-- Загружается динамически -->
-                                </datalist>
-                                <button type="button" class="btn btn-outline-secondary" onclick="addNewRoomFromEquipment('editEquipmentRoom', 'editEquipmentRoomsList')" title="Добавить новый кабинет">
-                                    <i class="fas fa-plus"></i>
-                                </button>
-                            </div>
-                            <small class="text-muted">Можно ввести новый кабинет или выбрать из списка</small>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">Филиал</label>
-                            <select class="form-select" id="editEquipmentOrganization">
-                                <option value="">Выберите филиал</option>
-                            </select>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">Статус</label>
-                            <select class="form-select" id="editEquipmentStatus">
-                                <option value="В работе">В работе</option>
-                                <option value="Ремонт">Ремонт</option>
-                                <option value="На складе">На складе</option>
-                                <option value="Списано">Списано</option>
-                                <option value="Простаивает">Простаивает</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Дата принятия к учету</label>
-                            <input type="date" class="form-control" id="editEquipmentPurchaseDate">
-                        </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Примечание</label>
-                        <textarea class="form-control" id="editEquipmentNotes" rows="2"></textarea>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                <button type="button" class="btn btn-primary" onclick="updateEquipment()">Сохранить</button>
-            </div>
-        </div>
-    </div>
-</div>
-
 <script>
 // ============================================================
 // 1. ФУНКЦИЯ ОБНОВЛЕНИЯ ФОРМЫ ПРИ ДОБАВЛЕНИИ
@@ -866,8 +589,11 @@ function updateEquipmentForm() {
         case 'computer':
         case 'laptop':
         case 'server':
+            $('#formComputer').show();
+            break;
         case 'monoblock':
             $('#formComputer').show();
+            $('#formMonitor').show();   // <-- ДОБАВЛЕНО
             break;
         case 'monitor':
             $('#formMonitor').show();
@@ -944,6 +670,72 @@ function bindVKSHandlers() {
     $('#addEquipmentSetTypeVKS').off('change');
 }
 
+function loadEmployeesForDatalists() {
+    $.ajax({
+        url: '/api/employees',
+        method: 'GET',
+        dataType: 'json',
+        success: function(data) {
+            // Список имён
+            const names = data.map(item => item.name || item);
+            // Обновляем все datalist'ы
+            const datalists = ['molDatalist', 'responsibleDatalist', 'editMolDatalist', 'editResponsibleDatalist'];
+            datalists.forEach(id => {
+                const dl = document.getElementById(id);
+                if (dl) {
+                    dl.innerHTML = '';
+                    names.forEach(name => {
+                        const opt = document.createElement('option');
+                        opt.value = name;
+                        dl.appendChild(opt);
+                    });
+                }
+            });
+        }
+    });
+}
+
+function quickAddEmployee(inputId, datalistId) {
+    const input = document.getElementById(inputId);
+    const name = input.value.trim();
+    if (!name) {
+        showMessage('Введите ФИО сотрудника', 'warning');
+        return;
+    }
+
+    // Блокируем кнопку (найдём её рядом с полем)
+    const btn = input.closest('.input-group').querySelector('.btn');
+    const originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+    $.ajax({
+        url: '/api/employees',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ name: name }),
+        success: function(response) {
+            if (response.success) {
+                showMessage('✅ Сотрудник добавлен', 'success');
+                // Обновляем все datalist
+                loadEmployeesForDatalists();
+                // Оставляем введённое значение
+                input.value = name;
+            } else {
+                showMessage(response.error || 'Ошибка при добавлении', 'danger');
+            }
+        },
+        error: function(xhr) {
+            const error = xhr.responseJSON;
+            showMessage(error?.error || '❌ Ошибка при добавлении', 'danger');
+        },
+        complete: function() {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
+    });
+}
+
 // ============================================================
 // 4. ФУНКЦИЯ СОХРАНЕНИЯ ОБОРУДОВАНИЯ
 // ============================================================
@@ -984,8 +776,8 @@ function saveEquipment() {
         serial_number: $('#addEquipmentSerial').val().trim() || '',
         inventory_number: inventoryNumber,
         status: $('#addEquipmentStatus').val(),
-        responsible: $('#addEquipmentResponsible').val() || '',
-        mol: $('#addEquipmentMOL').val() || '',
+        responsible: $('#addEquipmentResponsibleInput').val().trim() || '',
+        mol: $('#addEquipmentMOLInput').val().trim() || '',
         room: $('#addEquipmentRoom').val() || '',
         organization_id: $('#addEquipmentOrganization').val() || null,
         purchase_date: $('#addEquipmentPurchaseDate').val() || null,
@@ -1008,16 +800,17 @@ function saveEquipment() {
         data.ip_address = $('#addEquipmentIpAddress').val().trim() || null;
     }
 
-    // 2. Монитор
-    if (type === 'monitor') {
+    // 2. Монитор (и Моноблок)
+    const monitorTypes = ['monitor', 'monoblock'];
+    if (monitorTypes.includes(type)) {
         data.monitor_size = parseInt($('#addEquipmentMonitorSize').val()) || null;
         data.resolution = $('#addEquipmentResolution').val() || '';
         data.refresh_rate = parseInt($('#addEquipmentRefreshRate').val()) || null;
         data.panel_type = $('#addEquipmentPanelType').val() || '';
         data.response_time = parseInt($('#addEquipmentResponseTime').val()) || null;
         data.viewing_angle = $('#addEquipmentViewingAngle').val().trim() || '';
-        data.ports = $('#addEquipmentPorts').val().trim() || '';
-        data.connection_type = $('#addEquipmentConnectionType').val() || '';
+        const connections = getConnections('add');
+        data.connection_type = connections.join(', ');
     }
 
     // 3. Сетевое оборудование
@@ -1036,11 +829,13 @@ function saveEquipment() {
         data.print_format = $('#addEquipmentPrintFormat').val();
         data.print_speed = parseInt($('#addEquipmentPrintSpeed').val()) || null;
         data.color_type = $('#addEquipmentColorType').val();
-        data.duplex = $('#addEquipmentDuplexAdd').val();
+        data.duplex = $('#addEquipmentDuplexAdd').val();   // <-- проверьте ID
         data.printer_ports = ($('#addEquipmentPrinterPorts').val() || '').trim();
         data.ip_address = ($('#addEquipmentIpAddress').val() || '').trim();
         if (type === 'mfu') {
-            data.duplex_scanner = $('#addEquipmentDuplexScanner').val();
+            data.scanner_resolution = ($('#addEquipmentScannerResolution').val() || '').trim();
+            data.scanner_speed = ($('#addEquipmentScannerSpeed').val() || '').trim();
+            data.duplex_scanner = $('#addEquipmentDuplexScanner').val();   // <-- проверьте ID
             data.scan_format = $('#addEquipmentScanFormat').val();
         }
     }
@@ -1049,9 +844,6 @@ function saveEquipment() {
     if (type === 'scanner') {
         data.duplex_scanner = $('#addEquipmentDuplexScanner').val();
         data.scan_format = $('#addEquipmentScanFormat').val();
-        data.connection_type = $('#addEquipmentConnectionType').val() || '';
-        data.color = $('#addEquipmentColor').val().trim() || '';
-        data.scanner_resolution = $('#addEquipmentScanFormat').val();
     }
 
     // 6. ИБП
@@ -1444,6 +1236,77 @@ function loadRoomsForEquipmentDatalist(datalistId) {
     });
 }
 
+// ===== УПРАВЛЕНИЕ ПОДКЛЮЧЕНИЯМИ (МОНИТОР) =====
+function addConnectionRow(mode, connectionValue = '') {
+    const containerId = mode === 'add' ? 'addConnectionContainer' : 'editConnectionContainer';
+    let container = document.getElementById(containerId);
+    if (!container) {
+        // Если контейнера нет (например, в режиме edit), создадим его
+        if (mode === 'edit') {
+            const parent = document.querySelector('#editMonitorFields .card-body');
+            if (parent) {
+                container = document.createElement('div');
+                container.id = 'editConnectionContainer';
+                container.className = 'mb-2';
+                // Вставляем после метки "Типы подключения" (если есть)
+                const label = parent.querySelector('label[for="editConnectionLabel"]');
+                if (label) {
+                    label.after(container);
+                } else {
+                    parent.appendChild(container);
+                }
+            }
+        }
+        if (!container) return;
+    }
+    const row = document.createElement('div');
+    row.className = 'row connection-row mb-1';
+    row.innerHTML = `
+        <div class="col-10">
+            <select class="form-select form-select-sm connection-select">
+                <option value="HDMI" ${connectionValue === 'HDMI' ? 'selected' : ''}>HDMI</option>
+                <option value="DisplayPort" ${connectionValue === 'DisplayPort' ? 'selected' : ''}>DisplayPort</option>
+                <option value="VGA" ${connectionValue === 'VGA' ? 'selected' : ''}>VGA</option>
+                <option value="DVI" ${connectionValue === 'DVI' ? 'selected' : ''}>DVI</option>
+            </select>
+        </div>
+        <div class="col-2 text-end">
+            <button type="button" class="btn btn-sm btn-outline-danger remove-connection-btn" onclick="this.closest('.connection-row').remove()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `;
+    container.appendChild(row);
+}
+
+function getConnections(mode) {
+    const containerId = mode === 'add' ? 'addConnectionContainer' : 'editConnectionContainer';
+    const container = document.getElementById(containerId);
+    if (!container) return [];
+    const selects = container.querySelectorAll('.connection-select');
+    const connections = [];
+    selects.forEach(select => {
+        const val = select.value.trim();
+        if (val) connections.push(val);
+    });
+    return connections;
+}
+
+function populateConnections(containerId, connections) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.innerHTML = '';
+    if (!connections || connections.length === 0) {
+        // Добавим одну пустую строку для удобства
+        addConnectionRow(containerId === 'editConnectionContainer' ? 'edit' : 'add', '');
+        return;
+    }
+    connections.forEach(conn => {
+        const mode = containerId === 'editConnectionContainer' ? 'edit' : 'add';
+        addConnectionRow(mode, conn);
+    });
+}
+
 // Добавление нового кабинета из формы оборудования
 function addNewRoomFromEquipment(inputId, datalistId) {
     const currentRoom = $('#' + inputId).val().trim();
@@ -1541,7 +1404,9 @@ function updateEquipment() {
         data.response_time = parseInt($('#editEquipmentResponseTime').val()) || null;
         data.viewing_angle = $('#editEquipmentViewingAngle').val().trim();
         data.ports = $('#editEquipmentPorts').val().trim();
-        data.connection_type = $('#editEquipmentConnectionType').val();
+        // Собираем типы подключения
+        const connections = getConnections('edit');
+        data.connection_type = connections.join(', ');
     }
 
     if (type === 'Сетевое оборудование') {
@@ -1854,6 +1719,12 @@ $(document).ready(function() {
         // Очищаем поле и отображение
         $('#addEquipmentRoom').val('');
         $('#addEquipmentDepartmentDisplay').text('—');
+        // Очищаем контейнер подключений и добавляем одну пустую строку
+        const connContainer = document.getElementById('addConnectionContainer');
+        if (connContainer) {
+            connContainer.innerHTML = '';
+            addConnectionRow('add', '');
+        }
     });
     $('#editEquipmentModal').on('show.bs.modal', function() {
         loadDepartmentsForDatalist('editEquipmentRoomsList');

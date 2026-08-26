@@ -1580,40 +1580,23 @@ def compatibility_page():
 def get_compatibility():
     conn = get_db()
     cursor = conn.cursor()
-    
-    org_id = get_user_organization_id()
-    is_admin = session.get('role') == 'admin'
-    
-    if org_id:
-        cursor.execute("""
-            SELECT id, cartridge_model, mfu_model, organization_id 
-            FROM Compatibility 
-            WHERE organization_id = ?
-            ORDER BY cartridge_model
-        """, (org_id,))
-    elif is_admin:
-        cursor.execute("""
-            SELECT id, cartridge_model, mfu_model, organization_id 
-            FROM Compatibility 
-            ORDER BY cartridge_model
-        """)
-    else:
-        cursor.execute("""
-            SELECT id, cartridge_model, mfu_model, organization_id 
-            FROM Compatibility 
-            WHERE organization_id IS NULL
-            ORDER BY cartridge_model
-        """)
-    
+
+    # Показываем все записи без фильтрации по филиалу
+    cursor.execute("""
+        SELECT id, cartridge_model, mfu_model, organization_id 
+        FROM Compatibility 
+        ORDER BY cartridge_model
+    """)
+
     compatibility = []
     for row in cursor.fetchall():
         compatibility.append({
             'id': row[0],
             'cartridge': row[1],
             'mfu': row[2],
-            'organization_id': row[3] if len(row) > 3 else None
+            'organization_id': row[3]
         })
-    
+
     conn.close()
     return jsonify(compatibility)
 
@@ -1623,10 +1606,11 @@ def add_compatibility():
     data = request.json
     conn = get_db()
     cursor = conn.cursor()
-    
+
     try:
-        org_id = get_organization_for_new_record()
-        
+        # Убираем привязку к филиалу – сохраняем как NULL
+        # org_id = get_organization_for_new_record()  // было
+        org_id = None  # <-- теперь всегда NULL
         cursor.execute("""
             INSERT INTO Compatibility (cartridge_model, mfu_model, organization_id)
             VALUES (?, ?, ?)
@@ -1643,7 +1627,7 @@ def add_compatibility():
 def delete_compatibility(id):
     conn = get_db()
     cursor = conn.cursor()
-    
+
     try:
         cursor.execute("DELETE FROM Compatibility WHERE id = ?", (id,))
         conn.commit()
@@ -1660,15 +1644,13 @@ def update_compatibility(id):
     data = request.json
     conn = get_db()
     cursor = conn.cursor()
-    
+
     try:
-        org_id = get_user_organization_id()
-        
-        cursor.execute("DELETE FROM Compatibility WHERE id = ?", (id,))
         cursor.execute("""
-            INSERT INTO Compatibility (cartridge_model, mfu_model, organization_id)
-            VALUES (?, ?, ?)
-        """, (data.get('cartridge'), data.get('mfu'), org_id))
+            UPDATE Compatibility 
+            SET cartridge_model = ?, mfu_model = ?
+            WHERE id = ?
+        """, (data.get('cartridge'), data.get('mfu'), id))
         conn.commit()
         return jsonify({'success': True})
     except sqlite3.IntegrityError:
@@ -1686,20 +1668,26 @@ def check_compatibility():
     data = request.json
     conn = get_db()
     cursor = conn.cursor()
-    
-    org_id = get_user_organization_id()
-    
-    if org_id:
+
+    view_org_id = get_view_organization_id()
+    is_admin = session.get('role') == 'admin'
+
+    if is_admin and view_org_id == '__ALL__':
+        cursor.execute("""
+            SELECT * FROM Compatibility 
+            WHERE cartridge_model = ? AND mfu_model = ?
+        """, (data.get('cartridge'), data.get('mfu')))
+    elif view_org_id:
         cursor.execute("""
             SELECT * FROM Compatibility 
             WHERE cartridge_model = ? AND mfu_model = ? AND organization_id = ?
-        """, (data.get('cartridge'), data.get('mfu'), org_id))
+        """, (data.get('cartridge'), data.get('mfu'), view_org_id))
     else:
         cursor.execute("""
             SELECT * FROM Compatibility 
             WHERE cartridge_model = ? AND mfu_model = ? AND organization_id IS NULL
         """, (data.get('cartridge'), data.get('mfu')))
-    
+
     result = cursor.fetchone()
     conn.close()
     return jsonify({'compatible': result is not None})
@@ -1709,33 +1697,33 @@ def check_compatibility():
 def import_compatibility_excel():
     if 'file' not in request.files:
         return jsonify({'success': False, 'error': 'Файл не выбран'}), 400
-    
+
     file = request.files['file']
     if file.filename == '':
         return jsonify({'success': False, 'error': 'Файл не выбран'}), 400
-    
+
     if not file.filename.endswith(('.xlsx', '.xls')):
         return jsonify({'success': False, 'error': 'Поддерживаются только файлы Excel (.xlsx, .xls)'}), 400
-    
+
     try:
         df = pd.read_excel(file)
-        
+
         required_columns = ['cartridge_model', 'mfu_model']
         for col in required_columns:
             if col not in df.columns:
                 return jsonify({'success': False, 'error': f'В файле отсутствует колонка "{col}"'}), 400
-        
+
         conn = get_db()
         cursor = conn.cursor()
         org_id = get_organization_for_new_record()
-        
+
         added = 0
         skipped = 0
-        
+
         for _, row in df.iterrows():
             cartridge = str(row['cartridge_model']).strip()
             mfu = str(row['mfu_model']).strip()
-            
+
             if cartridge and mfu and cartridge != 'nan' and mfu != 'nan':
                 try:
                     cursor.execute("""
@@ -1745,10 +1733,10 @@ def import_compatibility_excel():
                     added += 1
                 except sqlite3.IntegrityError:
                     skipped += 1
-        
+
         conn.commit()
         conn.close()
-        
+
         return jsonify({
             'success': True,
             'added': added,
@@ -1763,39 +1751,53 @@ def import_compatibility_excel():
 def get_compatible_mfus():
     data = request.json
     cartridge_model = data.get('cartridge_model', '').strip()
-    
+
     if not cartridge_model:
         return jsonify([])
-    
+
     conn = get_db()
     cursor = conn.cursor()
-    
-    org_id = get_user_organization_id()
-    
-    if org_id:
+
+    view_org_id = get_view_organization_id()
+    is_admin = session.get('role') == 'admin'
+
+    # 1. Получаем список совместимых моделей МФУ
+    if is_admin and view_org_id == '__ALL__':
+        cursor.execute("""
+            SELECT mfu_model FROM Compatibility 
+            WHERE cartridge_model = ?
+        """, (cartridge_model,))
+    elif view_org_id:
         cursor.execute("""
             SELECT mfu_model FROM Compatibility 
             WHERE cartridge_model = ? AND organization_id = ?
-        """, (cartridge_model, org_id))
+        """, (cartridge_model, view_org_id))
     else:
         cursor.execute("""
             SELECT mfu_model FROM Compatibility 
             WHERE cartridge_model = ? AND organization_id IS NULL
         """, (cartridge_model,))
-    
+
     compatible_mfu_names = [row[0] for row in cursor.fetchall()]
-    
+
+    # 2. Ищем эти модели МФУ в таблице Equipment
     result = []
-    
     for mfu_name in compatible_mfu_names:
-        if org_id:
+        if is_admin and view_org_id == '__ALL__':
+            cursor.execute("""
+                SELECT id, type, brand, model, status, inventory_number 
+                FROM Equipment 
+                WHERE type IN ('МФУ', 'Принтер') 
+                AND (brand LIKE ? OR model LIKE ? OR brand || ' ' || model LIKE ?)
+            """, (f'%{mfu_name}%', f'%{mfu_name}%', f'%{mfu_name}%'))
+        elif view_org_id:
             cursor.execute("""
                 SELECT id, type, brand, model, status, inventory_number 
                 FROM Equipment 
                 WHERE type IN ('МФУ', 'Принтер') 
                 AND (brand LIKE ? OR model LIKE ? OR brand || ' ' || model LIKE ?)
                 AND organization_id = ?
-            """, (f'%{mfu_name}%', f'%{mfu_name}%', f'%{mfu_name}%', org_id))
+            """, (f'%{mfu_name}%', f'%{mfu_name}%', f'%{mfu_name}%', view_org_id))
         else:
             cursor.execute("""
                 SELECT id, type, brand, model, status, inventory_number 
@@ -1804,7 +1806,7 @@ def get_compatible_mfus():
                 AND (brand LIKE ? OR model LIKE ? OR brand || ' ' || model LIKE ?)
                 AND organization_id IS NULL
             """, (f'%{mfu_name}%', f'%{mfu_name}%', f'%{mfu_name}%'))
-        
+
         rows = cursor.fetchall()
         for row in rows:
             brand = row[2] or ''
@@ -1817,7 +1819,8 @@ def get_compatible_mfus():
                 name = model
             else:
                 name = "Без названия"
-            
+
+            # Убираем дубли
             existing = next((r for r in result if r['id'] == row[0]), None)
             if not existing:
                 result.append({
@@ -1826,7 +1829,7 @@ def get_compatible_mfus():
                     'status': row[4] or 'В работе',
                     'inventory_number': row[5] or ''
                 })
-    
+
     conn.close()
     return jsonify(result)
 
@@ -3164,39 +3167,20 @@ def import_equipment_excel():
     if org_id is None:
         print("[ИМПОРТ] ВНИМАНИЕ: у пользователя нет филиала. Сотрудники, отделы и оборудование будут созданы без филиала (NULL).")
 
-    # # МАППИНГ КОЛОНОК (расширен для ответственного)
-    # col_mapping = {
-    #     'inventory': ['инвентарный номер', 'инв. номер', 'инвентарный', 'инв.№', 'инв №', 'инвентарный номер (бгу)'],
-    #     'model': ['модель', 'model'],
-    #     'serial': ['серийный номер', 'серийный', 's/n', 'sn'],
-    #     'room': ['кабинет', 'местонахождение', 'кабинет/место', 'помещение'],
-    #     'responsible': [
-    #         'ответственный сотрудник', 'ответственный', 'сотрудник', 'фио', 'пользователь',
-    #         'фио сотрудника', 'исполнитель', 'владелец', 'кто использует', 'ФИО', 'Ф.И.О.'
-    #     ],
-    #     'department': ['отдел', 'подразделение', 'ответственный отдел', 'департамент', 'структурное подразделение', 'наименование отдела'],
-    #     'status': ['текущее состояние', 'состояние', 'статус'],
-    #     'notes': ['примечания', 'примечание', 'дефекты'],
-    #     'type': ['наименование оборудования', 'тип оборудования', 'тип', 'наименование', 'оборудование'],
-    #     'model_bgu': ['наименование оборудования'],
-    #     'tech_spec': ['технические характеристики', 'характеристики'],
-    #     'mol': ['материально-ответственное лицо', 'мол', 'материально ответственное', 'м.о.л.', 'мол (материально-ответственное лицо)']
-    # }
-
     col_mapping = {
-                'inventory': ['инвентарный номер', 'инв. номер', 'инвентарный'],
-                'model': ['модель', 'model'],
-                'serial': ['серийный номер', 'серийный', 's/n', 'sn'],
-                'room': ['кабинет', 'местонахождение', 'кабинет (местонахождение)'],
-                'responsible': ['ответственный сотрудник', 'ответственный', 'сотрудник'],
-                'department': ['ответственный отдел', 'отдел', 'подразделение'],
-                'status': ['текущее состояние', 'состояние', 'статус'],
-                'notes': ['примечания', 'примечание', 'дефекты'],
-                'type': ['наименование оборудования', 'тип оборудования'],
-                'model_bgu': ['наименование оборудования'],
-                'tech_spec': ['технические характеристики', 'характеристики'],
-                'mol': ['материально-ответственное лицо', 'мол', 'материально ответственное', 'м.о.л.', 'мол (материально-ответственное лицо)'] 
-            }
+        'inventory': ['инвентарный номер', 'инв. номер', 'инвентарный'],
+        'model': ['модель', 'model'],
+        'serial': ['серийный номер', 'серийный', 's/n', 'sn'],
+        'room': ['кабинет', 'местонахождение', 'кабинет (местонахождение)'],
+        'responsible': ['ответственный сотрудник', 'ответственный', 'сотрудник', 'пользователь'],
+        'department': ['отдел', 'подразделение'],
+        'status': ['текущее состояние', 'состояние', 'статус'],
+        'notes': ['примечания', 'примечание', 'дефекты'],
+        'type': ['наименование оборудования', 'тип оборудования'],
+        'model_bgu': ['наименование оборудования'],
+        'tech_spec': ['технические характеристики', 'характеристики'],
+        'mol': ['материально-ответственное лицо', 'мол', 'материально ответственное', 'м.о.л.', 'мол (материально-ответственное лицо)']
+    }
 
     def find_column(df_columns, keywords):
         for col in df_columns:
@@ -3226,7 +3210,7 @@ def import_equipment_excel():
         col_inventory = find_column(cols, col_mapping['inventory'])
         col_department = find_column(cols, col_mapping['department'])
         col_room = find_column(cols, col_mapping['room'])
-        col_responsible = find_column(cols, col_mapping['responsible'])   
+        col_responsible = find_column(cols, col_mapping['responsible'])
         col_mol = find_column(cols, col_mapping['mol'])
         col_model_bgu = find_column(cols, col_mapping['model_bgu'])
         col_model = find_column(cols, col_mapping['model'])
@@ -3240,21 +3224,15 @@ def import_equipment_excel():
         print(f"  Инвентарный номер: {col_inventory}")
         print(f"  Отдел: {col_department}")
         print(f"  Кабинет: {col_room}")
-        print(f"  ОТВЕТСТВЕННЫЙ (должен быть ФИО): {col_responsible}")
+        print(f"  Ответственный: {col_responsible}")
         print(f"  МОЛ: {col_mol}")
-        print(f"  ТИП (Наименование оборудования): {col_type}")
+        print(f"  Тип: {col_type}")
 
-        # Проверка: если колонка типа не найдена – останавливаем импорт
         if not col_type:
             error_msg = f"Лист '{sheet_name}': НЕ НАЙДЕНА колонка 'Наименование оборудования'! Переименуйте колонку в Excel."
             errors.append(error_msg)
             print(f"[ИМПОРТ] ОШИБКА: {error_msg}")
             continue
-
-        # Если колонка ответственного не найдена – выводим предупреждение
-        if not col_responsible:
-            print(f"[ИМПОРТ] ВНИМАНИЕ: не найдена колонка 'Ответственный сотрудник'. Сотрудники НЕ будут созданы!")
-            print("[ИМПОРТ] Убедитесь, что колонка называется 'Ответственный сотрудник', 'ФИО', 'Сотрудник' и т.п.")
 
         total_rows = len(sheet_df)
         print(f"[ИМПОРТ] Всего строк в листе '{sheet_name}': {total_rows}")
@@ -3262,7 +3240,7 @@ def import_equipment_excel():
         processed = 0
         for idx, row in sheet_df.iterrows():
             try:
-                # 1. Инвентарный номер (если пустой – ставим None)
+                # 1. Инвентарный номер
                 inventory = None
                 if col_inventory and pd.notna(row[col_inventory]):
                     inv_raw = row[col_inventory]
@@ -3276,32 +3254,35 @@ def import_equipment_excel():
                         if inv_str not in ('', 'nan', 'none', 'null', '—', '-', '_'):
                             inventory = inv_str
 
-                if inventory is None:
-                    print(f"[ИМПОРТ] Строка {idx+2}: инвентарный номер пустой -> будет NULL")
-                else:
-                    print(f"[ИМПОРТ] Строка {idx+2}: инвентарный номер = '{inventory}'")
-
-                # 2. Отдел
+                # 2. Отдел (регистронезависимый поиск)
                 department_name = ''
                 if col_department and pd.notna(row[col_department]):
                     department_name = str(row[col_department]).strip()
 
                 department_id = None
                 if department_name:
-                    cursor.execute(
-                        "SELECT id FROM Departments WHERE name = ? AND organization_id = ?",
-                        (department_name, org_id)
-                    )
+                    dept_name_norm = department_name.strip()
+                    if org_id is not None:
+                        cursor.execute(
+                            "SELECT id FROM Departments WHERE LOWER(name) = LOWER(?) AND organization_id = ?",
+                            (dept_name_norm, org_id)
+                        )
+                    else:
+                        cursor.execute(
+                            "SELECT id FROM Departments WHERE LOWER(name) = LOWER(?) AND organization_id IS NULL",
+                            (dept_name_norm,)
+                        )
                     dept = cursor.fetchone()
                     if dept:
                         department_id = dept[0]
+                        print(f"[ИМПОРТ] Строка {idx+2}: найден существующий отдел '{dept_name_norm}' (id={department_id})")
                     else:
                         cursor.execute(
                             "INSERT INTO Departments (name, organization_id) VALUES (?, ?)",
-                            (department_name, org_id)
+                            (dept_name_norm, org_id)
                         )
                         department_id = cursor.lastrowid
-                        print(f"[ИМПОРТ] Строка {idx+2}: создан отдел '{department_name}' (id={department_id}, org={org_id})")
+                        print(f"[ИМПОРТ] Строка {idx+2}: создан новый отдел '{dept_name_norm}' (id={department_id})")
                         conn.commit()
 
                 # 3. Кабинет
@@ -3343,33 +3324,24 @@ def import_equipment_excel():
                             print(f"[ИМПОРТ] Строка {idx+2}: обновлён office у отдела '{department_name}' -> '{room_number}'")
                             conn.commit()
 
-                # 4. ОТВЕТСТВЕННЫЙ СОТРУДНИК (из col_responsible)
+                # 4. Ответственный сотрудник
                 responsible_name = ''
                 if col_responsible and pd.notna(row[col_responsible]):
                     responsible_name = str(row[col_responsible]).strip()
-                    print(f"[ИМПОРТ] Строка {idx+2}: ответственный из Excel = '{responsible_name}'")
-                else:
-                    print(f"[ИМПОРТ] Строка {idx+2}: ответственный не указан в Excel")
 
                 responsible_id = None
                 if responsible_name:
-                    # Ищем сотрудника по имени (без учёта филиала)
                     cursor.execute("SELECT id FROM Employees WHERE Department_Fullname = ?", (responsible_name,))
                     emp = cursor.fetchone()
                     if emp:
                         responsible_id = emp[0]
-                        print(f"[ИМПОРТ] Строка {idx+2}: найден существующий сотрудник '{responsible_name}' (id={responsible_id})")
                     else:
-                        # Создаём нового сотрудника с филиалом текущего пользователя
                         cursor.execute(
                             "INSERT INTO Employees (Department_Fullname, Organization_id) VALUES (?, ?)",
                             (responsible_name, org_id)
                         )
                         responsible_id = cursor.lastrowid
-                        print(f"[ИМПОРТ] Строка {idx+2}: создан новый сотрудник '{responsible_name}' (id={responsible_id}, филиал={org_id})")
                         conn.commit()
-                else:
-                    print(f"[ИМПОРТ] Строка {idx+2}: ответственный не будет установлен (NULL)")
 
                 # 5. МОЛ
                 mol_name = ''
@@ -3390,7 +3362,7 @@ def import_equipment_excel():
                         mol_id = cursor.lastrowid
                         conn.commit()
 
-                # 6. ТИП ОБОРУДОВАНИЯ (из col_type)
+                # 6. Тип оборудования
                 equipment_type = 'Другое'
                 type_raw = ''
                 if col_type and pd.notna(row[col_type]):
@@ -3471,8 +3443,9 @@ def import_equipment_excel():
                 if col_notes and pd.notna(row[col_notes]):
                     notes = str(row[col_notes]).strip()
 
-                # 8. Оборудование
+                # 8. Оборудование – ИСПРАВЛЕННЫЙ БЛОК
                 if inventory is None:
+                    # Вставка без инвентарного номера
                     cursor.execute("""
                         INSERT INTO Equipment (
                             type, brand, model, serial_number, inventory_number,
@@ -3485,10 +3458,22 @@ def import_equipment_excel():
                           org_id, session.get('user_id'))
                     )
                     added += 1
+                    print(f"[ИМПОРТ] Строка {idx+2}: добавлена запись без инвентарного номера")
                 else:
-                    cursor.execute("SELECT id FROM Equipment WHERE inventory_number = ?", (inventory,))
+                    # Поиск существующей записи с учётом филиала
+                    if org_id is not None:
+                        cursor.execute(
+                            "SELECT id FROM Equipment WHERE inventory_number = ? AND organization_id = ?",
+                            (inventory, org_id)
+                        )
+                    else:
+                        cursor.execute(
+                            "SELECT id FROM Equipment WHERE inventory_number = ? AND organization_id IS NULL",
+                            (inventory,)
+                        )
                     existing = cursor.fetchone()
                     if existing:
+                        # Обновление
                         cursor.execute("""
                             UPDATE Equipment SET
                                 type = ?, brand = ?, model = '',
@@ -3501,7 +3486,9 @@ def import_equipment_excel():
                               responsible_id, mol_id, status, notes, characteristics,
                               org_id, session.get('user_id'), existing[0]))
                         updated += 1
+                        print(f"[ИМПОРТ] Строка {idx+2}: обновлена запись с инвентарным номером {inventory} (id={existing[0]})")
                     else:
+                        # Вставка с инвентарным номером
                         cursor.execute("""
                             INSERT INTO Equipment (
                                 type, brand, model, serial_number, inventory_number,
@@ -3514,6 +3501,7 @@ def import_equipment_excel():
                               org_id, session.get('user_id'))
                         )
                         added += 1
+                        print(f"[ИМПОРТ] Строка {idx+2}: добавлена новая запись с инвентарным номером {inventory}")
 
                 conn.commit()
                 processed += 1
@@ -3925,21 +3913,20 @@ def get_view_organization_id():
     """
     Получить ID филиала для просмотра (для администратора).
     Возвращает:
-    - None - если нужно показать все записи (админ без филиала)
+    - '__ALL__' - если нужно показать все записи (админ по умолчанию)
     - '__NONE__' - если нужно показать записи без филиала
     - число - ID конкретного филиала
     """
     if 'user_id' not in session:
         return None
-    
-    # Проверяем, является ли пользователь администратором
+
     is_admin = session.get('role') == 'admin'
-    
-    # Если администратор и есть выбранный филиал в сессии
-    if is_admin and 'view_organization_id' in session:
-        return session.get('view_organization_id')
-    
-    # Иначе возвращаем филиал пользователя
+
+    # Для администратора всегда используем view_organization_id, по умолчанию '__ALL__'
+    if is_admin:
+        return session.get('view_organization_id', '__ALL__')
+
+    # Для обычного пользователя – его собственный филиал
     return get_user_organization_id()
 
 @app.route('/api/cartridges', methods=['GET'])
@@ -4513,22 +4500,24 @@ def search_equipment():
     data = request.json
     search_term = data.get('search', '').strip()
     search_field = data.get('field', 'all')
-    
+
     conn = get_db()
     cursor = conn.cursor()
-    
+
     org_id = get_user_organization_id()
     is_admin = session.get('role') == 'admin'
-    
+
+    # Фильтр по филиалу
     filter_condition = ""
     filter_params = []
-    
+
     if org_id:
         filter_condition = "AND e.organization_id = ?"
         filter_params = [org_id]
     elif not is_admin:
         filter_condition = "AND e.organization_id IS NULL"
-    
+
+    # Базовый запрос с исправленным JOIN
     query = f"""
         SELECT 
             e.id, e.type, e.brand, e.model, e.serial_number, e.inventory_number,
@@ -4548,33 +4537,64 @@ def search_equipment():
         LEFT JOIN Employees resp_emp ON e.responsible_employee = resp_emp.id
         LEFT JOIN Employees mol_emp ON e.mol_employee = mol_emp.id
         LEFT JOIN Rooms r ON e.room_id = r.id
-        LEFT JOIN Departments d ON r.Number = d.office
+        LEFT JOIN Departments d ON r.department_id = d.id          -- <-- ИСПРАВЛЕНО
         LEFT JOIN Organizations org ON e.organization_id = org.id
         LEFT JOIN Users u ON e.created_by = u.id
         WHERE 1=1 {filter_condition}
     """
-    
+
+    # Обработка поискового запроса по выбранному полю
     if search_term:
-        if search_field == 'serial':
+        if search_field == 'serial_number':
             query += " AND e.serial_number LIKE ?"
             filter_params.append(f'%{search_term}%')
-        elif search_field == 'inventory':
+        elif search_field == 'inventory_number':
             query += " AND e.inventory_number LIKE ?"
             filter_params.append(f'%{search_term}%')
         elif search_field == 'model':
             query += " AND e.model LIKE ?"
             filter_params.append(f'%{search_term}%')
-        else:
-            query += """ AND (e.type LIKE ? OR e.brand LIKE ? OR e.model LIKE ? 
-                        OR e.serial_number LIKE ? OR e.inventory_number LIKE ?
-                        OR resp_emp.Department_Fullname LIKE ? OR mol_emp.Department_Fullname LIKE ?
-                        OR r.Number LIKE ? OR org.name LIKE ?)"""
-            filter_params.extend([f'%{search_term}%'] * 9)
-    
+        elif search_field == 'type':
+            query += " AND e.type LIKE ?"
+            filter_params.append(f'%{search_term}%')
+        elif search_field == 'brand':
+            query += " AND e.brand LIKE ?"
+            filter_params.append(f'%{search_term}%')
+        elif search_field == 'responsible':
+            query += " AND resp_emp.Department_Fullname LIKE ?"
+            filter_params.append(f'%{search_term}%')
+        elif search_field == 'mol':
+            query += " AND mol_emp.Department_Fullname LIKE ?"
+            filter_params.append(f'%{search_term}%')
+        elif search_field == 'room':
+            query += " AND r.Number LIKE ?"
+            filter_params.append(f'%{search_term}%')
+        elif search_field == 'organization':
+            query += " AND org.name LIKE ?"
+            filter_params.append(f'%{search_term}%')
+        elif search_field == 'status':
+            query += " AND e.status LIKE ?"
+            filter_params.append(f'%{search_term}%')
+        elif search_field == 'all':
+            conditions = [
+                "e.type LIKE ?",
+                "e.brand LIKE ?",
+                "e.model LIKE ?",
+                "e.serial_number LIKE ?",
+                "e.inventory_number LIKE ?",
+                "resp_emp.Department_Fullname LIKE ?",
+                "mol_emp.Department_Fullname LIKE ?",
+                "r.Number LIKE ?",
+                "org.name LIKE ?",
+                "e.status LIKE ?"
+            ]
+            query += " AND (" + " OR ".join(conditions) + ")"
+            filter_params.extend([f'%{search_term}%'] * len(conditions))
+
     query += " ORDER BY e.created_at DESC, e.id DESC"
-    
+
     cursor.execute(query, filter_params)
-    
+
     equipment = []
     for row in cursor.fetchall():
         equipment.append({
@@ -4608,7 +4628,7 @@ def search_equipment():
             'notes': row[27] if len(row) > 27 else '',
             'characteristics': row[28] if len(row) > 28 else ''
         })
-    
+
     conn.close()
     return jsonify(equipment)
 
