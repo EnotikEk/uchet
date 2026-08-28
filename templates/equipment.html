@@ -1241,19 +1241,24 @@ function renderEquipment(data) {
             if (item.ip_address) specs.push(`IP: ${item.ip_address}`);
         }
         
-        // ===== ПРИНТЕР / МФУ =====
-        if (['Принтер', 'МФУ'].includes(item.type)) {
+        // ===== ПРИНТЕР =====
+        if (item.type === 'Принтер') {
             if (item.print_type) specs.push(`Тип: ${item.print_type}`);
             if (item.print_format) specs.push(`Формат: ${item.print_format}`);
-            if (item.print_speed) specs.push(`Скорость: ${item.print_speed} стр/мин`);
             if (item.color_type) specs.push(`Цвет: ${item.color_type}`);
             if (item.duplex) specs.push(`Двусторонняя печать: ${item.duplex}`);
-            if (item.printer_ports) specs.push(`Интерф.: ${item.printer_ports}`);
             if (item.ip_address) specs.push(`IP: ${item.ip_address}`);
-            if (item.type === 'МФУ') {
-                if (item.scanner_resolution) specs.push(`Скан: ${item.scanner_resolution}`);
-                if (item.scanner_speed) specs.push(`Ск-ть скана: ${item.scanner_speed}`);
-            }
+        }
+        
+        // ===== МФУ =====
+        if (item.type === 'МФУ') {
+            if (item.print_type) specs.push(`Тип печати: ${item.print_type}`);
+            if (item.print_format) specs.push(`Формат: ${item.print_format}`);
+            if (item.color_type) specs.push(`Цветность: ${item.color_type}`);
+            if (item.duplex) specs.push(`Двусторонняя печать: ${item.duplex}`);
+            if (item.ip_address) specs.push(`IP: ${item.ip_address}`);
+            if (item.scan_format) specs.push(`Формат скана: ${item.scan_format}`);
+            if (item.duplex_scanner) specs.push(`Двусторонний скан: ${item.duplex_scanner}`);
         }
         
         // ===== ИБП =====
@@ -1265,7 +1270,7 @@ function renderEquipment(data) {
             if (item.ups_runtime) specs.push(`Автономия: ${item.ups_runtime} мин`);
         }
         
-        // ===== ПЕРИФЕРИЯ (мышь/клавиатура, веб-камера, гарнитура, колонки, внешний диск, док-станция) =====
+        // ===== ПЕРИФЕРИЯ =====
         const peripheralTypes = ['Мышь/Клавиатура', 'Веб-камера', 'Гарнитура', 'Внешний диск', 'Док-станция', 'Мышь', 'Клавиатура', 'Веб-камера/Гарнитура/Микрофон'];
         if (peripheralTypes.includes(item.type)) {
             if (item.connection_type) specs.push(`Подкл.: ${item.connection_type}`);
@@ -1287,12 +1292,11 @@ function renderEquipment(data) {
         
         // ===== СКАНЕР =====
         if (item.type === 'Сканер') {
-            if (item.scanner_resolution) specs.push(`Разр.: ${item.scanner_resolution}`);
-            if (item.scanner_speed) specs.push(`Скорость: ${item.scanner_speed}`);
-            if (item.duplex) specs.push(`Дуплекс: ${item.duplex}`);
+            if (item.scan_format) specs.push(`Формат: ${item.scan_format}`);
+            if (item.duplex_scanner) specs.push(`Двусторонний скан: ${item.duplex_scanner}`);
         }
         
-        // ===== ДРУГОЕ (если ничего не подошло, показываем процессор, ОЗУ, диск) =====
+        // ===== ДРУГОЕ (если ничего не подошло) =====
         if (specs.length === 0 && !['Компьютер','Ноутбук','Сервер','Моноблок','Монитор','Сетевое оборудование','Принтер','МФУ','ИБП','Сканер','IP-телефон','Мышь/Клавиатура','Веб-камера','Гарнитура','Колонки','Внешний диск','Док-станция','Мышь','Клавиатура','Веб-камера/Гарнитура/Микрофон'].includes(item.type)) {
             if (item.processor) specs.push(`CPU: ${item.processor}`);
             if (item.ram) specs.push(`RAM: ${item.ram} ГБ`);
@@ -1300,7 +1304,12 @@ function renderEquipment(data) {
             if (item.os) specs.push(`ОС: ${item.os}`);
         }
         
-        let specsHtml = specs.length > 0 ? `<small class="text-muted">${specs.join(', ')}</small>` : '<span class="text-muted">—</span>';
+        // Если характеристик нет вообще - показываем "—"
+        if (specs.length === 0) {
+            specs.push('—');
+        }
+        
+        let specsHtml = `<small class="text-muted">${specs.join(', ')}</small>`;
         
         const row = $(`
             <tr data-id="${item.id}" class="equipment-row" style="cursor: pointer;">
@@ -1440,16 +1449,14 @@ function openEquipmentView(equipment) {
     
     // Принтер / МФУ
     if (equipment.print_type) specs.push(`Тип печати: ${equipment.print_type}`);
-    if (equipment.print_format) specs.push(`Формат: ${equipment.print_format}`);
-    if (equipment.print_speed) specs.push(`Скорость: ${equipment.print_speed} стр/мин`);
+    if (equipment.print_format) specs.push(`Формат бумаги: ${equipment.print_format}`);
+    if (equipment.ip_address) specs.push(`IP адрес: ${equipment.ip_address}`);
     if (equipment.color_type) specs.push(`Цветность: ${equipment.color_type}`);
     if (equipment.duplex) specs.push(`Двусторонняя печать: ${equipment.duplex}`);
-    if (equipment.printer_ports) specs.push(`Интерфейсы: ${equipment.printer_ports}`);
-    if (equipment.scanner_speed) specs.push(`Скорость сканера: ${equipment.scanner_speed}`);
     
     // Сканер
-    if (equipment.duplex_scanner) specs.push(`Двусторонний скан: ${equipment.duplex_scanner}`);
     if (equipment.scan_format) specs.push(`Формат скана: ${equipment.scan_format}`);
+    if (equipment.duplex_scanner) specs.push(`Двусторонний скан: ${equipment.duplex_scanner}`);
 
     // ИБП
     if (equipment.ups_power) specs.push(`Мощность: ${equipment.ups_power}`);
@@ -1482,7 +1489,10 @@ function openEquipmentView(equipment) {
         }
     }
     
-    if (specs.length === 0) specs.push('—');
+    if (specs.length === 0) {
+        specs.push('—');
+    }
+    
     $('#viewEquipmentSpecs').html(specs.join('<br>'));
     $('#viewEquipmentNotes').text(equipment.notes || '—');
     $('#viewEquipmentCreatedBy').text(equipment.created_by || '—');
@@ -1549,11 +1559,10 @@ function disableEquipmentEditMode() {
     if (eq.color_type) specs.push(`Цветность: ${eq.color_type}`);
     if (eq.duplex) specs.push(`Двусторонняя печать: ${eq.duplex}`);
     if (eq.printer_ports) specs.push(`Интерфейсы: ${eq.printer_ports}`);
-    if (eq.scanner_speed) specs.push(`Скорость сканера: ${eq.scanner_speed}`);
     
-    // Сканер
-    if (eq.duplex_scanner) specs.push(`Двусторонний скан: ${eq.duplex_scanner}`);
+    // Сканер (для МФУ)
     if (eq.scan_format) specs.push(`Формат скана: ${eq.scan_format}`);
+    if (eq.duplex_scanner) specs.push(`Двусторонний скан: ${eq.duplex_scanner}`);
     
     // ИБП
     if (eq.ups_power) specs.push(`Мощность: ${eq.ups_power}`);
@@ -1586,7 +1595,11 @@ function disableEquipmentEditMode() {
         }
     }
     
-    if (specs.length === 0) specs.push('—');
+    // Если характеристик нет вообще
+    if (specs.length === 0) {
+        specs.push('—');
+    }
+    
     $('#viewEquipmentSpecs').html(specs.join('<br>'));
     $('#viewEquipmentNotes').text(eq.notes || '—');
     $('#viewEquipmentCreatedBy').text(eq.created_by || '—');
@@ -1601,6 +1614,7 @@ function disableEquipmentEditMode() {
     `);
     $('#editEquipmentBtn').off('click').on('click', enableEquipmentEditMode);
 }
+
 
 function enableEquipmentEditMode() {
     const eq = currentEquipmentData;
@@ -1950,19 +1964,13 @@ function enableEquipmentEditMode() {
                             </select>
                         </div>
                     </div>
-                    <div class="row">
-                        <div class="col-12 mb-1">
-                            <label class="form-label">Интерфейсы</label>
-                            <input type="text" class="form-control form-control-sm" id="editEquipmentPrinterPorts" placeholder="USB, Ethernet" value="${escapeHtml(eq.printer_ports || '')}">
-                        </div>
-                    </div>
                     ${eq.type === 'МФУ' ? `
                     <div class="row mt-2">
                         <div class="col-6 mb-1">
                             <label class="form-label">Разрешение сканера</label>
                             <select class="form-select form-select-sm" id="editEquipmentScannerResolution">
-                                <option value="A3" ${eq.scanner_resolution === 'A3' ? 'selected' : ''}>A3</option>
                                 <option value="A4" ${eq.scanner_resolution === 'A4' ? 'selected' : ''}>A4</option>
+                                <option value="A3" ${eq.scanner_resolution === 'A3' ? 'selected' : ''}>A3</option>
                                 <option value="A3/A4" ${eq.scanner_resolution === 'A3/A4' ? 'selected' : ''}>A3/A4</option>
                             </select>
                         </div>
@@ -2190,7 +2198,6 @@ function saveEquipmentEdit() {
     const data = {
         type: type,
         brand: $('#editEquipmentBrand').val() || '',
-        model: '',
         serial_number: $('#editEquipmentSerial').val() || '',
         inventory_number: inventoryNumber,
         responsible: $('#editEquipmentResponsibleInput').val() || '',
@@ -2261,8 +2268,6 @@ function saveEquipmentEdit() {
         data.printer_ports = ($('#editEquipmentPrinterPorts').val() || '').trim();
         data.ip_address = ($('#editEquipmentIpAddress').val() || '').trim();
         if (type === 'МФУ') {
-            data.scanner_resolution = ($('#editEquipmentScannerResolution').val() || '').trim();
-            data.scanner_speed = ($('#editEquipmentScannerSpeed').val() || '').trim();
             data.duplex_scanner = $('#editEquipmentDuplexScanner').val();   // <-- проверьте ID
             data.scan_format = $('#editEquipmentScanFormat').val();
         }

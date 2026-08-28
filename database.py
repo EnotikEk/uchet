@@ -563,7 +563,15 @@ def init_db():
         cursor.execute("ALTER TABLE Departments ADD COLUMN address_id INTEGER")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_departments_address ON Departments(address_id)")
 
-
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS DepartmentOffices (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            department_id INTEGER NOT NULL,
+            office TEXT NOT NULL,
+            FOREIGN KEY (department_id) REFERENCES Departments(id) ON DELETE CASCADE
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_department_offices_dept ON DepartmentOffices(department_id)")
 
     conn.commit()
     conn.close()
@@ -693,6 +701,19 @@ def upgrade_db():
     if 'address_id' not in columns:
         cursor.execute("ALTER TABLE Departments ADD COLUMN address_id INTEGER")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_departments_address ON Departments(address_id)")
+
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='DepartmentOffices'")
+    if not cursor.fetchone():
+        cursor.execute("""
+            CREATE TABLE DepartmentOffices (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                department_id INTEGER NOT NULL,
+                office TEXT NOT NULL,
+                FOREIGN KEY (department_id) REFERENCES Departments(id) ON DELETE CASCADE
+            )
+        """)
+        cursor.execute("CREATE INDEX idx_department_offices_dept ON DepartmentOffices(department_id)")
+        print("✅ Создана таблица DepartmentOffices")
 
     conn.commit()
     conn.close()

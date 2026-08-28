@@ -80,9 +80,8 @@
                             <input type="text" class="form-control" id="addEquipmentSerial" placeholder="S/N">
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label class="form-label" id="inventoryLabel">Инвентарный номер <span class="text-danger" id="inventoryRequired">*</span></label>
+                            <label class="form-label" id="inventoryLabel">Инвентарный номер</span></label>
                             <input type="text" class="form-control" id="addEquipmentInventory" placeholder="Инв. №">
-                            <small class="text-muted" id="inventoryHint">Должен быть уникальным</small>
                         </div>
                     </div>
 
@@ -259,7 +258,7 @@
                                     </div>
                                     <div class="col-md-4 mb-2">
                                         <label class="form-label">IP адрес</label>
-                                        <input type="text" class="form-control" id="addEquipmentIpAddress" placeholder="192.168.1.100">
+                                        <input type="text" class="form-control" id="addEquipmentIpAddressPrinter" placeholder="192.168.1.100">
                                     </div>
                                 </div>
                                 <div class="row">
@@ -272,7 +271,7 @@
                                     </div>
                                     <div class="col-md-4 mb-2">
                                         <label class="form-label">Двусторонняя печать</label>
-                                        <select class="form-select" id="addEquipmentDuplexAdd">
+                                        <select class="form-select" id="addEquipmentDuplex">
                                             <option value="Нет">Нет</option>
                                             <option value="Да">Да</option>
                                         </select>
@@ -306,7 +305,7 @@
                                     </div>
                                     <div class="col-4 mb-2">
                                         <label class="form-label">IP адрес</label>
-                                        <input type="text" class="form-control" id="addEquipmentIpAddress" placeholder="192.168.1.100">
+                                        <input type="text" class="form-control" id="addEquipmentMfuIpAddress" placeholder="192.168.1.100">
                                     </div>
                                 </div>
                                 <div class="row">
@@ -317,28 +316,11 @@
                                             <option value="Цветной">Цветной</option>
                                         </select>
                                     </div>
-                                    <div class="col-md-4 mb-2">
+                                    <div class="col-4 mb-2">
                                         <label class="form-label">Двусторонняя печать</label>
-                                        <select class="form-select" id="addEquipmentDuplexAdd">
+                                        <select class="form-select" id="addEquipmentDuplexMfu">
                                             <option value="Нет">Нет</option>
                                             <option value="Да">Да</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="row">
-                                    <div class="col-4 mb-2">
-                                        <label class="form-label">Двусторонний скан</label>
-                                        <select class="form-select" id="addEquipmentDuplexScanner">
-                                            <option value="Нет">Нет</option>
-                                            <option value="Да">Да</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-4 mb-2">
-                                        <label class="form-label">Формат скана</label>
-                                        <select class="form-select" id="addEquipmentScanFormat">
-                                            <option value="A4">A4</option>
-                                            <option value="A3">A3</option>
-                                            <option value="A3/A4">A3/A4</option>
                                         </select>
                                     </div>
                                 </div>
@@ -527,8 +509,10 @@
                         <!-- equipment_modals.html - блок с кабинетом в addEquipmentModal -->
                         <div class="col-md-4 mb-3">
                             <label class="form-label">Кабинет</label>
-                            <input type="text" class="form-control" id="addEquipmentRoom"
-                                placeholder="Номер кабинета" list="addEquipmentRoomsList">
+                            <input type="text" class="form-control" id="addEquipmentRoom" 
+                                placeholder="Номер кабинета" list="addEquipmentRoomsList" autocomplete="off">
+                            <datalist id="addEquipmentRoomsList"></datalist>
+                            <small class="text-muted">Начните вводить номер — появятся подсказки</small>
                         </div>
                         <div class="col-md-4 mb-3">
                             <label class="form-label">Статус</label>
@@ -606,6 +590,7 @@ function updateEquipmentForm() {
             break;
         case 'mfu':
             $('#formMFU').show();
+            $('#formScanner').show();
             break;
         case 'scanner':
             $('#formScanner').show();
@@ -736,6 +721,7 @@ function quickAddEmployee(inputId, datalistId) {
     });
 }
 
+
 // ============================================================
 // 4. ФУНКЦИЯ СОХРАНЕНИЯ ОБОРУДОВАНИЯ
 // ============================================================
@@ -824,18 +810,25 @@ function saveEquipment() {
     }
 
     // 4. Принтер и МФУ
-    if (['printer', 'mfu'].includes(type)) {
-        data.print_type = $('#addEquipmentPrintType').val();
-        data.print_format = $('#addEquipmentPrintFormat').val();
-        data.print_speed = parseInt($('#addEquipmentPrintSpeed').val()) || null;
-        data.color_type = $('#addEquipmentColorType').val();
-        data.duplex = $('#addEquipmentDuplexAdd').val();   // <-- проверьте ID
-        data.printer_ports = ($('#addEquipmentPrinterPorts').val() || '').trim();
-        data.ip_address = ($('#addEquipmentIpAddress').val() || '').trim();
-        if (type === 'mfu') {
-            data.scanner_resolution = ($('#addEquipmentScannerResolution').val() || '').trim();
-            data.scanner_speed = ($('#addEquipmentScannerSpeed').val() || '').trim();
-            data.duplex_scanner = $('#addEquipmentDuplexScanner').val();   // <-- проверьте ID
+    const printerTypes = ['printer', 'mfu']
+    if (printerTypes.includes(type)) {
+        if (type === 'printer') {
+            // Для принтера используем обычные ID
+            data.print_type = $('#addEquipmentPrintType').val();
+            data.print_format = $('#addEquipmentPrintFormat').val();
+            data.color_type = $('#addEquipmentColorType').val();
+            data.duplex = $('#addEquipmentDuplex').val();
+            data.printer_ports = ($('#addEquipmentPrinterPorts').val() || '').trim();
+            data.ip_address = ($('#addEquipmentIpAddressPrinter').val() || '').trim();
+        } else if (type === 'mfu') {
+            // Для МФУ используем ID с суффиксом Mfu
+            data.print_type = $('#addEquipmentPrintType').val();
+            data.print_format = $('#addEquipmentPrintFormat').val();
+            data.color_type = $('#addEquipmentColorType').val();
+            data.duplex = $('#addEquipmentDuplexMfu').val();  // <-- ТЕПЕРЬ БУДЕТ "Да"
+            data.printer_ports = ($('#addEquipmentPrinterPorts').val() || '').trim();
+            data.ip_address = ($('#addEquipmentMfuIpAddress').val() || '').trim();
+            data.duplex_scanner = $('#addEquipmentDuplexScanner').val();
             data.scan_format = $('#addEquipmentScanFormat').val();
         }
     }
@@ -1206,35 +1199,7 @@ function openEditEquipmentModal(equipment) {
 // ==================== ФУНКЦИИ ДЛЯ РАБОТЫ С КАБИНЕТАМИ В ОБОРУДОВАНИИ ====================
 
 // Загрузка списка кабинетов для datalist
-function loadRoomsForEquipmentDatalist(datalistId) {
-    $.ajax({
-        url: '/api/rooms/search',
-        method: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify({search: ''}),
-        success: function(rooms) {
-            const datalist = $('#' + datalistId);
-            datalist.empty();
-            roomsMap = {};
-            if (rooms && rooms.length > 0) {
-                for (let i = 0; i < rooms.length; i++) {
-                    const room = rooms[i];
-                    datalist.append(`<option value="${escapeHtml(room.number)}">${escapeHtml(room.number)}</option>`);
-                    roomsMap[room.number] = {
-                        id: room.id,
-                        department_id: room.department_id,
-                        department_name: room.department_name
-                    };
-                }
-            }
-            // Если поле уже содержит значение, обновляем отдел
-            const input = $('#' + datalistId.replace('List', ''));
-            if (input.length) {
-                updateDepartmentDisplay(input.val(), input.attr('id'));
-            }
-        }
-    });
-}
+
 
 // ===== УПРАВЛЕНИЕ ПОДКЛЮЧЕНИЯМИ (МОНИТОР) =====
 function addConnectionRow(mode, connectionValue = '') {
@@ -1308,38 +1273,77 @@ function populateConnections(containerId, connections) {
 }
 
 // Добавление нового кабинета из формы оборудования
+// Загрузка списка кабинетов в datalist
+function loadRoomsForEquipmentDatalist(datalistId) {
+    console.log("Загрузка кабинетов для", datalistId);
+    $.ajax({
+        url: '/api/rooms/search',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ search: '' }),
+        success: function(rooms) {
+            console.log("Получены комнаты:", rooms);
+            var datalist = $('#' + datalistId);
+            datalist.empty();
+            if (rooms && rooms.length > 0) {
+                for (var i = 0; i < rooms.length; i++) {
+                    datalist.append('<option value="' + escapeHtml(rooms[i].number) + '">' + escapeHtml(rooms[i].number) + '</option>');
+                }
+            } else {
+                console.warn("Комнаты не найдены");
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error("Ошибка загрузки кабинетов:", error, xhr.responseText);
+        }
+    });
+}
+
+
+
+// Быстрое добавление нового кабинета (через кнопку "+")
 function addNewRoomFromEquipment(inputId, datalistId) {
-    const currentRoom = $('#' + inputId).val().trim();
+    var input = $('#' + inputId);
+    var currentRoom = input.val().trim();
     if (!currentRoom) {
         showMessage('Введите номер кабинета', 'warning');
         return;
     }
-    // Проверяем, есть ли уже такой кабинет в datalist (в загруженных данных)
-    // или отправляем запрос на сервер
+
+    // Проверяем, есть ли уже в кэше
+    var exists = cachedRooms.some(function(room) {
+        return (room.number || room) === currentRoom;
+    });
+
+    if (exists) {
+        showMessage('Кабинет "' + currentRoom + '" уже существует', 'info');
+        return;
+    }
+
+    // Отправляем запрос на сервер (но можно и просто добавить локально)
     $.ajax({
-        url: '/api/departments/search',
+        url: '/api/rooms/search',
         method: 'POST',
         contentType: 'application/json',
         data: JSON.stringify({ search: currentRoom }),
-        success: function(depts) {
-            const found = depts.some(d => d.office && d.office.toLowerCase() === currentRoom.toLowerCase());
+        success: function(rooms) {
+            var found = rooms.some(function(r) { return (r.number || r) === currentRoom; });
             if (found) {
-                showMessage(`Кабинет "${currentRoom}" уже существует`, 'info');
-                loadDepartmentsForDatalist(datalistId);
+                showMessage('Кабинет "' + currentRoom + '" уже есть в БД', 'info');
+                refreshRoomsCache();
                 return;
             }
-            showMessage(`Кабинет "${currentRoom}" будет добавлен при сохранении`, 'success');
-            loadDepartmentsForDatalist(datalistId);
-            $('#' + inputId).val(currentRoom);
-            // Обновим отображение отдела – он будет новым
-            updateDepartmentDisplayLive(currentRoom, inputId);
+            // Добавляем в кэш (без сохранения на сервер, сохранится при сохранении оборудования)
+            cachedRooms.push({ number: currentRoom });
+            fillRoomDatalist(datalistId);
+            input.val(currentRoom);
+            showMessage('Кабинет "' + currentRoom + '" добавлен в список', 'success');
         },
         error: function() {
             showMessage('Ошибка проверки кабинета', 'danger');
         }
     });
 }
-
 // Загрузка кабинетов при открытии модального окна добавления оборудования
 $('#addEquipmentModal').on('show.bs.modal', function() {
     loadRoomsForEquipmentDatalist('addEquipmentRoomsList');
@@ -1404,7 +1408,6 @@ function updateEquipment() {
         data.response_time = parseInt($('#editEquipmentResponseTime').val()) || null;
         data.viewing_angle = $('#editEquipmentViewingAngle').val().trim();
         data.ports = $('#editEquipmentPorts').val().trim();
-        // Собираем типы подключения
         const connections = getConnections('edit');
         data.connection_type = connections.join(', ');
     }
@@ -1423,11 +1426,11 @@ function updateEquipment() {
         data.print_format = $('#editEquipmentPrintFormat').val();
         data.print_speed = parseInt($('#editEquipmentPrintSpeed').val()) || null;
         data.color_type = $('#editEquipmentColorType').val();
-        data.duplex = $('#editEquipmentDuplexAdd').val();
+        data.duplex = $('#editEquipmentDuplex').val();
         data.printer_ports = $('#editEquipmentPrinterPorts').val().trim();
         data.ip_address = $('#editEquipmentIpAddress').val().trim();
         if (type === 'МФУ') {
-            data.scanner_resolution = $('#editEquipmentScannerResolution').val().trim();
+            data.scanner_resolution = $('#editEquipmentScannerResolution').val();
             data.scanner_speed = $('#editEquipmentScannerSpeed').val().trim();
             data.duplex_scanner = $('#editEquipmentDuplexScanner').val();
             data.scan_format = $('#editEquipmentScanFormat').val();
@@ -1595,7 +1598,7 @@ function loadOrganizationsForSelects() {
 // ============================================================
 function escapeHtml(text) {
     if (!text) return '';
-    const div = document.createElement('div');
+    var div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
 }
@@ -1691,46 +1694,7 @@ function loadDepartmentsForDatalist(datalistId) {
     });
 }
 
-$(document).ready(function() {
-    // При вводе в поле кабинета в модалке добавления
-    $(document).on('input', '#addEquipmentRoom', function() {
-        const val = $(this).val().trim();
-        updateDepartmentDisplayLive(val, 'addEquipmentRoom');
-    });
-    // При изменении (выбор из datalist)
-    $(document).on('change', '#addEquipmentRoom', function() {
-        const val = $(this).val().trim();
-        updateDepartmentDisplayLive(val, 'addEquipmentRoom');
-    });
 
-    // Аналогично для поля редактирования
-    $(document).on('input', '#editEquipmentRoom', function() {
-        const val = $(this).val().trim();
-        updateDepartmentDisplayLive(val, 'editEquipmentRoom');
-    });
-    $(document).on('change', '#editEquipmentRoom', function() {
-        const val = $(this).val().trim();
-        updateDepartmentDisplayLive(val, 'editEquipmentRoom');
-    });
-
-    // При открытии модальных окон загружаем список для datalist
-    $('#addEquipmentModal').on('show.bs.modal', function() {
-        loadDepartmentsForDatalist('addEquipmentRoomsList');
-        // Очищаем поле и отображение
-        $('#addEquipmentRoom').val('');
-        $('#addEquipmentDepartmentDisplay').text('—');
-        // Очищаем контейнер подключений и добавляем одну пустую строку
-        const connContainer = document.getElementById('addConnectionContainer');
-        if (connContainer) {
-            connContainer.innerHTML = '';
-            addConnectionRow('add', '');
-        }
-    });
-    $('#editEquipmentModal').on('show.bs.modal', function() {
-        loadDepartmentsForDatalist('editEquipmentRoomsList');
-        // При редактировании уже есть значение, его обработает input
-    });
-});
 
 // Функция обновления отображения отдела с асинхронным поиском
 function updateDepartmentDisplayLive(office, inputId) {
@@ -1754,78 +1718,172 @@ function updateDepartmentDisplayLive(office, inputId) {
         });
     }, 300); // задержка 300 мс
 }
+// ============================================================
+// ГЛОБАЛЬНЫЙ КЭШ КАБИНЕТОВ
+// ============================================================
+let cachedRooms = [];
+
+// Загрузка кабинетов в кэш (выполняется один раз при загрузке страницы)
+function loadRoomsCache() {
+    console.log("⏳ Загрузка кабинетов в кэш...");
+    $.ajax({
+        url: '/api/rooms/search',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ search: '' }),
+        success: function(rooms) {
+            cachedRooms = rooms || [];
+            console.log("✅ Кабинеты загружены в кэш:", cachedRooms.length);
+            // Сразу заполняем datalist'ы, если они уже есть на странице
+            fillRoomDatalist('addEquipmentRoomsList');
+            fillRoomDatalist('editEquipmentRoomsList');
+        },
+        error: function(xhr, status, error) {
+            console.error("❌ Ошибка загрузки кабинетов:", error, xhr.responseText);
+        }
+    });
+}
+
+// Мгновенное заполнение datalist из кэша
+function fillRoomDatalist(datalistId) {
+    var datalist = $('#' + datalistId);
+    if (!datalist.length) {
+        console.warn("Datalist с id '" + datalistId + "' не найден");
+        return;
+    }
+    datalist.empty();
+    if (cachedRooms && cachedRooms.length > 0) {
+        for (var i = 0; i < cachedRooms.length; i++) {
+            var roomNumber = cachedRooms[i].number || cachedRooms[i];
+            datalist.append('<option value="' + escapeHtml(roomNumber) + '">' + escapeHtml(roomNumber) + '</option>');
+        }
+        console.log("📋 Datalist '" + datalistId + "' заполнен, опций:", datalist.children().length);
+    } else {
+        console.warn("⚠️ Кэш пуст, попытка загрузить заново...");
+        loadRoomsCache();
+    }
+}
+
+// Функция для обновления кэша после добавления нового кабинета (опционально)
+function refreshRoomsCache() {
+    loadRoomsCache();
+}
 
 // ============================================================
 // 10. ИНИЦИАЛИЗАЦИЯ ПРИ ЗАГРУЗКЕ
 // ============================================================
+// ============================================================
+// ЕДИНАЯ ИНИЦИАЛИЗАЦИЯ ДЛЯ РАБОТЫ С КАБИНЕТАМИ И МОДАЛКАМИ
+// ============================================================
+// ============================================================
+// ЕДИНАЯ ИНИЦИАЛИЗАЦИЯ
+// ============================================================
 $(document).ready(function() {
-    // ===== ЗАГРУЖАЕМ СОТРУДНИКОВ СРАЗУ ПРИ ЗАГРУЗКЕ СТРАНИЦЫ =====
+
+    // 1. Предзагружаем кабинеты в кэш при загрузке страницы
+    loadRoomsCache();
+
+    // 2. Загружаем сотрудников (с небольшой задержкой)
     setTimeout(function() {
         loadEmployeesForSelects();
     }, 500);
 
-    // ===== ПРИ ОТКРЫТИИ МОДАЛЬНОГО ОКНА ДОБАВЛЕНИЯ =====
+    // 3. При открытии модального окна ДОБАВЛЕНИЯ
     $('#addEquipmentModal').on('show.bs.modal', function() {
-        loadRoomsForEquipmentDatalist('addEquipmentRoomsList');
-    console.log("🔓 Открытие addEquipmentModal");
+        console.log("🔓 Открытие addEquipmentModal");
 
-        // 1. Сбрасываем форму
+        // Сброс формы
         $('#addEquipmentForm')[0].reset();
-        // 2. Скрываем все динамические формы (по типам)
         $('.type-form').hide();
-        // 3. Сбрасываем выбор типа
         $('#addEquipmentType').val('');
-        // 4. Сбрасываем чекбоксы для комплектов
         $('#addEquipmentIsSet').prop('checked', false);
         $('#addEquipmentSetType').val('Клавиатура');
 
-        // 5. Загружаем сотрудников в выпадающие списки
+        // Загружаем сотрудников (повторно, на случай обновления)
         setTimeout(function() {
             loadEmployeesForSelects();
         }, 200);
 
-        // 6. Загружаем кабинеты и организации
-        loadRoomsForSelects();
+        // Загружаем организации в select (если есть)
         loadOrganizationsForSelects();
 
-        // ===== НОВЫЙ КОД ДЛЯ ДИСКОВ =====
-        // 7. Очищаем контейнер и добавляем одну пустую строку для диска
+        // МГНОВЕННО заполняем datalist кабинетов из кэша
+        fillRoomDatalist('addEquipmentRoomsList');
+
+        // Очищаем и добавляем строку диска
         const container = document.getElementById('addStorageContainer');
         if (container) {
-            container.innerHTML = '';          // очищаем
-            addStorageRow('add');             // добавляем одну пустую строку
+            container.innerHTML = '';
+            addStorageRow('add');
         }
-        // =================================
+
+        // Очищаем контейнер подключений
+        const connContainer = document.getElementById('addConnectionContainer');
+        if (connContainer) {
+            connContainer.innerHTML = '';
+            addConnectionRow('add', '');
+        }
+
+        // Сброс отображения отдела
+        $('#addEquipmentDepartmentDisplay').text('—');
+        $('#addEquipmentRoom').val('');
     });
 
-    // ===== ПРИ ОТКРЫТИИ МОДАЛЬНОГО ОКНА РЕДАКТИРОВАНИЯ =====
+    // 4. При открытии модального окна РЕДАКТИРОВАНИЯ
     $('#editEquipmentModal').on('show.bs.modal', function() {
-        loadRoomsForEquipmentDatalist('editEquipmentRoomsList');
         console.log("🔓 Открытие editEquipmentModal");
+
         setTimeout(function() {
-            loadEmployeesForSelects();  
+            loadEmployeesForSelects();
         }, 200);
-        loadRoomsForSelects();
         loadOrganizationsForSelects();
 
-        // Очищаем контейнер дисков (заполнится позже через populateStorageRows)
+        // МГНОВЕННО заполняем datalist кабинетов из кэша
+        fillRoomDatalist('editEquipmentRoomsList');
+
+        // Очищаем контейнер дисков (заполнится позже)
         const container = document.getElementById('editStorageContainer');
         if (container) {
             container.innerHTML = '';
-            // Не добавляем строку, так как populateStorageRows сделает это
         }
     });
 
-    // ===== ПРИ ИЗМЕНЕНИИ ТИПА =====
+    // 5. Обновление отдела при вводе/выборе кабинета
+    $(document).on('input', '#addEquipmentRoom', function() {
+        const val = $(this).val().trim();
+        updateDepartmentDisplayLive(val, 'addEquipmentRoom');
+    });
+    $(document).on('change', '#addEquipmentRoom', function() {
+        const val = $(this).val().trim();
+        updateDepartmentDisplayLive(val, 'addEquipmentRoom');
+    });
+
+    $(document).on('input', '#editEquipmentRoom', function() {
+        const val = $(this).val().trim();
+        updateDepartmentDisplayLive(val, 'editEquipmentRoom');
+    });
+    $(document).on('change', '#editEquipmentRoom', function() {
+        const val = $(this).val().trim();
+        updateDepartmentDisplayLive(val, 'editEquipmentRoom');
+    });
+
+    // 6. Если вдруг datalist пуст при фокусе – заполняем повторно
+    $('#addEquipmentRoom, #editEquipmentRoom').on('focus', function() {
+        var input = $(this);
+        var datalistId = input.attr('list');
+        var datalist = $('#' + datalistId);
+        if (datalist.children().length === 0) {
+            fillRoomDatalist(datalistId);
+        }
+    });
+
+    // 7. Обработчики изменения типа оборудования
     $('#addEquipmentType').on('change', function() {
         updateEquipmentForm();
     });
-
     $('#editEquipmentType').on('change', function() {
         updateEditForm();
     });
-    
 
 });
-
 </script>

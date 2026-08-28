@@ -88,32 +88,30 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title"><i class="fas fa-users"></i> Добавить отдел</h5>
+                <h5 class="modal-title"><i class="fas fa-sitemap"></i> Добавить отдел</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <form id="addDepartmentForm">
                     <div class="mb-3">
-                        <label class="form-label">Организация *</label>
-                        <select class="form-select" id="deptOrgId" required>
-                            <option value="">Выберите организацию</option>
+                        <label class="form-label">Название отдела <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="deptName" required placeholder="Например: Отдел продаж">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Организация</label>
+                        <select class="form-select" id="deptOrganizationId">
+                            <option value="">-- Выберите организацию --</option>
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Название отдела *</label>
-                        <input type="text" class="form-control" id="deptName" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Телефон</label>
-                        <input type="text" class="form-control" id="deptPhone">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Email</label>
-                        <input type="email" class="form-control" id="deptEmail">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Руководитель</label>
-                        <input type="text" class="form-control" id="deptHeadName">
+                        <label class="form-label">Кабинеты</label>
+                        <div id="addOfficesContainer">
+                            <!-- Строки кабинетов будут добавляться сюда -->
+                        </div>
+                        <button type="button" class="btn btn-outline-primary btn-sm mt-1" onclick="addOfficeRow('add', '')">
+                            <i class="fas fa-plus"></i> Добавить кабинет
+                        </button>
+                        <small class="text-muted d-block">Нажмите «Добавить кабинет», чтобы указать несколько кабинетов</small>
                     </div>
                 </form>
             </div>
@@ -205,6 +203,50 @@ function saveOrganization() {
     });
 }
 
+function addOfficeRow(mode, officeText = '') {
+    const containerId = mode === 'add' ? 'addOfficesContainer' : 'editOfficesContainer';
+    let container = document.getElementById(containerId);
+    if (!container) {
+        // Если контейнер ещё не создан (например, при первом открытии редактирования), создаём его внутри wrapper
+        if (mode === 'edit') {
+            const wrapper = document.getElementById('viewDepartmentOfficesWrapper');
+            if (wrapper) {
+                container = document.createElement('div');
+                container.id = 'editOfficesContainer';
+                wrapper.appendChild(container);
+            }
+        }
+        if (!container) return;
+    }
+    const row = document.createElement('div');
+    row.className = 'row office-row mb-1';
+    row.innerHTML = `
+        <div class="col-10">
+            <input type="text" class="form-control form-control-sm office-input" placeholder="Введите кабинет" value="${escapeHtml(officeText)}">
+        </div>
+        <div class="col-2 text-end">
+            <button type="button" class="btn btn-sm btn-outline-danger remove-office-btn" onclick="this.closest('.office-row').remove()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `;
+    container.appendChild(row);
+}
+
+function getOffices(mode) {
+    const containerId = mode === 'add' ? 'addOfficesContainer' : 'editOfficesContainer';
+    const container = document.getElementById(containerId);
+    if (!container) return [];
+    const inputs = container.querySelectorAll('.office-input');
+    const offices = [];
+    inputs.forEach(input => {
+        const val = input.value.trim();
+        if (val) offices.push(val);
+    });
+    return offices;
+}
+
+
 function updateOrganization() {
     var id = $('#editOrgId').val();
     var data = {
@@ -240,37 +282,54 @@ function updateOrganization() {
 }
 
 function saveDepartment() {
-    var data = {
-        organization_id: $('#deptOrgId').val(),
-        name: $('#deptName').val(),
-        phone: $('#deptPhone').val(),
-        email: $('#deptEmail').val(),
-        head_name: $('#deptHeadName').val()
-    };
-    
-    if (!data.organization_id || !data.name) {
-        alert('Заполните обязательные поля');
+    const name = $('#deptName').val().trim();
+    const organizationId = $('#deptOrganizationId').val();
+    const offices = getOffices('add'); // собираем массив кабинетов
+
+    if (!name) {
+        showMessage('Введите название отдела', 'danger');
         return;
     }
-    
+
+    const btn = $('#addDepartmentModal .btn-primary');
+    const originalHtml = btn.html();
+    btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Сохранение...');
+
     $.ajax({
         url: '/api/departments',
         method: 'POST',
         contentType: 'application/json',
-        data: JSON.stringify(data),
+        data: JSON.stringify({
+            name: name,
+            organization_id: organizationId || null,
+            offices: offices
+        }),
         success: function(response) {
             if (response.success) {
-                showMessage('Отдел добавлен', 'success');
+                showMessage('✅ Отдел добавлен', 'success');
                 $('#addDepartmentModal').modal('hide');
                 $('#addDepartmentForm')[0].reset();
+                // Очищаем контейнер кабинетов и добавляем одну пустую строку
+                const container = document.getElementById('addOfficesContainer');
+                if (container) {
+                    container.innerHTML = '';
+                    addOfficeRow('add', '');
+                }
                 if (typeof loadDepartments === 'function') loadDepartments();
-                loadDeptSelect();
             } else {
-                showMessage(response.error, 'danger');
+                showMessage(response.error || 'Ошибка при добавлении', 'danger');
             }
+        },
+        error: function(xhr) {
+            const error = xhr.responseJSON;
+            showMessage(error?.error || '❌ Ошибка при добавлении отдела', 'danger');
+        },
+        complete: function() {
+            btn.prop('disabled', false).html(originalHtml);
         }
     });
 }
+
 
 function saveOffice() {
     var data = {
@@ -344,5 +403,14 @@ function showMessage(message, type) {
 $(document).ready(function() {
     loadOrgSelect();
     loadDeptSelect();
+    $('#addDepartmentModal').on('show.bs.modal', function() {
+        loadDepartmentOrganizationSelect();
+        $('#addDepartmentForm')[0].reset();
+        const container = document.getElementById('addOfficesContainer');
+        if (container) {
+            container.innerHTML = '';
+            addOfficeRow('add', ''); // добавляем одну пустую строку
+        }
+    });
 });
 </script>

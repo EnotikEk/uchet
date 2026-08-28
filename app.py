@@ -2499,36 +2499,46 @@ def api_get_departments():
     
     if org_id:
         cursor.execute("""
-            SELECT d.id, d.name, d.office, d.organization_id, o.name as organization_name
+            SELECT d.id, d.name, d.organization_id, o.name as organization_name,
+                   GROUP_CONCAT(do.office, '||') as offices_str
             FROM Departments d
             LEFT JOIN Organizations o ON d.organization_id = o.id
+            LEFT JOIN DepartmentOffices do ON d.id = do.department_id
             WHERE d.organization_id = ?
+            GROUP BY d.id
             ORDER BY d.name
         """, (org_id,))
     elif is_admin:
         cursor.execute("""
-            SELECT d.id, d.name, d.office, d.organization_id, o.name as organization_name
+            SELECT d.id, d.name, d.organization_id, o.name as organization_name,
+                   GROUP_CONCAT(do.office, '||') as offices_str
             FROM Departments d
             LEFT JOIN Organizations o ON d.organization_id = o.id
+            LEFT JOIN DepartmentOffices do ON d.id = do.department_id
+            GROUP BY d.id
             ORDER BY d.name
         """)
     else:
         cursor.execute("""
-            SELECT d.id, d.name, d.office, d.organization_id, o.name as organization_name
+            SELECT d.id, d.name, d.organization_id, o.name as organization_name,
+                   GROUP_CONCAT(do.office, '||') as offices_str
             FROM Departments d
             LEFT JOIN Organizations o ON d.organization_id = o.id
+            LEFT JOIN DepartmentOffices do ON d.id = do.department_id
             WHERE d.organization_id IS NULL
+            GROUP BY d.id
             ORDER BY d.name
         """)
     
     departments = []
     for row in cursor.fetchall():
+        offices = row[4].split('||') if row[4] else []
         departments.append({
             'id': row[0],
             'name': row[1],
-            'office': row[2] if row[2] else '',
-            'organization_id': row[3],
-            'organization_name': row[4] if row[4] else '—'
+            'organization_id': row[2],
+            'organization_name': row[3] if row[3] else '—',
+            'offices': offices
         })
     conn.close()
     return jsonify(departments)
@@ -2538,8 +2548,8 @@ def api_get_departments():
 def api_add_department():
     data = request.json
     name = data.get('name', '').strip()
-    office = data.get('office', '').strip()
     organization_id = data.get('organization_id')
+    offices = data.get('offices', [])
     
     if not name:
         return jsonify({'success': False, 'error': 'Введите название отдела'}), 400
@@ -2551,13 +2561,19 @@ def api_add_department():
             organization_id = get_organization_for_new_record()
         
         cursor.execute("""
-            INSERT INTO Departments (name, office, organization_id)
-            VALUES (?, ?, ?)
-        """, (name, office, organization_id if organization_id else None))
+            INSERT INTO Departments (name, organization_id)
+            VALUES (?, ?)
+        """, (name, organization_id if organization_id else None))
+        dept_id = cursor.lastrowid
+        
+        for office in offices:
+            office = office.strip()
+            if office:
+                cursor.execute("INSERT INTO DepartmentOffices (department_id, office) VALUES (?, ?)",
+                               (dept_id, office))
+        
         conn.commit()
-        return jsonify({'success': True, 'id': cursor.lastrowid})
-    except sqlite3.IntegrityError:
-        return jsonify({'success': False, 'error': 'Отдел с таким названием уже существует'}), 400
+        return jsonify({'success': True, 'id': dept_id})
     except Exception as e:
         conn.rollback()
         return jsonify({'success': False, 'error': str(e)}), 400
@@ -2569,8 +2585,8 @@ def api_add_department():
 def api_update_department(id):
     data = request.json
     name = data.get('name', '').strip()
-    office = data.get('office', '').strip()
     organization_id = data.get('organization_id')
+    offices = data.get('offices', [])
     
     if not name:
         return jsonify({'success': False, 'error': 'Введите название отдела'}), 400
@@ -2580,9 +2596,18 @@ def api_update_department(id):
     try:
         cursor.execute("""
             UPDATE Departments 
-            SET name = ?, office = ?, organization_id = ?
+            SET name = ?, organization_id = ?
             WHERE id = ?
-        """, (name, office, organization_id if organization_id else None, id))
+        """, (name, organization_id if organization_id else None, id))
+        
+        # Удалить старые кабинеты и вставить новые
+        cursor.execute("DELETE FROM DepartmentOffices WHERE department_id = ?", (id,))
+        for office in offices:
+            office = office.strip()
+            if office:
+                cursor.execute("INSERT INTO DepartmentOffices (department_id, office) VALUES (?, ?)",
+                               (id, office))
+        
         conn.commit()
         return jsonify({'success': True})
     except Exception as e:
@@ -3315,6 +3340,7 @@ def import_equipment_excel():
                         print(f"[ИМПОРТ] Строка {idx+2}: создан кабинет '{room_number}' (id={room_id})")
                         conn.commit()
 
+                    # ОБНОВЛЯЕМ ПОЛЕ office В ТАБЛИЦЕ Departments (для обратной совместимости)
                     if department_id and room_number:
                         cursor.execute(
                             "UPDATE Departments SET office = ? WHERE id = ? AND (office IS NULL OR office != ?)",
@@ -3322,6 +3348,20 @@ def import_equipment_excel():
                         )
                         if cursor.rowcount > 0:
                             print(f"[ИМПОРТ] Строка {idx+2}: обновлён office у отдела '{department_name}' -> '{room_number}'")
+                            conn.commit()
+
+                    # ===== НОВАЯ ЛОГИКА: ДОБАВЛЯЕМ СВЯЗЬ В DepartmentOffices =====
+                    if department_id and room_id:
+                        cursor.execute(
+                            "SELECT id FROM DepartmentOffices WHERE department_id = ? AND office = ?",
+                            (department_id, room_number)
+                        )
+                        if not cursor.fetchone():
+                            cursor.execute(
+                                "INSERT INTO DepartmentOffices (department_id, office) VALUES (?, ?)",
+                                (department_id, room_number)
+                            )
+                            print(f"[ИМПОРТ] Строка {idx+2}: добавлена связь отдела {department_name} с кабинетом {room_number}")
                             conn.commit()
 
                 # 4. Ответственный сотрудник
@@ -3443,7 +3483,7 @@ def import_equipment_excel():
                 if col_notes and pd.notna(row[col_notes]):
                     notes = str(row[col_notes]).strip()
 
-                # 8. Оборудование – ИСПРАВЛЕННЫЙ БЛОК
+                # 8. Оборудование – вставка/обновление
                 if inventory is None:
                     # Вставка без инвентарного номера
                     cursor.execute("""
@@ -3878,10 +3918,8 @@ def search_departments():
 def search_rooms():
     data = request.json
     search_term = data.get('search', '').strip()
-    
     conn = get_db()
     cursor = conn.cursor()
-    
     cursor.execute("""
         SELECT r.id, r.Number, r.department_id, d.name as department_name
         FROM Rooms r
@@ -3889,15 +3927,7 @@ def search_rooms():
         WHERE r.Number LIKE ?
         ORDER BY r.Number
     """, (f'%{search_term}%',))
-    
-    rooms = []
-    for row in cursor.fetchall():
-        rooms.append({
-            'id': row[0],
-            'number': row[1],
-            'department_id': row[2],
-            'department_name': row[3] or ''
-        })
+    rooms = [{'id': row[0], 'number': row[1], 'department_id': row[2], 'department_name': row[3] or ''} for row in cursor.fetchall()]
     conn.close()
     return jsonify(rooms)
 
