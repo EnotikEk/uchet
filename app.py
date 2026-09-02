@@ -8,8 +8,20 @@ from auth import (login_required, admin_required, hash_password, verify_password
 import sqlite3
 import os
 import sys
+
+# На Windows консоль может использовать кодировку cp1251; принудительно
+# переключаем потоки на utf-8, чтобы print() со спецсимволами не ронял запуск.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+
 import pandas as pd
-import openpyxl
+try:
+    import openpyxl  # необязательная зависимость, нужна только для экспорта/импорта Excel
+except ImportError:
+    openpyxl = None
 from io import BytesIO, StringIO
 
 from database import get_db, init_db, upgrade_db
@@ -510,7 +522,7 @@ def add_cartridge():
         ip = data.get('ip', '')
         
         import time
-        serial_number = f"{model}_{int(time.time())}_{id}"
+        serial_number = f"{model}_{time.time_ns()}"
         
         # Проверяем наличие колонки organization_id
         cursor.execute("PRAGMA table_info(Catrigs)")
@@ -967,12 +979,12 @@ def add_cartridge_model():
         # Проверяем, есть ли уже аналитика для этой модели в этом филиале
         if save_org_id:
             cursor.execute("""
-                SELECT id, InStock FROM Analytics 
+                SELECT Cartridge, InStock FROM Analytics
                 WHERE Cartridge = ? AND organization_id = ?
             """, (model_name, save_org_id))
         else:
             cursor.execute("""
-                SELECT id, InStock FROM Analytics 
+                SELECT Cartridge, InStock FROM Analytics
                 WHERE Cartridge = ? AND organization_id IS NULL
             """, (model_name,))
         

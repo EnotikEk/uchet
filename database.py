@@ -4,6 +4,14 @@ import sys
 from datetime import datetime
 import hashlib
 
+# На Windows консоль может использовать кодировку cp1251, из-за чего print()
+# со спецсимволами (✅, ⚠️) роняет инициализацию БД с UnicodeEncodeError.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+
 def get_db_path():
     """Получение пути к базе данных в зависимости от способа запуска"""
     env_db_path = os.environ.get('DATABASE_PATH')
@@ -315,9 +323,19 @@ def init_db():
             email TEXT,
             company TEXT,
             quantity INTEGER DEFAULT 0,
-            used INTEGER DEFAULT 0
+            used INTEGER DEFAULT 0,
+            organization_id INTEGER,
+            status TEXT DEFAULT 'Активна',
+            FOREIGN KEY(organization_id) REFERENCES Organizations(id)
         )
     """)
+
+    cursor.execute("PRAGMA table_info(Licenses)")
+    columns = [col[1] for col in cursor.fetchall()]
+    if 'organization_id' not in columns:
+        cursor.execute("ALTER TABLE Licenses ADD COLUMN organization_id INTEGER")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_licenses_organization ON Licenses(organization_id)")
+        print("✅ Добавлена колонка organization_id в таблицу Licenses")
     
     # ========== ТАБЛИЦА ДЛЯ УЧЕТА ОРГАНИЗАЦИЙ ==========
     cursor.execute("""
@@ -531,37 +549,24 @@ def init_db():
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_rooms_department ON Rooms(department_id)")
         print("✅ Добавлено поле department_id в таблицу Rooms")
 
-        # Таблица Equipment
-    cursor.execute("PRAGMA table_info(Equipment)")
-    columns = [col[1] for col in cursor.fetchall()]
-    if 'address_id' not in columns:
-        cursor.execute("ALTER TABLE Equipment ADD COLUMN address_id INTEGER")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_equipment_address ON Equipment(address_id)")
-        cursor.execute("ALTER TABLE Equipment ADD FOREIGN KEY (address_id) REFERENCES OrganizationAddresses(id)")
-
-    # Таблица Catrigs
-    cursor.execute("PRAGMA table_info(Catrigs)")
-    if 'address_id' not in columns:
-        cursor.execute("ALTER TABLE Catrigs ADD COLUMN address_id INTEGER")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_catrigs_address ON Catrigs(address_id)")
-
-    # Таблица Licenses
-    cursor.execute("PRAGMA table_info(Licenses)")
-    if 'address_id' not in columns:
-        cursor.execute("ALTER TABLE Licenses ADD COLUMN address_id INTEGER")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_licenses_address ON Licenses(address_id)")
-
-    # Таблица Analytics
-    cursor.execute("PRAGMA table_info(Analytics)")
-    if 'address_id' not in columns:
-        cursor.execute("ALTER TABLE Analytics ADD COLUMN address_id INTEGER")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_analytics_address ON Analytics(address_id)")
-
-    # Таблица Departments
-    cursor.execute("PRAGMA table_info(Departments)")
-    if 'address_id' not in columns:
-        cursor.execute("ALTER TABLE Departments ADD COLUMN address_id INTEGER")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_departments_address ON Departments(address_id)")
+    # Колонка address_id в таблицах, привязанных к адресам организаций.
+    # SQLite не поддерживает ALTER TABLE ... ADD FOREIGN KEY, поэтому добавляем
+    # только саму колонку и индекс. Каждую таблицу проверяем по её собственным колонкам.
+    for table, index in (
+        ('Equipment', 'idx_equipment_address'),
+        ('Catrigs', 'idx_catrigs_address'),
+        ('Licenses', 'idx_licenses_address'),
+        ('Analytics', 'idx_analytics_address'),
+        ('Departments', 'idx_departments_address'),
+    ):
+        cursor.execute(f"PRAGMA table_info({table})")
+        table_columns = [col[1] for col in cursor.fetchall()]
+        if 'address_id' not in table_columns:
+            try:
+                cursor.execute(f"ALTER TABLE {table} ADD COLUMN address_id INTEGER")
+                cursor.execute(f"CREATE INDEX IF NOT EXISTS {index} ON {table}(address_id)")
+            except Exception as e:
+                print(f"⚠️ Ошибка добавления address_id в {table}: {e}")
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS DepartmentOffices (
@@ -633,6 +638,10 @@ def upgrade_db():
     if 'status' not in licenses_cols:
         cursor.execute("ALTER TABLE Licenses ADD COLUMN status TEXT DEFAULT 'Активна'")
         print("✅ Добавлена колонка status в Licenses")
+    if 'organization_id' not in licenses_cols:
+        cursor.execute("ALTER TABLE Licenses ADD COLUMN organization_id INTEGER")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_licenses_organization ON Licenses(organization_id)")
+        print("✅ Добавлена колонка organization_id в Licenses")
 
     cursor.execute("PRAGMA table_info(Catrigs)")
     catrigs_cols = [col[1] for col in cursor.fetchall()]
@@ -662,45 +671,29 @@ def upgrade_db():
         except Exception as e:
             print(f"⚠️ Ошибка добавления equipment_id в Catrigs: {e}")
 
-    # В init_db() и upgrade_db() добавить:
     cursor.execute("PRAGMA table_info(Equipment)")
     columns = [col[1] for col in cursor.fetchall()]
     if 'characteristics' not in columns:
         cursor.execute("ALTER TABLE Equipment ADD COLUMN characteristics TEXT")
         print("✅ Добавлена колонка characteristics в Equipment")
 
-    # В функции init_db() и upgrade_db() добавляем:
-    # Таблица Equipment
-    cursor.execute("PRAGMA table_info(Equipment)")
-    columns = [col[1] for col in cursor.fetchall()]
-    if 'address_id' not in columns:
-        cursor.execute("ALTER TABLE Equipment ADD COLUMN address_id INTEGER")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_equipment_address ON Equipment(address_id)")
-        cursor.execute("ALTER TABLE Equipment ADD FOREIGN KEY (address_id) REFERENCES OrganizationAddresses(id)")
-
-    # Таблица Catrigs
-    cursor.execute("PRAGMA table_info(Catrigs)")
-    if 'address_id' not in columns:
-        cursor.execute("ALTER TABLE Catrigs ADD COLUMN address_id INTEGER")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_catrigs_address ON Catrigs(address_id)")
-
-    # Таблица Licenses
-    cursor.execute("PRAGMA table_info(Licenses)")
-    if 'address_id' not in columns:
-        cursor.execute("ALTER TABLE Licenses ADD COLUMN address_id INTEGER")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_licenses_address ON Licenses(address_id)")
-
-    # Таблица Analytics
-    cursor.execute("PRAGMA table_info(Analytics)")
-    if 'address_id' not in columns:
-        cursor.execute("ALTER TABLE Analytics ADD COLUMN address_id INTEGER")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_analytics_address ON Analytics(address_id)")
-
-    # Таблица Departments
-    cursor.execute("PRAGMA table_info(Departments)")
-    if 'address_id' not in columns:
-        cursor.execute("ALTER TABLE Departments ADD COLUMN address_id INTEGER")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_departments_address ON Departments(address_id)")
+    # Колонка address_id. SQLite не поддерживает ALTER TABLE ... ADD FOREIGN KEY,
+    # поэтому добавляем только колонку и индекс, проверяя каждую таблицу отдельно.
+    for table, index in (
+        ('Equipment', 'idx_equipment_address'),
+        ('Catrigs', 'idx_catrigs_address'),
+        ('Licenses', 'idx_licenses_address'),
+        ('Analytics', 'idx_analytics_address'),
+        ('Departments', 'idx_departments_address'),
+    ):
+        cursor.execute(f"PRAGMA table_info({table})")
+        table_columns = [col[1] for col in cursor.fetchall()]
+        if 'address_id' not in table_columns:
+            try:
+                cursor.execute(f"ALTER TABLE {table} ADD COLUMN address_id INTEGER")
+                cursor.execute(f"CREATE INDEX IF NOT EXISTS {index} ON {table}(address_id)")
+            except Exception as e:
+                print(f"⚠️ Ошибка добавления address_id в {table}: {e}")
 
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='DepartmentOffices'")
     if not cursor.fetchone():
