@@ -277,33 +277,103 @@ def index():
         """)
     expired_licenses = cursor.fetchone()[0]
     
-    # ===== ПОСЛЕДНИЕ ДОБАВЛЕННЫЕ КАРТРИДЖИ =====
-    cursor.execute(f"""
-        SELECT 
-            C.Model as model,
-            C.Status,
-            COALESCE(E.Department_Fullname, '—') as responsible,
-            COALESCE(C.created_at, datetime('now')) as created_date,
-            U.username as created_by_username, 
-            U.full_name as created_by_fullname
-        FROM Catrigs C
-        LEFT JOIN Employees E ON C.Responsible = E.id
-        LEFT JOIN Users U ON C.created_by = U.id
-        WHERE 1=1 {filter_cartridges}
-        ORDER BY C.created_at DESC, C.id DESC
-        LIMIT 5
-    """, filter_params_cartridges)
-    recent_cartridges = cursor.fetchall()
-    
+    # ===== ПОСЛЕДНИЕ ИЗМЕНЕНИЯ (картриджи, оборудование, лицензии) =====
+    def _org_cond(alias):
+        """Условие фильтра по филиалу для конкретного псевдонима таблицы."""
+        if org_id:
+            return (f"AND {alias}.organization_id = ?", [org_id])
+        elif is_admin:
+            return ("", [])
+        return (f"AND {alias}.organization_id IS NULL", [])
+
+    cond_c, p_c = _org_cond('C')
+    cond_e, p_e = _org_cond('E')
+    cond_l, p_l = _org_cond('L')
+
+    recent_query = f"""
+        SELECT section, title, action, ts, who FROM (
+            SELECT 'Картриджи' AS section,
+                   C.Model AS title,
+                   'Добавлен' AS action,
+                   C.created_at AS ts,
+                   COALESCE(NULLIF(U.full_name, ''), U.username, '') AS who,
+                   C.id AS rid
+            FROM Catrigs C
+            LEFT JOIN Users U ON C.created_by = U.id
+            WHERE C.created_at IS NOT NULL {cond_c}
+
+            UNION ALL
+
+            SELECT 'Оборудование',
+                   TRIM(COALESCE(E.type, '') || ' ' || COALESCE(E.brand, '') || ' ' || COALESCE(E.model, '')),
+                   CASE WHEN E.updated_at IS NOT NULL AND E.updated_at > E.created_at
+                        THEN 'Изменено' ELSE 'Добавлено' END,
+                   COALESCE(E.updated_at, E.created_at),
+                   COALESCE(NULLIF(Uu.full_name, ''), Uu.username, NULLIF(Uc.full_name, ''), Uc.username, ''),
+                   E.id
+            FROM Equipment E
+            LEFT JOIN Users Uc ON E.created_by = Uc.id
+            LEFT JOIN Users Uu ON E.updated_by = Uu.id
+            WHERE COALESCE(E.updated_at, E.created_at) IS NOT NULL {cond_e}
+
+            UNION ALL
+
+            SELECT 'Лицензии',
+                   L.product_name,
+                   CASE WHEN L.updated_at IS NOT NULL AND L.updated_at > L.created_at
+                        THEN 'Изменена' ELSE 'Добавлена' END,
+                   COALESCE(L.updated_at, L.created_at),
+                   '',
+                   L.id
+            FROM Licenses L
+            WHERE COALESCE(L.updated_at, L.created_at) IS NOT NULL {cond_l}
+        )
+        ORDER BY ts DESC, rid DESC
+        LIMIT 8
+    """
+
+    section_links = {
+        'Картриджи': url_for('cartridges'),
+        'Оборудование': url_for('equipment_page'),
+        'Лицензии': url_for('licenses'),
+    }
+
+    def _fmt_ts(ts):
+        if not ts:
+            return ''
+        s = str(ts).replace('T', ' ')
+        try:
+            return datetime.strptime(s[:19], '%Y-%m-%d %H:%M:%S').strftime('%d.%m.%Y %H:%M')
+        except ValueError:
+            try:
+                return datetime.strptime(s[:10], '%Y-%m-%d').strftime('%d.%m.%Y')
+            except ValueError:
+                return s
+
+    recent_activity = []
+    try:
+        cursor.execute(recent_query, p_c + p_e + p_l)
+        for row in cursor.fetchall():
+            recent_activity.append({
+                'section': row[0],
+                'title': row[1],
+                'action': row[2],
+                'who': row[4],
+                'when': _fmt_ts(row[3]),
+                'link': section_links.get(row[0]),
+            })
+    except Exception as e:
+        print(f"Ошибка загрузки последних изменений: {e}")
+
     conn.close()
-    
-    return render_template('index.html', 
+
+    return render_template('index.html',
                          cartridges_count=cartridges_count,
                          licenses_count=licenses_count,
                          organizations_count=organizations_count,
                          equipment_count=equipment_count,
                          expired_licenses=expired_licenses,
-                         recent_cartridges=recent_cartridges)
+                         recent_activity=recent_activity)
 
 # ========== КАРТРИДЖИ ==========
 @app.route('/cartridges')
@@ -1908,14 +1978,14 @@ def add_license():
     try:
         save_org_id = get_organization_for_new_record()
         cursor.execute("""
-            INSERT INTO Licenses (product_name, product_key, expiry_date, company, quantity, used, organization_id, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO Licenses (product_name, product_key, expiry_date, company, quantity, used, organization_id, status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
         """, (
-            data.get('product_name'), 
-            data.get('product_key'), 
-            data.get('expiry_date'), 
-            data.get('company'), 
-            data.get('quantity', 0), 
+            data.get('product_name'),
+            data.get('product_key'),
+            data.get('expiry_date'),
+            data.get('company'),
+            data.get('quantity', 0),
             data.get('used', 0),
             save_org_id,
             data.get('status', 'Активна')   # <-- ДОБАВЛЕНО
@@ -1936,15 +2006,16 @@ def update_license(id):
     
     try:
         cursor.execute("""
-            UPDATE Licenses 
-            SET product_name=?, product_key=?, expiry_date=?, company=?, quantity=?, used=?, status=?
+            UPDATE Licenses
+            SET product_name=?, product_key=?, expiry_date=?, company=?, quantity=?, used=?, status=?,
+                updated_at=datetime('now')
             WHERE id=?
         """, (
-            data.get('product_name'), 
-            data.get('product_key'), 
+            data.get('product_name'),
+            data.get('product_key'),
             data.get('expiry_date'),
-            data.get('company'), 
-            data.get('quantity', 0), 
+            data.get('company'),
+            data.get('quantity', 0),
             data.get('used', 0),
             data.get('status', 'Активна'),   # <-- ДОБАВЛЕНО
             id

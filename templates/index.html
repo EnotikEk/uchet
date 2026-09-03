@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Система учета предприятия{% endblock %}
+{% block title %}Система учёта IT-ресурсов «IT-Hub»{% endblock %}
 
 {% block content %}
 <!-- Верхняя панель -->
@@ -9,9 +9,9 @@
         <div class="hero-section mb-4">
             <div class="hero-content">
                 <div class="hero-icon">
-                    <i class="fas fa-building"></i>
+                    <i class="fas fa-server"></i>
                 </div>
-                <h1 class="hero-title">Система учета предприятия "Волго-Балт"</h1>
+                <h1 class="hero-title">Система учёта IT-ресурсов «IT-Hub»</h1>
                 <p class="text-white-50 mt-2">Добро пожаловать, {{ session.get('full_name', session.get('username', 'Пользователь')) }}!</p>
             </div>
         </div>
@@ -20,6 +20,25 @@
 
 <!-- Главные кнопки-карточки -->
 <div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-center dashboard-card" onclick="window.location.href='{{ url_for('equipment_page') }}'">
+            <div class="card-body py-4">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <i class="fas fa-desktop fa-3x"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <h5 class="card-title mb-1">Учет оборудования</h5>
+                        <p class="card-text small mb-0">Компьютеры, мониторы, серверы</p>
+                    </div>
+                    <div>
+                        <span class="badge rounded-pill fs-6" id="equipment_count">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="col-md-3">
         <div class="card text-center dashboard-card" onclick="window.location.href='{{ url_for('cartridges') }}'">
             <div class="card-body py-4">
@@ -38,7 +57,7 @@
             </div>
         </div>
     </div>
-    
+
     <div class="col-md-3">
         <div class="card text-center dashboard-card" onclick="window.location.href='{{ url_for('licenses') }}'">
             <div class="card-body py-4">
@@ -57,7 +76,7 @@
             </div>
         </div>
     </div>
-    
+
     <div class="col-md-3">
         <div class="card text-center dashboard-card" onclick="window.location.href='{{ url_for('organizations') }}'">
             <div class="card-body py-4">
@@ -71,25 +90,6 @@
                     </div>
                     <div>
                         <span class="badge rounded-pill fs-6">{{ organizations_count }}</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-3">
-        <div class="card text-center dashboard-card" onclick="window.location.href='{{ url_for('equipment_page') }}'">
-            <div class="card-body py-4">
-                <div class="d-flex align-items-center justify-content-between">
-                    <div>
-                        <i class="fas fa-desktop fa-3x"></i>
-                    </div>
-                    <div class="flex-grow-1">
-                        <h5 class="card-title mb-1">Учет оборудования</h5>
-                        <p class="card-text small mb-0">Компьютеры, мониторы, серверы</p>
-                    </div>
-                    <div>
-                        <span class="badge rounded-pill fs-6" id="equipment_count">0</span>
                     </div>
                 </div>
             </div>
@@ -109,80 +109,44 @@
     </div>
     {% endif %}
     
-    <!-- Последняя активность -->
+    <!-- Последние изменения -->
     <div class="col-md-7">
         <div class="card" style="border-radius: 0;">
             <div class="card-header bg-dark text-white py-2" style="border-radius: 0;">
-                <h6 class="mb-0"><i class="fas fa-clock"></i> Последние добавленные картриджи</h6>
+                <h6 class="mb-0"><i class="fas fa-clock"></i> Последние изменения</h6>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-hover mb-0">
                         <thead>
                             <tr>
-                                <th class="small">Модель</th>
-                                <th class="small">Статус</th>
-                                <th class="small">Ответственный</th>
-                                <th class="small">Кто добавил</th>
-                                <th class="small">Дата создания</th>
+                                <th class="small">Раздел</th>
+                                <th class="small">Объект</th>
+                                <th class="small">Действие</th>
+                                <th class="small">Кто</th>
+                                <th class="small">Когда</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for cart in recent_cartridges %}
-                            <tr onclick="window.location.href='{{ url_for('cartridges') }}'" style="cursor: pointer;">
+                            {% for item in recent_activity %}
+                            {% if item.link %}
+                            <tr onclick="window.location.href='{{ item.link }}'" style="cursor: pointer;">
+                            {% else %}
+                            <tr>
+                            {% endif %}
                                 <td class="align-middle">
-                                    <small>
-                                        {% if cart[0] %}
-                                            {{ cart[0] }}
-                                        {% else %}
-                                            —
-                                        {% endif %}
-                                    </small>
+                                    <small><span class="badge bg-secondary">{{ item.section }}</span></small>
                                 </td>
+                                <td class="align-middle"><small>{{ item.title or '—' }}</small></td>
                                 <td class="align-middle">
-                                    {% if cart[1] == 'Заправлен' %}
-                                    <span class="badge bg-success small">{{ cart[1] }}</span>
-                                    {% elif cart[1] == 'Пустой' %}
-                                    <span class="badge bg-danger small">{{ cart[1] }}</span>
-                                    {% elif cart[1] == 'Заправка' %}
-                                    <span class="badge bg-warning small">{{ cart[1] }}</span>
-                                    {% elif cart[1] == 'Под списание' %}
-                                    <span class="badge bg-danger small">{{ cart[1] }}</span>
+                                    {% if 'Изменен' in item.action %}
+                                    <span class="badge bg-warning text-dark small">{{ item.action }}</span>
                                     {% else %}
-                                    <span class="badge bg-info small">{{ cart[1] }}</span>
+                                    <span class="badge bg-success small">{{ item.action }}</span>
                                     {% endif %}
                                 </td>
-                                <td class="align-middle"><small>{{ cart[2] }}</small></td>
-                                <td class="align-middle">
-                                    <small>
-                                        {% if cart[4] %}
-                                            {{ cart[4] }}
-                                        {% elif cart[5] %}
-                                            {{ cart[5] }}
-                                        {% else %}
-                                            —
-                                        {% endif %}
-                                    </small>
-                                </td>
-                                <td class="align-middle">
-                                    <small>
-                                        {% if cart[3] %}
-                                            {% set date_str = cart[3]|string %}
-                                            {% if '-' in date_str %}
-                                                {% set parts = date_str.split('-') %}
-                                                {% set day = parts[2].split()[0] %}
-                                                {% if day|length > 2 %}
-                                                    {% set day = day[:2] %}
-                                                {% endif %}
-                                                {{ day }}.{{ parts[1] }}.{{ parts[0] }}
-                                            {% else %}
-                                                {{ date_str[:10] }}
-                                            {% endif %}
-                                        {% else %}
-                                            сегодня
-                                        {% endif %}
-                                    </small>
-                                </td>
+                                <td class="align-middle"><small>{{ item.who or '—' }}</small></td>
+                                <td class="align-middle"><small>{{ item.when or '—' }}</small></td>
                             </tr>
                             {% else %}
                             <tr>

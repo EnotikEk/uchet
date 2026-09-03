@@ -49,6 +49,59 @@ def get_db():
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
+def _migrate_analytics_pk(cursor):
+    """Перевести таблицу Analytics на составной первичный ключ
+    (Cartridge, organization_id).
+
+    Изначально первичным ключом был только Cartridge, поэтому одна и та же
+    модель картриджа не могла существовать сразу в нескольких филиалах:
+    списание/добавление картриджа в филиале, где строки аналитики ещё нет,
+    падало с ошибкой 'UNIQUE constraint failed: Analytics.Cartridge'.
+    """
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='Analytics'")
+    if not cursor.fetchone():
+        return
+
+    cursor.execute("PRAGMA table_info(Analytics)")
+    info = cursor.fetchall()  # (cid, name, type, notnull, dflt_value, pk)
+    existing = [row[1] for row in info]
+    pk_cols = [row[1] for row in info if row[5]]
+
+    if 'organization_id' in pk_cols:
+        return  # уже мигрировано
+
+    if 'organization_id' not in existing:
+        cursor.execute("ALTER TABLE Analytics ADD COLUMN organization_id INTEGER")
+        existing.append('organization_id')
+
+    has_address = 'address_id' in existing
+
+    cursor.execute("ALTER TABLE Analytics RENAME TO Analytics_old")
+    cursor.execute("""
+        CREATE TABLE Analytics (
+            Cartridge TEXT NOT NULL,
+            ToWriteOff INTEGER DEFAULT 0,
+            InStock INTEGER DEFAULT 0,
+            OnBalance INTEGER DEFAULT 0,
+            ToBuy INTEGER DEFAULT 0,
+            organization_id INTEGER,
+            address_id INTEGER,
+            PRIMARY KEY (Cartridge, organization_id)
+        )
+    """)
+    addr_src = "address_id" if has_address else "NULL"
+    cursor.execute(f"""
+        INSERT INTO Analytics (Cartridge, ToWriteOff, InStock, OnBalance, ToBuy, organization_id, address_id)
+        SELECT Cartridge,
+               COALESCE(ToWriteOff, 0), COALESCE(InStock, 0),
+               COALESCE(OnBalance, 0), COALESCE(ToBuy, 0),
+               organization_id, {addr_src}
+        FROM Analytics_old
+    """)
+    cursor.execute("DROP TABLE Analytics_old")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_analytics_organization ON Analytics(organization_id)")
+    print("✅ Analytics переведена на составной ключ (Cartridge, organization_id)")
+
 def init_db():
     db_path = get_db_path()
     print(f"Создание базы данных: {db_path}")
@@ -144,11 +197,13 @@ def init_db():
     
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS Analytics (
-            Cartridge TEXT PRIMARY KEY,
+            Cartridge TEXT NOT NULL,
             ToWriteOff INTEGER DEFAULT 0,
             InStock INTEGER DEFAULT 0,
             OnBalance INTEGER DEFAULT 0,
-            ToBuy INTEGER DEFAULT 0
+            ToBuy INTEGER DEFAULT 0,
+            organization_id INTEGER,
+            PRIMARY KEY (Cartridge, organization_id)
         )
     """)
     
@@ -180,6 +235,8 @@ def init_db():
         cursor.execute("ALTER TABLE Analytics ADD COLUMN organization_id INTEGER")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_analytics_organization ON Analytics(organization_id)")
         print("✅ Добавлена колонка organization_id в таблицу Analytics")
+
+    _migrate_analytics_pk(cursor)
 
     cursor.execute("PRAGMA table_info(Departments)")
     cols = [c[1] for c in cursor.fetchall()]
@@ -326,6 +383,8 @@ def init_db():
             used INTEGER DEFAULT 0,
             organization_id INTEGER,
             status TEXT DEFAULT 'Активна',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP,
             FOREIGN KEY(organization_id) REFERENCES Organizations(id)
         )
     """)
@@ -336,6 +395,13 @@ def init_db():
         cursor.execute("ALTER TABLE Licenses ADD COLUMN organization_id INTEGER")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_licenses_organization ON Licenses(organization_id)")
         print("✅ Добавлена колонка organization_id в таблицу Licenses")
+    # SQLite не позволяет ADD COLUMN с DEFAULT CURRENT_TIMESTAMP — добавляем без значения по умолчанию.
+    if 'created_at' not in columns:
+        cursor.execute("ALTER TABLE Licenses ADD COLUMN created_at TIMESTAMP")
+        print("✅ Добавлена колонка created_at в таблицу Licenses")
+    if 'updated_at' not in columns:
+        cursor.execute("ALTER TABLE Licenses ADD COLUMN updated_at TIMESTAMP")
+        print("✅ Добавлена колонка updated_at в таблицу Licenses")
     
     # ========== ТАБЛИЦА ДЛЯ УЧЕТА ОРГАНИЗАЦИЙ ==========
     cursor.execute("""
@@ -642,6 +708,12 @@ def upgrade_db():
         cursor.execute("ALTER TABLE Licenses ADD COLUMN organization_id INTEGER")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_licenses_organization ON Licenses(organization_id)")
         print("✅ Добавлена колонка organization_id в Licenses")
+    if 'created_at' not in licenses_cols:
+        cursor.execute("ALTER TABLE Licenses ADD COLUMN created_at TIMESTAMP")
+        print("✅ Добавлена колонка created_at в Licenses")
+    if 'updated_at' not in licenses_cols:
+        cursor.execute("ALTER TABLE Licenses ADD COLUMN updated_at TIMESTAMP")
+        print("✅ Добавлена колонка updated_at в Licenses")
 
     cursor.execute("PRAGMA table_info(Catrigs)")
     catrigs_cols = [col[1] for col in cursor.fetchall()]
@@ -662,6 +734,11 @@ def upgrade_db():
             print("✅ Добавлена колонка organization_id в Analytics")
         except Exception as e:
             print(f"⚠️ Ошибка добавления organization_id в Analytics: {e}")
+
+    try:
+        _migrate_analytics_pk(cursor)
+    except Exception as e:
+        print(f"⚠️ Ошибка миграции ключа Analytics: {e}")
 
     if 'equipment_id' not in catrigs_cols:
         try:
