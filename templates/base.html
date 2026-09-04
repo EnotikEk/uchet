@@ -23,8 +23,9 @@
                 {% if session.get('role') == 'admin' %}
                 <div class="me-3" id="adminOrgSelector">
                     <select class="form-select form-select-sm bg-dark text-white border-secondary" 
-                            id="adminOrganizationSelect" 
+                            id="adminOrganizationSelect"
                             style="min-width: 200px; cursor: pointer;"
+                            data-current="{{ session.get('view_organization_id') or '__ALL__' }}"
                             onchange="switchOrganization()">
                         <option value="__ALL__" {% if session.get('view_organization_id') == '__ALL__' or not session.get('view_organization_id') %}selected{% endif %}>
                             🌍 Все филиалы

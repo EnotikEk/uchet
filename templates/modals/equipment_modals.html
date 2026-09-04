@@ -514,6 +514,14 @@
                             <datalist id="addEquipmentRoomsList"></datalist>
                             <small class="text-muted">Начните вводить номер — появятся подсказки</small>
                         </div>
+                        <!-- Контейнер для выбора отдела (появляется динамически) -->
+                        <div id="departmentSelectionContainer" class="mb-3" style="display: none;">
+                            <label class="form-label" id="departmentSelectionLabel">Отдел</label>
+                            <div id="departmentSelectionContent"></div>
+                            <small class="text-muted" id="departmentSelectionHint"></small>
+                        </div>
+                        <input type="hidden" id="addDepartmentId" value="">
+                        <input type="hidden" id="editDepartmentId" value="">
                         <div class="col-md-4 mb-3">
                             <label class="form-label">Статус</label>
                             <select class="form-select" id="addEquipmentStatus">
@@ -616,6 +624,93 @@ function updateEquipmentForm() {
         default:
             break;
     }
+}
+
+/**
+ * Загружает отделы для указанного кабинета и отображает выбор.
+ * @param {string} office - номер кабинета
+ * @param {string} mode - 'add' или 'edit'
+ * @param {number|null} currentDepartmentId - ID отдела, который должен быть выбран (для редактирования)
+ */
+function loadDepartmentsForOffice(office, mode, currentDepartmentId) {
+    const containerId = mode === 'add' ? 'addDepartmentSelectionContainer' : 'editDepartmentSelectionContainer';
+    const contentId = mode === 'add' ? 'addDepartmentSelectionContent' : 'editDepartmentSelectionContent';
+    const hintId = mode === 'add' ? 'addDepartmentSelectionHint' : 'editDepartmentSelectionHint';
+    const labelId = mode === 'add' ? 'addDepartmentSelectionLabel' : 'editDepartmentSelectionLabel';
+    const hiddenId = mode === 'add' ? 'addDepartmentId' : 'editDepartmentId';
+
+    const container = document.getElementById(containerId);
+    const content = document.getElementById(contentId);
+    const hint = document.getElementById(hintId);
+    const hiddenInput = document.getElementById(hiddenId);
+
+    if (!office || office.trim() === '') {
+        container.style.display = 'none';
+        hiddenInput.value = '';
+        return;
+    }
+
+    container.style.display = 'block';
+    content.innerHTML = '<span class="text-muted"><i class="fas fa-spinner fa-spin"></i> Загрузка...</span>';
+    hint.textContent = '';
+
+    $.ajax({
+        url: '/api/departments/by-office',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ office: office.trim() }),
+        success: function(departments) {
+            if (!departments || departments.length === 0) {
+                // Нет отделов – предложить создать
+                content.innerHTML = `
+                    <div class="alert alert-warning py-1 mb-0">
+                        <i class="fas fa-exclamation-triangle"></i> Нет отделов для этого кабинета
+                        <button type="button" class="btn btn-sm btn-outline-primary ms-2" 
+                                onclick="openAddDepartmentFromOffice('${escapeHtml(office.trim())}', '${mode}')">
+                            <i class="fas fa-plus"></i> Создать отдел
+                        </button>
+                    </div>
+                `;
+                hint.textContent = 'Вы можете создать новый отдел для этого кабинета';
+                hiddenInput.value = '';
+                return;
+            }
+
+            // Всегда показываем выпадающий список (даже если один отдел)
+            let options = '';
+            departments.forEach(dept => {
+                const selected = (currentDepartmentId && dept.id == currentDepartmentId) ? 'selected' : '';
+                options += `<option value="${dept.id}" ${selected}>${escapeHtml(dept.name)}</option>`;
+            });
+
+            content.innerHTML = `
+                <select class="form-select form-select-sm department-select">
+                    ${options}
+                </select>
+            `;
+
+            // Если currentDepartmentId не передан, выбираем первый
+            const select = content.querySelector('.department-select');
+            if (select) {
+                if (!currentDepartmentId) {
+                    // Если не передан текущий ID, выбираем первый
+                    select.value = departments[0].id;
+                }
+                hiddenInput.value = select.value;
+                select.addEventListener('change', function() {
+                    hiddenInput.value = this.value;
+                });
+            }
+
+            hint.textContent = departments.length === 1 
+                ? 'Для этого кабинета найден один отдел' 
+                : `Найдено ${departments.length} отдела. Выберите подходящий.`;
+        },
+        error: function() {
+            content.innerHTML = '<span class="text-danger">Ошибка загрузки отделов</span>';
+            hint.textContent = '';
+        }
+    });
 }
 
 // ============================================================
@@ -1354,6 +1449,11 @@ $('#addEquipmentModal').on('show.bs.modal', function() {
 // Загрузка кабинетов при открытии модального окна редактирования оборудования
 $('#editEquipmentModal').on('show.bs.modal', function() {
     loadRoomsForEquipmentDatalist('editEquipmentRoomsList');
+    const room = $('#editEquipmentRoom').val().trim();
+    const currentDeptId = $('#editDepartmentId').val() || null;
+    if (room) {
+        loadDepartmentsForOffice(room, 'edit', currentDeptId);
+    }
 });
 
 // ============================================================
@@ -1866,8 +1966,18 @@ $(document).ready(function() {
         const val = $(this).val().trim();
         updateDepartmentDisplayLive(val, 'editEquipmentRoom');
     });
+    $(document).on('input', '#addEquipmentRoom', function() {
+        const val = $(this).val().trim();
+        const currentDeptId = $('#addDepartmentId').val() || null;
+        loadDepartmentsForOffice(val, 'add', currentDeptId);
+    });
+    $(document).on('change', '#addEquipmentRoom', function() {
+        const val = $(this).val().trim();
+        const currentDeptId = $('#addDepartmentId').val() || null;
+        loadDepartmentsForOffice(val, 'add', currentDeptId);
+    });
 
-    // 6. Если вдруг datalist пуст при фокусе – заполняем повторно
+        // 6. Если вдруг datalist пуст при фокусе – заполняем повторно
     $('#addEquipmentRoom, #editEquipmentRoom').on('focus', function() {
         var input = $(this);
         var datalistId = input.attr('list');
@@ -1875,6 +1985,17 @@ $(document).ready(function() {
         if (datalist.children().length === 0) {
             fillRoomDatalist(datalistId);
         }
+    });
+
+    $(document).on('input', '#editEquipmentRoom', function() {
+        const val = $(this).val().trim();
+        const currentDeptId = $('#editDepartmentId').val() || null;
+        loadDepartmentsForOffice(val, 'edit', currentDeptId);
+    });
+    $(document).on('change', '#editEquipmentRoom', function() {
+        const val = $(this).val().trim();
+        const currentDeptId = $('#editDepartmentId').val() || null;
+        loadDepartmentsForOffice(val, 'edit', currentDeptId);
     });
 
     // 7. Обработчики изменения типа оборудования

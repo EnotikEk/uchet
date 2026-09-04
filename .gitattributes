@@ -1,0 +1,31 @@
+# Единообразные переводы строк: в репозитории всегда LF.
+# Это важно, потому что разработка идёт на Windows, а сервер — Ubuntu:
+# без этого .sh-скрипты и хуки могут прийти на сервер с CRLF и не запуститься.
+* text=auto eol=lf
+
+# Явно текстовые файлы
+*.py    text eol=lf
+*.html  text eol=lf
+*.css   text eol=lf
+*.js    text eol=lf
+*.json  text eol=lf
+*.md    text eol=lf
+*.txt   text eol=lf
+*.cfg   text eol=lf
+*.ini   text eol=lf
+*.sh    text eol=lf
+*.service text eol=lf
+
+# Бинарные файлы — не трогать, не сравнивать как текст
+*.db      binary
+*.sqlite  binary
+*.sqlite3 binary
+*.ico     binary
+*.png     binary
+*.jpg     binary
+*.jpeg    binary
+*.gif     binary
+*.woff    binary
+*.woff2   binary
+*.xlsx    binary
+*.xls     binary

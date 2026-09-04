@@ -34,8 +34,16 @@ def get_db():
         print(f"[database] БД не найдена, создаем новую: {db_path}")
         init_db()
     
-    conn = sqlite3.connect(db_path)
+    # timeout + WAL нужны для многопользовательской работы на сервере:
+    # без них параллельная запись падает с "database is locked", и у части
+    # пользователей записи просто не создаются.
+    conn = sqlite3.connect(db_path, timeout=30)
     conn.row_factory = sqlite3.Row
+    try:
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=30000")
+    except sqlite3.Error as e:
+        print(f"[database] Не удалось включить WAL: {e}")
     return conn
 
 def hash_password(password):

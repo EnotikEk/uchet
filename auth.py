@@ -15,12 +15,24 @@ def generate_session_token():
     """Генерация токена сессии"""
     return secrets.token_hex(32)
 
+def wants_json():
+    """
+    Нужно ли отвечать JSON'ом вместо редиректа.
+    Важно за nginx: AJAX-запрос, получивший редирект на /login, приходит
+    в jQuery как HTML со статусом 200, и фронтенд молча ничего не делает.
+    """
+    return (
+        request.is_json
+        or request.path.startswith('/api/')
+        or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    )
+
 def login_required(f):
     """Декоратор для проверки авторизации"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
-            if request.is_json:
+            if wants_json():
                 return jsonify({'error': 'Требуется авторизация'}), 401
             return redirect(url_for('login_page'))
         return f(*args, **kwargs)
@@ -31,11 +43,11 @@ def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
-            if request.is_json:
+            if wants_json():
                 return jsonify({'error': 'Требуется авторизация'}), 401
             return redirect(url_for('login_page'))
         if session.get('role') != 'admin':
-            if request.is_json:
+            if wants_json():
                 return jsonify({'error': 'Доступ запрещен. Требуются права администратора'}), 403
             return redirect(url_for('index'))
         return f(*args, **kwargs)
@@ -66,7 +78,7 @@ def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
-            if request.is_json:
+            if wants_json():
                 return jsonify({'error': 'Требуется авторизация'}), 401
             return redirect(url_for('login_page'))
         return f(*args, **kwargs)
@@ -77,11 +89,11 @@ def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
-            if request.is_json:
+            if wants_json():
                 return jsonify({'error': 'Требуется авторизация'}), 401
             return redirect(url_for('login_page'))
         if session.get('role') != 'admin':
-            if request.is_json:
+            if wants_json():
                 return jsonify({'error': 'Доступ запрещен. Требуются права администратора'}), 403
             return redirect(url_for('index'))
         return f(*args, **kwargs)

@@ -33,6 +33,21 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here')
 app.config['JSON_AS_ASCII'] = False
 
+# Сессия живёт 12 часов и переживает закрытие вкладки.
+# ВАЖНО: SECRET_KEY должен быть одинаковым при каждом запуске — если он
+# меняется (например, задан в systemd, но не задан при ручном перезапуске),
+# все выданные cookie становятся недействительными и пользователи молча
+# оказываются разлогинены: запросы на создание записей и смену филиала
+# перестают работать без видимой ошибки.
+from datetime import timedelta
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=12)
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+
+@app.before_request
+def make_session_permanent():
+    session.permanent = True
+
 STATUS_CART = ["Заправлен", "Пустой", "Заправка", "На складе", "Под списание"]
 STATUS_MFU = ["Работает", "Ремонт"]
 

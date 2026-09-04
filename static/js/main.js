@@ -245,35 +245,50 @@ function switchOrganization() {
     const btn = document.querySelector('.navbar-toggler');
     const originalHtml = btn ? btn.innerHTML : '';
     
+    const previousOrg = select.getAttribute('data-current') || '__ALL__';
+
     $.ajax({
         url: '/api/admin/switch-organization',
         method: 'POST',
         contentType: 'application/json',
+        dataType: 'json',
         data: JSON.stringify({ organization_id: orgId }),
         success: function(response) {
-            if (response.success) {
-                // Обновляем отображение филиала в навигации
-                if (response.organization_name) {
-                    $('#userOrganization').text(' | ' + response.organization_name);
-                } else {
-                    $('#userOrganization').text('');
-                }
-                
-                // Перезагружаем текущую страницу для обновления данных
-                showMessage('✅ Филиал изменен на: ' + (response.organization_name || 'Все филиалы'), 'success');
-                
-                // Перезагружаем страницу через 1 секунду
-                setTimeout(function() {
-                    location.reload();
-                }, 500);
+            if (!response || !response.success) {
+                // Сервер ответил 200, но это не наш JSON (например, редирект на /login)
+                console.error("Неожиданный ответ при переключении филиала:", response);
+                showMessage('❌ Сессия истекла, войдите заново', 'danger');
+                select.value = previousOrg;
+                setTimeout(function() { window.location.href = '/login'; }, 1500);
+                return;
             }
+
+            // Обновляем отображение филиала в навигации
+            if (response.organization_name) {
+                $('#userOrganization').text(' | ' + response.organization_name);
+            } else {
+                $('#userOrganization').text('');
+            }
+
+            select.setAttribute('data-current', orgId);
+            showMessage('✅ Филиал изменен на: ' + (response.organization_name || 'Все филиалы'), 'success');
+
+            setTimeout(function() {
+                location.reload();
+            }, 500);
         },
         error: function(xhr) {
-            console.error("Ошибка переключения филиала:", xhr);
-            showMessage('❌ Ошибка при переключении филиала', 'danger');
+            console.error("Ошибка переключения филиала:", xhr.status, xhr.responseText);
+            if (xhr.status === 401) {
+                showMessage('❌ Сессия истекла, войдите заново', 'danger');
+                setTimeout(function() { window.location.href = '/login'; }, 1500);
+            } else if (xhr.status === 403) {
+                showMessage('❌ Недостаточно прав для смены филиала', 'danger');
+            } else {
+                showMessage('❌ Ошибка при переключении филиала (код ' + xhr.status + ')', 'danger');
+            }
             // Возвращаем предыдущее значение
-            const currentOrg = '{{ session.get("view_organization_id", "__ALL__") }}';
-            select.value = currentOrg;
+            select.value = previousOrg;
         }
     });
 }

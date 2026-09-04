@@ -1,0 +1,56 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# ---- Виртуальные окружения ----
+.venv/
+venv/
+env/
+ENV/
+
+# ---- База данных (это данные, а не код) ----
+# Боевая БД живёт на сервере и задаётся через переменную DATABASE_PATH.
+# Локально приложение само создаёт db.db при первом запуске (init_db).
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# ---- Загрузки и выгрузки ----
+/uploads/
+/exports/
+*.xlsx
+*.xls
+!templates/**/*.xlsx
+
+# ---- Секреты и локальная конфигурация ----
+.env
+.env.*
+!.env.example
+*.local
+
+# ---- Логи ----
+*.log
+logs/
+
+# ---- Редакторы / ОС ----
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---- PyInstaller (сборка десктоп-версии) ----
+*.spec
+*.manifest
