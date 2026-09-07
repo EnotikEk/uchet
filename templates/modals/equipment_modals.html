@@ -1,1889 +1,370 @@
-<!-- equipment_modals.html - исправленная версия -->
-
 <!-- Модальное окно добавления оборудования -->
 <div class="modal fade" id="addEquipmentModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title"><i class="fas fa-plus"></i> Добавить оборудование</h5>
+                <h5 class="modal-title"><i class="fas fa-desktop"></i> Добавить оборудование</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
+                <datalist id="addRoomList">{% for room in rooms %}<option value="{{ room.number }}">{% endfor %}</datalist>
+                <datalist id="addMolList">{% for emp in employees %}<option value="{{ emp }}">{% endfor %}</datalist>
                 <form id="addEquipmentForm">
-                    <!-- Тип оборудования -->
                     <div class="row">
-                        <div class="col-md-12 mb-3">
-                            <label class="form-label">Тип оборудования <span class="text-danger">*</span></label>
-                            <select class="form-select" id="addEquipmentType" required onchange="updateEquipmentForm()">
-                                <option value="">-- Выберите тип --</option>
-                                <option value="computer">🖲️ Компьютер</option>
-                                <option value="laptop">💻 Ноутбук</option>
-                                <option value="monitor">🖥️ Монитор</option>
-                                <option value="monoblock">🖥️ Моноблок</option>
-                                <option value="server">🗄️ Сервер</option>
-                                <option value="network">🌐 Сетевое оборудование</option>
-                                <option value="printer">🖨️ Принтер</option>
-                                <option value="mfu">🖨️ МФУ</option>
-                                <option value="scanner">📠 Сканер</option>
-                                <option value="ups">🔋 ИБП</option>
-                                <option value="mouse_keyboard">🖱️ Мышь/⌨️ Клавиатура</option>
-                                <option value="external_drive">💾 Внешний диск</option>
-                                <option value="pereferiya">📷 Веб-камера/🎧 Гарнитура/🎙️ Микрофон</option>
-                                <option value="speakers">🔊 Колонки</option>
-                                <option value="other">📦 Другое</option>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Тип <span class="text-danger">*</span></label>
+                            <select class="form-select" id="addType" onchange="updateEquipmentTypeForm()" required>
+                                <optgroup label="Компьютеры">
+                                    <option value="Компьютер">Компьютер</option>
+                                    <option value="Ноутбук">Ноутбук</option>
+                                    <option value="Моноблок">Моноблок</option>
+                                    <option value="Сервер">Сервер</option>
+                                    <option value="Планшет">Планшет</option>
+                                </optgroup>
+                                <optgroup label="Мониторы">
+                                    <option value="Монитор">Монитор</option>
+                                </optgroup>
+                                <optgroup label="МФУ и оргтехника">
+                                    <option value="МФУ">МФУ</option>
+                                    <option value="Принтер">Принтер</option>
+                                    <option value="Сканер">Сканер</option>
+                                </optgroup>
+                                <optgroup label="Периферия">
+                                    <option value="Сетевое оборудование">Сетевое оборудование</option>
+                                    <option value="ИБП">ИБП</option>
+                                    <option value="Мышь/Клавиатура">Мышь/Клавиатура</option>
+                                    <option value="Внешний диск">Внешний диск</option>
+                                    <option value="Веб-камера/Гарнитура/Микрофон">Веб-камера/Гарнитура/Микрофон</option>
+                                    <option value="Колонки">Колонки</option>
+                                    <option value="Другое">Другое</option>
+                                </optgroup>
+                                <optgroup label="Комплектующие и расходники">
+                                    <option value="Процессор">Процессор</option>
+                                    <option value="Оперативная память">Оперативная память</option>
+                                    <option value="Накопитель">Накопитель</option>
+                                    <option value="Материнская плата">Материнская плата</option>
+                                    <option value="Видеокарта">Видеокарта</option>
+                                    <option value="Аккумулятор">Аккумулятор</option>
+                                    <option value="Контроллер">Контроллер</option>
+                                    <option value="Привод">Привод</option>
+                                    <option value="Звуковая карта">Звуковая карта</option>
+                                    <option value="Блок питания">Блок питания</option>
+                                    <option value="PCI-устройство">PCI-устройство</option>
+                                    <option value="Сетевая карта">Сетевая карта</option>
+                                    <option value="Кабель">Кабель</option>
+                                </optgroup>
                             </select>
                         </div>
-                    </div>
-
-                    <!-- ===== ОБЩИЕ ПОЛЯ (ВСЕГДА ВИДИМЫ) ===== -->
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">МОЛ (Материально-ответственное лицо)</label>
-                            <div class="input-group">
-                                <input type="text" class="form-control" id="addEquipmentMOLInput" placeholder="Введите ФИО" list="molDatalist">
-                                <datalist id="molDatalist">
-                                    {% for emp in employees %}
-                                    <option value="{{ emp }}">
-                                    {% endfor %}
-                                </datalist>
-                                <button class="btn btn-outline-success" type="button" onclick="quickAddEmployee('addEquipmentMOLInput', 'molDatalist')" title="Добавить сотрудника">
-                                    <i class="fas fa-plus"></i>
-                                </button>
-                            </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Бренд</label>
+                            <input class="form-control" id="addBrand" placeholder="HP, Dell, Lenovo...">
                         </div>
-
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Ответственный пользователь</label>
-                            <div class="input-group">
-                                <input type="text" class="form-control" id="addEquipmentResponsibleInput" placeholder="Введите ФИО" list="responsibleDatalist">
-                                <datalist id="responsibleDatalist">
-                                    {% for emp in employees %}
-                                    <option value="{{ emp }}">
-                                    {% endfor %}
-                                </datalist>
-                                <button class="btn btn-outline-success" type="button" onclick="quickAddEmployee('addEquipmentResponsibleInput', 'responsibleDatalist')" title="Добавить сотрудника">
-                                    <i class="fas fa-plus"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-4 mb-3">
                             <label class="form-label">Модель</label>
-                            <input type="text" class="form-control" id="addEquipmentBrand" placeholder="HP, Dell, Lenovo">
+                            <input class="form-control" id="addModel" placeholder="Модель">
                         </div>
                     </div>
-
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Серийный номер</label>
-                            <input type="text" class="form-control" id="addEquipmentSerial" placeholder="S/N">
+                            <input class="form-control" id="addSerial">
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label class="form-label" id="inventoryLabel">Инвентарный номер</span></label>
-                            <input type="text" class="form-control" id="addEquipmentInventory" placeholder="Инв. №">
+                            <label class="form-label">Инвентарный номер</label>
+                            <input class="form-control" id="addInventory">
                         </div>
                     </div>
 
-
-                    <!-- Форма для компьютера/ноутбука/сервера -->
-                    <div id="formComputer" class="type-form" style="display: none;">
-                        <div class="card mb-3">
-                            <div class="card-header bg-light">
-                                <h6 class="mb-0"><i class="fas fa-microchip"></i> Системные характеристики</h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="row">
-                                    <div class="col-md-6 mb-2">
-                                        <label class="form-label">Процессор</label>
-                                        <input type="text" class="form-control" id="addEquipmentProcessor" placeholder="Intel Core i5-12400, AMD Ryzen 5">
-                                    </div>
-                                    <div class="col-md-3 mb-2">
-                                        <label class="form-label">ОЗУ (ГБ)</label>
-                                        <input type="number" class="form-control" id="addEquipmentRam" placeholder="16" min="1" step="1">
-                                    </div>
-                                    <div class="col-md-3 mb-2">
-                                        <label class="form-label">Тип ОЗУ</label>
-                                        <select class="form-select" id="addEquipmentRamType">
-                                            <option value="">-- Выберите --</option>
-                                            <option value="DDR2">DDR2</option>
-                                            <option value="DDR3">DDR3</option>
-                                            <option value="DDR4">DDR4</option>
-                                            <option value="DDR5">DDR5</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="row">
-                                    <div class="row mb-2">
-                                        <div class="col-12">
-                                            <label class="form-label">Накопители (диски)</label>
-                                            <div id="addStorageContainer">
-                                                <!-- Первая строка диска будет добавлена автоматически -->
-                                            </div>
-                                            <button type="button" class="btn btn-outline-primary btn-sm mt-1" onclick="addStorageRow('add')">
-                                                <i class="fas fa-plus"></i> Добавить диск
-                                            </button>
-                                            <small class="text-muted d-block">Для объединения нескольких дисков используйте кнопку «Добавить диск»</small>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4 mb-2">
-                                        <label class="form-label">Операционная система</label>
-                                        <input type="text" class="form-control" id="addEquipmentOs" placeholder="Windows 10 Pro, Ubuntu 22.04">
-                                    </div>
-                                </div>
-                                <div class="row">
-                                    <div class="col-md-12 mb-2">
-                                        <label class="form-label">Ключ ОС</label>
-                                        <input type="text" class="form-control" id="addEquipmentOsKey" placeholder="XXXXX-XXXXX-XXXXX-XXXXX-XXXXX">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Форма для монитора -->
-                    <div id="formMonitor" class="type-form" style="display: none;">
-                        <div class="card mb-3">
-                            <div class="card-header bg-light">
-                                <h6 class="mb-0"><i class="fas fa-tv"></i> Параметры дисплея</h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="row">
-                                    <div class="col-md-4 mb-2">
-                                        <label class="form-label">Диагональ (дюймы)</label>
-                                        <input type="number" class="form-control" id="addEquipmentMonitorSize" placeholder="24">
-                                    </div>
-                                    <div class="col-md-4 mb-2">
-                                        <label class="form-label">Разрешение</label>
-                                        <select class="form-select" id="addEquipmentResolution">
-                                            <option value="">-- Выберите --</option>
-                                            <option value="1920x1080">Full HD (1920x1080)</option>
-                                            <option value="2560x1440">2K (2560x1440)</option>
-                                            <option value="3840x2160">4K (3840x2160)</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-4 mb-2">
-                                        <label class="form-label">Частота обновления (Гц)</label>
-                                        <input type="number" class="form-control" id="addEquipmentRefreshRate" placeholder="60">
-                                    </div>
-                                </div>
-                                <div class="row">
-                                    <div class="col-md-4 mb-2">
-                                        <label class="form-label">Тип матрицы</label>
-                                        <select class="form-select" id="addEquipmentPanelType">
-                                            <option value="">-- Выберите --</option>
-                                            <option value="IPS">IPS</option>
-                                            <option value="VA">VA</option>
-                                            <option value="TN">TN</option>
-                                            <option value="OLED">OLED</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-4 mb-2">
-                                        <label class="form-label">Время отклика (мс)</label>
-                                        <input type="number" class="form-control" id="addEquipmentResponseTime" placeholder="4">
-                                    </div>
-                                    <div class="col-md-4 mb-2">
-                                        <label class="form-label">Угол обзора</label>
-                                        <input type="text" class="form-control" id="addEquipmentViewingAngle" placeholder="178°">
-                                    </div>
-                                </div>
-                                <div class="row">
-                                    <div class="col-md-12 mb-2">
-                                        <label class="form-label">Типы подключения</label>
-                                        <div id="addConnectionContainer">
-                                            <!-- Строки подключений будут добавляться сюда -->
-                                        </div>
-                                        <button type="button" class="btn btn-outline-primary btn-sm mt-1" onclick="addConnectionRow('add')">
-                                            <i class="fas fa-plus"></i> Добавить подключение
-                                        </button>
-                                        <small class="text-muted d-block">Нажмите «Добавить подключение», чтобы указать несколько типов</small>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Форма для сетевого оборудования -->
-                    <div id="formNetwork" class="type-form" style="display: none;">
-                        <div class="card mb-3">
-                            <div class="card-header bg-light">
-                                <h6 class="mb-0"><i class="fas fa-network-wired"></i> Сетевые параметры</h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="row">
-                                    <div class="col-md-4 mb-2">
-                                        <label class="form-label">Количество портов</label>
-                                        <input type="number" class="form-control" id="addEquipmentPortCount" placeholder="8">
-                                    </div>
-                                    <div class="col-md-4 mb-2">
-                                        <label class="form-label">Скорость портов</label>
-                                        <select class="form-select" id="addEquipmentSpeed">
-                                            <option value="">-- Выберите --</option>
-                                            <option value="100 Mbps">100 Mbps</option>
-                                            <option value="1 Gbps">1 Gbps</option>
-                                            <option value="10 Gbps">10 Gbps</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-4 mb-2">
-                                        <label class="form-label">IP адрес</label>
-                                        <input type="text" class="form-control" id="addEquipmentIpAddress" placeholder="192.168.1.1">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Форма для принтера -->
-                    <div id="formPrinter" class="type-form" style="display: none;">
-                        <div class="card mb-3">
-                            <div class="card-header bg-light">
-                                <h6 class="mb-0"><i class="fas fa-print"></i> Параметры печати</h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="row">
-                                    <div class="col-md-4 mb-2">
-                                        <label class="form-label">Тип печати</label>
-                                        <select class="form-select" id="addEquipmentPrintType">
-                                            <option value="Лазерный">Лазерный</option>
-                                            <option value="Струйный">Струйный</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-4 mb-2">
-                                        <label class="form-label">Формат печати</label>
-                                        <select class="form-select" id="addEquipmentPrintFormat">
-                                            <option value="A4">A4</option>
-                                            <option value="A3">A3</option>
-                                            <option value="A3/A4">A3/A4</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-4 mb-2">
-                                        <label class="form-label">IP адрес</label>
-                                        <input type="text" class="form-control" id="addEquipmentIpAddressPrinter" placeholder="192.168.1.100">
-                                    </div>
-                                </div>
-                                <div class="row">
-                                    <div class="col-md-4 mb-2">
-                                        <label class="form-label">Цветность</label>
-                                        <select class="form-select" id="addEquipmentColorType">
-                                            <option value="Черно-белый">Черно-белый</option>
-                                            <option value="Цветной">Цветной</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-4 mb-2">
-                                        <label class="form-label">Двусторонняя печать</label>
-                                        <select class="form-select" id="addEquipmentDuplex">
-                                            <option value="Нет">Нет</option>
-                                            <option value="Да">Да</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- Форма для МФУ -->
-                    <div id="formMFU" class="type-form" style="display: none;">
-                        <div class="card mb-3">
-                            <div class="card-header bg-light">
-                                <h6 class="mb-0"><i class="fas fa-print"></i> Параметры МФУ</h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="row">
-                                    <div class="col-4 mb-2">
-                                        <label class="form-label">Тип печати</label>
-                                        <select class="form-select" id="addEquipmentPrintType">
-                                            <option value="Лазерный">Лазерный</option>
-                                            <option value="Струйный">Струйный</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-4 mb-2">
-                                        <label class="form-label">Формат печати</label>
-                                        <select class="form-select" id="addEquipmentPrintFormat">
-                                            <option value="A4">A4</option>
-                                            <option value="A3">A3</option>
-                                            <option value="A3/A4">A3/A4</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-4 mb-2">
-                                        <label class="form-label">IP адрес</label>
-                                        <input type="text" class="form-control" id="addEquipmentMfuIpAddress" placeholder="192.168.1.100">
-                                    </div>
-                                </div>
-                                <div class="row">
-                                    <div class="col-4 mb-2">
-                                        <label class="form-label">Цветность</label>
-                                        <select class="form-select" id="addEquipmentColorType">
-                                            <option value="Черно-белый">Черно-белый</option>
-                                            <option value="Цветной">Цветной</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-4 mb-2">
-                                        <label class="form-label">Двусторонняя печать</label>
-                                        <select class="form-select" id="addEquipmentDuplexMfu">
-                                            <option value="Нет">Нет</option>
-                                            <option value="Да">Да</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Форма для ИБП -->
-                    <div id="formUps" class="type-form" style="display: none;">
-                        <div class="card mb-3">
-                            <div class="card-header bg-light">
-                                <h6 class="mb-0"><i class="fas fa-battery-full"></i> Параметры ИБП</h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="row">
-                                    <div class="col-md-4 mb-2">
-                                        <label class="form-label">Мощность (VA)</label>
-                                        <input type="text" class="form-control" id="addEquipmentUpsPower" placeholder="1000">
-                                    </div>
-                                    <div class="col-md-4 mb-2">
-                                        <label class="form-label">Тип</label>
-                                        <select class="form-select" id="addEquipmentUpsType">
-                                            <option value="Резервный">Резервный</option>
-                                            <option value="Линейно-интерактивный">Линейно-интерактивный</option>
-                                            <option value="On-line">On-line</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-4 mb-2">
-                                        <label class="form-label">Количество розеток</label>
-                                        <input type="number" class="form-control" id="addEquipmentUpsOutlets" placeholder="4">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Форма для мыши/клавиатуры (с комплектом) -->
-                    <div id="formMouseKeyboard" class="type-form" style="display: none;">
-                        <div class="card mb-3">
-                            <div class="card-header bg-light">
-                                <h6 class="mb-0"><i class="fas fa-mouse"></i> Параметры устройства ввода</h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="row">
-                                    <div class="col-md-6 mb-2">
-                                        <label class="form-label">Тип подключения</label>
-                                        <select class="form-select" id="addEquipmentConnectionType">
-                                            <option value="USB">USB</option>
-                                            <option value="Bluetooth">Bluetooth</option>
-                                            <option value="Wireless">Беспроводной</option>
-                                            <option value="PS/2">PS/2</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-6 mb-2">
-                                        <label class="form-label">Цвет</label>
-                                        <input type="text" class="form-control" id="addEquipmentColor" placeholder="Черный, Белый">
-                                    </div>
-                                </div>
-                                <div class="row">
-                                    <div class="col-md-6 mb-2">
-                                        <div class="form-check form-switch mt-2">
-                                            <input class="form-check-input" type="checkbox" id="addEquipmentIsSet" style="width: 3rem; height: 1.5rem;">
-                                            <label class="form-check-label fw-bold" for="addEquipmentIsSet">
-                                                <i class="fas fa-box"></i> Комплект (клавиатура + мышь)
-                                            </label>
-                                            <div class="form-text small">Отметьте, если это комплект клавиатура+мышь</div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6 mb-2">
-                                        <label class="form-label">Комплектация</label>
-                                        <select class="form-select" id="addEquipmentSetType">
-                                            <option value="Клавиатура">Только клавиатура</option>
-                                            <option value="Мышь">Только мышь</option>
-                                            <option value="Клавиатура+Мышь">Клавиатура + Мышь</option>
-                                        </select>
-                                        <div class="form-text small">Уточните состав комплекта</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Форма для сканера -->
-                    <div id="formScanner" class="type-form" style="display: none;">
-                        <div class="card mb-3">
-                            <div class="card-header bg-light">
-                                <h6 class="mb-0"><i class="fas fa-scanner"></i> Параметры сканера</h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="row">
-                                    <div class="col-6 mb-2">
-                                        <label class="form-label">Двусторонний скан</label>
-                                        <select class="form-select" id="addEquipmentDuplexScanner">
-                                            <option value="Нет">Нет</option>
-                                            <option value="Да">Да</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-6 mb-2">
-                                        <label class="form-label">Формат скана</label>
-                                        <select class="form-select" id="addEquipmentScanFormat">
-                                            <option value="A4">A4</option>
-                                            <option value="A3">A3</option>
-                                            <option value="A3/A4">A3/A4</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Форма для ВКС (веб-камера/гарнитура/микрофон) -->
-                    <div id="formVKS" class="type-form" style="display: none;">
-                        <div class="card mb-3">
-                            <div class="card-header bg-light">
-                                <h6 class="mb-0"><i class="fas fa-video"></i> Параметры устройства ВКС</h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="row">
-                                    <div class="col-md-6 mb-2">
-                                        <label class="form-label">Тип подключения</label>
-                                        <select class="form-select" id="addEquipmentConnectionTypeVKS">
-                                            <option value="USB">USB</option>
-                                            <option value="Bluetooth">Bluetooth</option>
-                                            <option value="Wireless">Беспроводной</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-6 mb-2">
-                                        <label class="form-label">Цвет</label>
-                                        <input type="text" class="form-control" id="addEquipmentColorVKS" placeholder="Черный, Белый">
-                                    </div>
-                                </div>
-                                <div class="row">
-                                    <div class="col-md-6 mb-2">
-                                        <div class="form-check form-switch mt-2">
-                                            <input class="form-check-input" type="checkbox" id="addEquipmentIsSetVKS" style="width: 3rem; height: 1.5rem;">
-                                            <label class="form-check-label fw-bold" for="addEquipmentIsSetVKS">
-                                                <i class="fas fa-box"></i> Комплект для ВКС
-                                            </label>
-                                            <div class="form-text small">Отметьте, если это комплект для ВКС</div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6 mb-2">
-                                        <label class="form-label">Комплектация</label>
-                                        <select class="form-select" id="addEquipmentSetTypeVKS">
-                                            <option value="">-- Выберите состав --</option>
-                                            <option value="Веб-камера">Только Веб-камера</option>
-                                            <option value="Гарнитура">Только гарнитура</option>
-                                            <option value="Микрофон">Только микрофон</option>
-                                            <option value="Веб-камера+Гарнитура">Веб-камера + гарнитура</option>
-                                            <option value="Веб-камера+Микрофон">Веб-камера + микрофон</option>
-                                            <option value="Гарнитура+Микрофон">Гарнитура + микрофон</option>
-                                            <option value="Веб-камера+Гарнитура+Микрофон">Веб-камера + гарнитура + микрофон</option>
-                                        </select>
-                                        <div class="form-text small">Выберите состав комплекта</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Форма для периферии -->
-                    <div id="formPeripheral" class="type-form" style="display: none;">
-                        <div class="card mb-3">
-                            <div class="card-header bg-light">
-                                <h6 class="mb-0"><i class="fas fa-plug"></i> Параметры периферии</h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="row">
-                                    <div class="col-md-6 mb-2">
-                                        <label class="form-label">Тип подключения</label>
-                                        <select class="form-select" id="addEquipmentConnectionTypePeripheral">
-                                                <option value="USB">USB</option>
-                                                <option value="Bluetooth">Bluetooth</option>
-                                                <option value="Wireless">Беспроводной</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-6 mb-2">
-                                        <label class="form-label">Цвет</label>
-                                        <input type="text" class="form-control" id="addEquipmentColorPeripheral" placeholder="Черный, Белый">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <!-- equipment_modals.html - блок с кабинетом в addEquipmentModal -->
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">Кабинет</label>
-                            <input type="text" class="form-control" id="addEquipmentRoom" 
-                                placeholder="Номер кабинета" list="addEquipmentRoomsList" autocomplete="off">
-                            <datalist id="addEquipmentRoomsList"></datalist>
-                            <small class="text-muted">Начните вводить номер — появятся подсказки</small>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">Статус</label>
-                            <select class="form-select" id="addEquipmentStatus">
-                                <option value="В работе">В работе</option>
-                                <option value="Ремонт">Ремонт</option>
-                                <option value="На складе">На складе</option>
-                                <option value="Списано">Списано</option>
-                                <option value="Простаивает">Простаивает</option> 
+                    <div class="row" id="addParentGroup" style="display:none;">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label"><i class="fas fa-desktop"></i> Установлено на компьютере</label>
+                            <select class="form-select" id="addParent">
+                                <option value="">— на складе / не установлено —</option>
+                                {% for c in computers %}
+                                <option value="{{ c.id }}">{{ c.label }}</option>
+                                {% endfor %}
                             </select>
                         </div>
                     </div>
 
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Дата принятия к учету</label>
-                            <input type="date" class="form-control" id="addEquipmentPurchaseDate">
+                    <!-- ===== Компьютеры ===== -->
+                    <div class="type-form" id="formComputer" style="display:none;">
+                        <hr><h6 class="text-muted">Параметры компьютера</h6>
+                        <div class="row">
+                            <div class="col-md-6 mb-3"><label class="form-label">Сетевое имя</label><input class="form-control" id="addNetworkName" placeholder="PC-001"></div>
+                            <div class="col-md-6 mb-3"><label class="form-label">Год производства</label><input type="number" class="form-control" id="addManufactureYear" min="1990" max="2100"></div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4 mb-3"><label class="form-label">Процессор</label><input class="form-control" id="addProcessor"></div>
+                            <div class="col-md-2 mb-3"><label class="form-label">ОЗУ (ГБ)</label><input type="number" class="form-control" id="addRam"></div>
+                            <div class="col-md-2 mb-3"><label class="form-label">Тип ОЗУ</label>
+                                <select class="form-select" id="addRamType"><option value=""></option><option>DDR2</option><option>DDR3</option><option>DDR4</option><option>DDR5</option></select>
+                            </div>
+                            <div class="col-md-4 mb-3"><label class="form-label">Накопитель</label><input class="form-control" id="addStorage" placeholder="SSD 512GB"></div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4 mb-3"><label class="form-label">ОС</label><input class="form-control" id="addOs"></div>
+                            <div class="col-md-4 mb-3"><label class="form-label">Ключ ОС</label><input class="form-control" id="addOsKey"></div>
+                            <div class="col-md-4 mb-3"><label class="form-label">IP-адрес</label><input class="form-control" id="addIpAddress1"></div>
                         </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label">Характеристики</label>
-                        <textarea class="form-control" id="addEquipmentCharacteristics" rows="2" placeholder="Дополнительные характеристики"></textarea>
+                    <!-- ===== Мониторы ===== -->
+                    <div class="type-form" id="formMonitor" style="display:none;">
+                        <hr><h6 class="text-muted">Параметры монитора</h6>
+                        <div class="row">
+                            <div class="col-md-3 mb-3"><label class="form-label">Диагональ (")</label><input type="number" class="form-control" id="addMonitorSize"></div>
+                            <div class="col-md-3 mb-3"><label class="form-label">Разрешение</label>
+                                <select class="form-select" id="addResolution"><option value=""></option><option>1920x1080</option><option>2560x1440</option><option>3840x2160</option></select>
+                            </div>
+                            <div class="col-md-3 mb-3"><label class="form-label">Частота, Гц</label><input type="number" class="form-control" id="addRefreshRate"></div>
+                            <div class="col-md-3 mb-3"><label class="form-label">Тип матрицы</label>
+                                <select class="form-select" id="addPanelType"><option value=""></option><option>IPS</option><option>VA</option><option>TN</option><option>OLED</option></select>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4 mb-3"><label class="form-label">Время отклика, мс</label><input type="number" class="form-control" id="addResponseTime"></div>
+                            <div class="col-md-4 mb-3"><label class="form-label">Угол обзора</label><input class="form-control" id="addViewingAngle"></div>
+                            <div class="col-md-4 mb-3"><label class="form-label">Тип подключения</label><input class="form-control" id="addConnectionTypeMonitor" placeholder="HDMI, DP, VGA..."></div>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Примечание</label>
-                        <textarea class="form-control" id="addEquipmentNotes" rows="2"></textarea>
+
+                    <!-- ===== Сетевое оборудование ===== -->
+                    <div class="type-form" id="formNetwork" style="display:none;">
+                        <hr><h6 class="text-muted">Параметры сетевого оборудования</h6>
+                        <div class="row">
+                            <div class="col-md-3 mb-3"><label class="form-label">Кол-во портов</label><input type="number" class="form-control" id="addPortCount"></div>
+                            <div class="col-md-3 mb-3"><label class="form-label">Скорость портов</label>
+                                <select class="form-select" id="addSpeedNetwork"><option value=""></option><option>100Mbps</option><option>1Gbps</option><option>10Gbps</option></select>
+                            </div>
+                            <div class="col-md-3 mb-3"><label class="form-label">PoE</label>
+                                <select class="form-select" id="addPoe"><option value=""></option><option>Нет</option><option>Да</option></select>
+                            </div>
+                            <div class="col-md-3 mb-3"><label class="form-label">Управляемый</label>
+                                <select class="form-select" id="addManaged"><option value=""></option><option>Нет</option><option>Да</option></select>
+                            </div>
+                        </div>
+                        <div class="row"><div class="col-md-6 mb-3"><label class="form-label">IP-адрес</label><input class="form-control" id="addIpAddress2"></div></div>
                     </div>
+
+                    <!-- ===== МФУ / Принтер / Сканер ===== -->
+                    <div class="type-form" id="formPrint" style="display:none;">
+                        <hr><h6 class="text-muted">Параметры печати/сканирования</h6>
+                        <div class="row">
+                            <div class="col-md-3 mb-3"><label class="form-label">Тип печати</label>
+                                <select class="form-select" id="addPrintType"><option value=""></option><option>Лазерный</option><option>Струйный</option></select>
+                            </div>
+                            <div class="col-md-3 mb-3"><label class="form-label">Формат</label>
+                                <select class="form-select" id="addPrintFormat"><option value=""></option><option>A4</option><option>A3</option><option>A3-A4</option></select>
+                            </div>
+                            <div class="col-md-3 mb-3"><label class="form-label">Скорость печати</label><input type="number" class="form-control" id="addPrintSpeed"></div>
+                            <div class="col-md-3 mb-3"><label class="form-label">Цветность</label>
+                                <select class="form-select" id="addColorType"><option value=""></option><option>Ч/Б</option><option>Цветной</option></select>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-3 mb-3"><label class="form-label">Двусторонняя печать</label>
+                                <select class="form-select" id="addDuplex"><option value="Нет">Нет</option><option value="Да">Да</option></select>
+                            </div>
+                            <div class="col-md-3 mb-3"><label class="form-label">IP-адрес</label><input class="form-control" id="addIpAddress3"></div>
+                            <div class="col-md-3 mb-3"><label class="form-label">Разрешение сканера</label><input class="form-control" id="addScannerResolution"></div>
+                            <div class="col-md-3 mb-3"><label class="form-label">Скорость сканера</label><input class="form-control" id="addScannerSpeed"></div>
+                        </div>
+                    </div>
+
+                    <!-- ===== ИБП ===== -->
+                    <div class="type-form" id="formUps" style="display:none;">
+                        <hr><h6 class="text-muted">Параметры ИБП</h6>
+                        <div class="row">
+                            <div class="col-md-3 mb-3"><label class="form-label">Мощность (VA)</label><input class="form-control" id="addUpsPower"></div>
+                            <div class="col-md-3 mb-3"><label class="form-label">Тип</label>
+                                <select class="form-select" id="addUpsType"><option value=""></option><option>Резервный</option><option>Линейно-интерактивный</option><option>On-line</option></select>
+                            </div>
+                            <div class="col-md-3 mb-3"><label class="form-label">Розеток</label><input type="number" class="form-control" id="addUpsOutlets"></div>
+                            <div class="col-md-3 mb-3"><label class="form-label">Время работы, мин</label><input type="number" class="form-control" id="addUpsRuntime"></div>
+                        </div>
+                    </div>
+
+                    <!-- ===== Простая периферия (мышь/клавиатура, камера/гарнитура, колонки, внешний диск, док-станция, другое) ===== -->
+                    <div class="type-form" id="formConnection" style="display:none;">
+                        <hr><h6 class="text-muted">Параметры</h6>
+                        <div class="row">
+                            <div class="col-md-4 mb-3"><label class="form-label">Тип подключения</label><input class="form-control" id="addConnectionType" placeholder="USB, Bluetooth, Wireless..."></div>
+                            <div class="col-md-4 mb-3"><label class="form-label">Цвет</label><input class="form-control" id="addColor"></div>
+                            <div class="col-md-4 mb-3" id="addStorageSizeGroup" style="display:none;"><label class="form-label">Объём</label><input class="form-control" id="addStorageSize" placeholder="1TB"></div>
+                        </div>
+                    </div>
+
+                    <!-- ===== Комплектующие и расходники ===== -->
+                    <div class="type-form" id="formComponent" style="display:none;">
+                        <hr><h6 class="text-muted">Параметры комплектующего</h6>
+                        <div class="row">
+                            <div class="col-md-4 mb-3"><label class="form-label">Объём (ГБ) <small class="text-muted">ОЗУ/видеопамять</small></label><input type="number" class="form-control" id="addComponentRam"></div>
+                            <div class="col-md-4 mb-3"><label class="form-label">Тип ОЗУ</label>
+                                <select class="form-select" id="addComponentRamType"><option value=""></option><option>DDR2</option><option>DDR3</option><option>DDR4</option><option>DDR5</option></select>
+                            </div>
+                            <div class="col-md-4 mb-3"><label class="form-label">Накопитель/ёмкость</label><input class="form-control" id="addComponentStorage" placeholder="512GB, 5000mAh, 650W..."></div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-3 mb-3"><label class="form-label">Порты</label><input class="form-control" id="addComponentPorts"></div>
+                            <div class="col-md-3 mb-3"><label class="form-label">Скорость/сеть</label><input class="form-control" id="addComponentSpeed"></div>
+                            <div class="col-md-3 mb-3"><label class="form-label">Тип подключения</label><input class="form-control" id="addComponentConnection"></div>
+                            <div class="col-md-3 mb-3" id="addCableTypeGroup" style="display:none;">
+                                <label class="form-label">Тип разъёма (кабель)</label>
+                                <select class="form-select" id="addCableType">
+                                    <option value=""></option>
+                                    <option>DVI</option><option>HDMI</option><option>RJ45</option><option>USB-C</option>
+                                    <option>VGA</option><option>DisplayPort</option><option>Jack 3.5mm</option><option>Питание</option><option>Другое</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr>
+                    <div class="row">
+                        <div class="col-md-4 mb-3"><label class="form-label">МОЛ</label><input class="form-control" id="addMol" list="addMolList"></div>
+                        <div class="col-md-4 mb-3"><label class="form-label">Ответственный</label><input class="form-control" id="addResponsible" list="addMolList"></div>
+                        <div class="col-md-4 mb-3"><label class="form-label">Помещение</label><input class="form-control" id="addRoom" list="addRoomList" placeholder="Кабинет, склад, гараж..."></div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-3 mb-3"><label class="form-label">Статус</label>
+                            <select class="form-select" id="addStatus">
+                                {% for st in statuses %}
+                                <option value="{{ st }}" {{ 'selected' if st == 'Установлено' else '' }}>{{ st }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3 mb-3"><label class="form-label">Дата принятия к учёту</label><input type="date" class="form-control" id="addPurchaseDate"></div>
+                        <div class="col-md-3 mb-3"><label class="form-label">Гарантия до</label><input type="date" class="form-control" id="addWarranty"></div>
+                        <div class="col-md-3 mb-3"><label class="form-label">Цена</label><input type="number" step="0.01" class="form-control" id="addPrice"></div>
+                    </div>
+                    <div class="mb-3"><label class="form-label">Поставщик</label><input class="form-control" id="addSupplier"></div>
+                    <div class="mb-3"><label class="form-label">Характеристики</label><textarea class="form-control" id="addCharacteristics" rows="2" placeholder="Дополнительные характеристики"></textarea></div>
+                    <div class="mb-3"><label class="form-label">Примечание</label><textarea class="form-control" id="addNotes" rows="2"></textarea></div>
+                    <div class="alert alert-secondary small mb-0"><i class="fas fa-info-circle"></i> Фото можно прикрепить после сохранения записи — откройте её карточку.</div>
                 </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                <button type="button" class="btn btn-primary" onclick="saveEquipment()">Сохранить</button>
+                <button type="button" class="btn btn-primary" onclick="saveNewEquipment()"><i class="fas fa-save"></i> Сохранить</button>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-// ============================================================
-// 1. ФУНКЦИЯ ОБНОВЛЕНИЯ ФОРМЫ ПРИ ДОБАВЛЕНИИ
-// ============================================================
-function updateEquipmentForm() {
-    const type = $('#addEquipmentType').val();
+// Типы Equipment.type -> какие блоки .type-form показывать
+const TYPE_FORM_MAP = {
+    'Компьютер': ['formComputer'], 'Ноутбук': ['formComputer'], 'Моноблок': ['formComputer', 'formMonitor'],
+    'Сервер': ['formComputer'], 'Планшет': ['formComputer'],
+    'Монитор': ['formMonitor'],
+    'Сетевое оборудование': ['formNetwork'],
+    'МФУ': ['formPrint'], 'Принтер': ['formPrint'], 'Сканер': ['formPrint'],
+    'ИБП': ['formUps'],
+    'Мышь/Клавиатура': ['formConnection'], 'Веб-камера/Гарнитура/Микрофон': ['formConnection'],
+    'Колонки': ['formConnection'], 'Внешний диск': ['formConnection'], 'Док-станция': ['formConnection'],
+    'Другое': ['formConnection'],
+    'Процессор': ['formComponent'], 'Оперативная память': ['formComponent'], 'Накопитель': ['formComponent'],
+    'Материнская плата': ['formComponent'], 'Видеокарта': ['formComponent'], 'Аккумулятор': ['formComponent'],
+    'Контроллер': ['formComponent'], 'Привод': ['formComponent'], 'Звуковая карта': ['formComponent'],
+    'Блок питания': ['formComponent'], 'PCI-устройство': ['formComponent'], 'Сетевая карта': ['formComponent'],
+    'Кабель': ['formComponent']
+};
+// Для этих типов "установлено на компьютере" не имеет смысла (это сам компьютер или МФУ)
+const NO_PARENT_TYPES = ['Компьютер', 'Ноутбук', 'Моноблок', 'Сервер', 'Планшет', 'МФУ', 'Принтер'];
 
-    // Скрываем все формы
+function updateEquipmentTypeForm() {
+    const type = $('#addType').val();
     $('.type-form').hide();
-
-    // ===== ИНВЕНТАРНЫЙ НОМЕР - НЕ ОБЯЗАТЕЛЕН =====
-    $('#inventoryRequired').hide();
-    $('#inventoryHint').html('Необязательное поле');
-    $('#addEquipmentInventory').prop('required', false);
-    $('#addEquipmentInventory').removeClass('is-invalid');
-    $('#inventoryLabel').html('Инвентарный номер');
-
-    // Показываем соответствующую форму
-    switch(type) {
-        case 'computer':
-        case 'laptop':
-        case 'server':
-            $('#formComputer').show();
-            break;
-        case 'monoblock':
-            $('#formComputer').show();
-            $('#formMonitor').show();   // <-- ДОБАВЛЕНО
-            break;
-        case 'monitor':
-            $('#formMonitor').show();
-            break;
-        case 'network':
-            $('#formNetwork').show();
-            break;
-        case 'printer':
-            $('#formPrinter').show();
-            break;
-        case 'mfu':
-            $('#formMFU').show();
-            $('#formScanner').show();
-            break;
-        case 'scanner':
-            $('#formScanner').show();
-            break;
-        case 'ups':
-            $('#formUps').show();
-            break;
-        case 'mouse_keyboard':
-            $('#formMouseKeyboard').show();
-            setTimeout(bindMouseKeyboardHandlers, 50);
-            break;
-        case 'pereferiya':
-            $('#formVKS').show();
-            setTimeout(bindVKSHandlers, 50);
-            break;
-        case 'external_drive':
-        case 'speakers':
-            $('#formPeripheral').show();
-            break;
-        case 'other':
-            $('#formComputer').show();
-            break;
-        default:
-            break;
-    }
+    (TYPE_FORM_MAP[type] || []).forEach(id => $('#' + id).show());
+    $('#addStorageSizeGroup').toggle(type === 'Внешний диск');
+    $('#addCableTypeGroup').toggle(type === 'Кабель');
+    $('#addParentGroup').toggle(!NO_PARENT_TYPES.includes(type));
 }
 
-// ============================================================
-// 2. ПРИВЯЗКА ОБРАБОТЧИКОВ ДЛЯ МЫШИ/КЛАВИАТУРЫ
-// ============================================================
-function bindMouseKeyboardHandlers() {
-    console.log('Привязка обработчиков для мыши/клавиатуры');
-
-    // При изменении чекбокса - меняем комплектацию
-    $('#addEquipmentIsSet').off('change').on('change', function() {
-        if ($(this).is(':checked')) {
-            $('#addEquipmentSetType').val('Клавиатура+Мышь');
-        } else {
-            $('#addEquipmentSetType').val('Клавиатура');
-        }
+$(document).ready(function() {
+    updateEquipmentTypeForm();
+    $('#addEquipmentModal').on('show.bs.modal', function() {
+        $('#addEquipmentForm')[0].reset();
+        updateEquipmentTypeForm();
     });
+});
 
-    // При изменении комплектации - меняем чекбокс
-    $('#addEquipmentSetType').off('change').on('change', function() {
-        if ($(this).val() === 'Клавиатура+Мышь') {
-            $('#addEquipmentIsSet').prop('checked', true);
-        } else {
-            $('#addEquipmentIsSet').prop('checked', false);
-        }
-    });
-}
-
-// ============================================================
-// 3. ПРИВЯЗКА ОБРАБОТЧИКОВ ДЛЯ ВКС (без автосвязки)
-// ============================================================
-function bindVKSHandlers() {
-    console.log('Привязка обработчиков для ВКС');
-
-    // Для ВКС - НЕТ автосвязки между чекбоксом и комплектацией
-    // Пользователь сам выбирает состав комплекта
-    $('#addEquipmentIsSetVKS').off('change');
-    $('#addEquipmentSetTypeVKS').off('change');
-}
-
-function loadEmployeesForDatalists() {
-    $.ajax({
-        url: '/api/employees',
-        method: 'GET',
-        dataType: 'json',
-        success: function(data) {
-            // Список имён
-            const names = data.map(item => item.name || item);
-            // Обновляем все datalist'ы
-            const datalists = ['molDatalist', 'responsibleDatalist', 'editMolDatalist', 'editResponsibleDatalist'];
-            datalists.forEach(id => {
-                const dl = document.getElementById(id);
-                if (dl) {
-                    dl.innerHTML = '';
-                    names.forEach(name => {
-                        const opt = document.createElement('option');
-                        opt.value = name;
-                        dl.appendChild(opt);
-                    });
-                }
-            });
-        }
-    });
-}
-
-function quickAddEmployee(inputId, datalistId) {
-    const input = document.getElementById(inputId);
-    const name = input.value.trim();
-    if (!name) {
-        showMessage('Введите ФИО сотрудника', 'warning');
-        return;
-    }
-
-    // Блокируем кнопку (найдём её рядом с полем)
-    const btn = input.closest('.input-group').querySelector('.btn');
-    const originalHtml = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-
-    $.ajax({
-        url: '/api/employees',
-        method: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify({ name: name }),
-        success: function(response) {
-            if (response.success) {
-                showMessage('✅ Сотрудник добавлен', 'success');
-                // Обновляем все datalist
-                loadEmployeesForDatalists();
-                // Оставляем введённое значение
-                input.value = name;
-            } else {
-                showMessage(response.error || 'Ошибка при добавлении', 'danger');
-            }
-        },
-        error: function(xhr) {
-            const error = xhr.responseJSON;
-            showMessage(error?.error || '❌ Ошибка при добавлении', 'danger');
-        },
-        complete: function() {
-            btn.disabled = false;
-            btn.innerHTML = originalHtml;
-        }
-    });
-}
-
-
-// ============================================================
-// 4. ФУНКЦИЯ СОХРАНЕНИЯ ОБОРУДОВАНИЯ
-// ============================================================
-function saveEquipment() {
-    const type = $('#addEquipmentType').val();
-    const typeNames = {
-        'computer': 'Компьютер',
-        'laptop': 'Ноутбук',
-        'monitor': 'Монитор',
-        'monoblock': 'Моноблок',
-        'server': 'Сервер',
-        'network': 'Сетевое оборудование',
-        'printer': 'Принтер',
-        'mfu': 'МФУ',
-        'scanner': 'Сканер',
-        'ups': 'ИБП',
-        'mouse_keyboard': 'Мышь/Клавиатура',
-        'external_drive': 'Внешний диск',
-        'pereferiya': 'Веб-камера/Гарнитура/Микрофон',
-        'speakers': 'Колонки',
-        'other': 'Другое'
-    };
-
-    if (!type) {
-        showMessage('Выберите тип оборудования', 'danger');
-        return;
-    }
-
-    const typeDisplay = typeNames[type] || type;
-
-    let inventoryNumber = $('#addEquipmentInventory').val().trim();
-    if (inventoryNumber === '') inventoryNumber = null;
+function saveNewEquipment() {
+    const type = $('#addType').val();
+    if (!type) { showMessage('Выберите тип', 'danger'); return; }
 
     const data = {
-        type: typeDisplay,
-        brand: $('#addEquipmentBrand').val().trim() || '',
-        model: '',
-        serial_number: $('#addEquipmentSerial').val().trim() || '',
-        inventory_number: inventoryNumber,
-        status: $('#addEquipmentStatus').val(),
-        responsible: $('#addEquipmentResponsibleInput').val().trim() || '',
-        mol: $('#addEquipmentMOLInput').val().trim() || '',
-        room: $('#addEquipmentRoom').val() || '',
-        organization_id: $('#addEquipmentOrganization').val() || null,
-        purchase_date: $('#addEquipmentPurchaseDate').val() || null,
-        characteristics: $('#addEquipmentCharacteristics').val() || '',
-        notes: $('#addEquipmentNotes').val().trim() || ''
+        type: type,
+        brand: $('#addBrand').val(),
+        model: $('#addModel').val(),
+        serial_number: $('#addSerial').val(),
+        inventory_number: $('#addInventory').val(),
+        mol: $('#addMol').val(),
+        responsible: $('#addResponsible').val(),
+        room: $('#addRoom').val(),
+        status: $('#addStatus').val(),
+        purchase_date: $('#addPurchaseDate').val(),
+        warranty_until: $('#addWarranty').val(),
+        price: $('#addPrice').val() || null,
+        supplier: $('#addSupplier').val(),
+        characteristics: $('#addCharacteristics').val(),
+        notes: $('#addNotes').val(),
+        network_name: $('#addNetworkName').val(),
+        manufacture_year: $('#addManufactureYear').val() || null,
+        parent_equipment_id: NO_PARENT_TYPES.includes(type) ? null : ($('#addParent').val() || null),
+        processor: $('#addProcessor').val(),
+        ram: $('#addRam').val() || $('#addComponentRam').val() || null,
+        ram_type: $('#addRamType').val() || $('#addComponentRamType').val(),
+        storage: $('#addStorage').val() || $('#addComponentStorage').val(),
+        os: $('#addOs').val(),
+        os_key: $('#addOsKey').val(),
+        monitor_size: $('#addMonitorSize').val() || null,
+        resolution: $('#addResolution').val(),
+        refresh_rate: $('#addRefreshRate').val() || null,
+        panel_type: $('#addPanelType').val(),
+        response_time: $('#addResponseTime').val() || null,
+        viewing_angle: $('#addViewingAngle').val(),
+        port_count: $('#addPortCount').val() || null,
+        ports: $('#addComponentPorts').val(),
+        speed: $('#addSpeedNetwork').val() || $('#addComponentSpeed').val(),
+        poe: $('#addPoe').val(),
+        managed: $('#addManaged').val(),
+        ip_address: $('#addIpAddress1').val() || $('#addIpAddress2').val() || $('#addIpAddress3').val(),
+        print_type: $('#addPrintType').val(),
+        print_format: $('#addPrintFormat').val(),
+        print_speed: $('#addPrintSpeed').val() || null,
+        color_type: $('#addColorType').val(),
+        duplex: $('#addDuplex').val(),
+        scanner_resolution: $('#addScannerResolution').val(),
+        scanner_speed: $('#addScannerSpeed').val(),
+        ups_power: $('#addUpsPower').val(),
+        ups_type: $('#addUpsType').val(),
+        ups_outlets: $('#addUpsOutlets').val() || null,
+        ups_runtime: $('#addUpsRuntime').val() || null,
+        connection_type: $('#addConnectionType').val() || $('#addConnectionTypeMonitor').val() || $('#addComponentConnection').val(),
+        color: $('#addColor').val(),
+        cable_type: $('#addCableType').val()
     };
-
-    // ===== СПЕЦИФИЧЕСКИЕ ПОЛЯ =====
-
-    // 1. Системные (Компьютер, Ноутбук, Сервер, Моноблок, Другое)
-    const systemTypes = ['computer', 'laptop', 'server', 'monoblock', 'other'];
-    if (systemTypes.includes(type)) {
-        data.processor = $('#addEquipmentProcessor').val().trim() || '';
-        data.ram = parseInt($('#addEquipmentRam').val()) || null;
-        data.ram_type = $('#addEquipmentRamType').val() || '';
-        const disks = getStorageRows('add');
-        data.storage = disks.join(' + ');
-        data.os = $('#addEquipmentOs').val().trim() || '';
-        data.os_key = $('#addEquipmentOsKey').val().trim() || '';
-        data.ip_address = $('#addEquipmentIpAddress').val().trim() || null;
+    if (type === 'Внешний диск' && $('#addStorageSize').val()) {
+        data.storage = $('#addStorageSize').val();
     }
-
-    // 2. Монитор (и Моноблок)
-    const monitorTypes = ['monitor', 'monoblock'];
-    if (monitorTypes.includes(type)) {
-        data.monitor_size = parseInt($('#addEquipmentMonitorSize').val()) || null;
-        data.resolution = $('#addEquipmentResolution').val() || '';
-        data.refresh_rate = parseInt($('#addEquipmentRefreshRate').val()) || null;
-        data.panel_type = $('#addEquipmentPanelType').val() || '';
-        data.response_time = parseInt($('#addEquipmentResponseTime').val()) || null;
-        data.viewing_angle = $('#addEquipmentViewingAngle').val().trim() || '';
-        const connections = getConnections('add');
-        data.connection_type = connections.join(', ');
-    }
-
-    // 3. Сетевое оборудование
-    if (type === 'network') {
-        data.port_count = parseInt($('#addEquipmentPortCount').val()) || null;
-        data.speed = $('#addEquipmentSpeed').val() || '';
-        data.ip_address = $('#addEquipmentIpAddress').val().trim() || null;
-        data.network_type = $('#addEquipmentNetworkType').val() || '';
-        data.poe = $('#addEquipmentPoE').val() || '';
-        data.managed = $('#addEquipmentManaged').val() || '';
-    }
-
-    // 4. Принтер и МФУ
-    const printerTypes = ['printer', 'mfu']
-    if (printerTypes.includes(type)) {
-        if (type === 'printer') {
-            // Для принтера используем обычные ID
-            data.print_type = $('#addEquipmentPrintType').val();
-            data.print_format = $('#addEquipmentPrintFormat').val();
-            data.color_type = $('#addEquipmentColorType').val();
-            data.duplex = $('#addEquipmentDuplex').val();
-            data.printer_ports = ($('#addEquipmentPrinterPorts').val() || '').trim();
-            data.ip_address = ($('#addEquipmentIpAddressPrinter').val() || '').trim();
-        } else if (type === 'mfu') {
-            // Для МФУ используем ID с суффиксом Mfu
-            data.print_type = $('#addEquipmentPrintType').val();
-            data.print_format = $('#addEquipmentPrintFormat').val();
-            data.color_type = $('#addEquipmentColorType').val();
-            data.duplex = $('#addEquipmentDuplexMfu').val();  // <-- ТЕПЕРЬ БУДЕТ "Да"
-            data.printer_ports = ($('#addEquipmentPrinterPorts').val() || '').trim();
-            data.ip_address = ($('#addEquipmentMfuIpAddress').val() || '').trim();
-            data.duplex_scanner = $('#addEquipmentDuplexScanner').val();
-            data.scan_format = $('#addEquipmentScanFormat').val();
-        }
-    }
-
-    // 5. Сканер
-    if (type === 'scanner') {
-        data.duplex_scanner = $('#addEquipmentDuplexScanner').val();
-        data.scan_format = $('#addEquipmentScanFormat').val();
-    }
-
-    // 6. ИБП
-    if (type === 'ups') {
-        data.ups_power = $('#addEquipmentUpsPower').val().trim() || '';
-        data.ups_type = $('#addEquipmentUpsType').val() || '';
-        data.ups_outlets = parseInt($('#addEquipmentUpsOutlets').val()) || null;
-        data.ups_usb = $('#addEquipmentUpsUsb').val().trim() || '';
-        data.ups_runtime = parseInt($('#addEquipmentUpsRuntime').val()) || null;
-    }
-
-    // 7. Мышь/Клавиатура
-    if (type === 'mouse_keyboard') {
-        data.connection_type = $('#addEquipmentConnectionType').val() || '';
-        data.color = $('#addEquipmentColor').val().trim() || '';
-        data.is_set = $('#addEquipmentIsSet').is(':checked') ? 1 : 0;
-        data.set_type = $('#addEquipmentSetType').val() || '';
-    }
-
-    // 8. ВКС (веб-камера/гарнитура/микрофон)
-    if (type === 'pereferiya') {
-        data.connection_type = $('#addEquipmentConnectionTypeVKS').val() || '';
-        data.color = $('#addEquipmentColorVKS').val().trim() || '';
-        data.is_set = $('#addEquipmentIsSetVKS').is(':checked') ? 1 : 0;
-        data.set_type = $('#addEquipmentSetTypeVKS').val() || '';
-    }
-
-    // 9. Прочая периферия (внешний диск, колонки)
-    if (['external_drive', 'speakers'].includes(type)) {
-        data.connection_type = $('#addEquipmentConnectionTypePeripheral').val() || '';
-        data.color = $('#addEquipmentColorPeripheral').val().trim() || '';
-        if (type === 'external_drive') {
-            data.storage = $('#addEquipmentStorageSize').val() ? `${$('#addEquipmentStorageSize').val()}GB` : '';
-        }
-    }
-
-    // Отправка
-    const btn = $('#addEquipmentModal .btn-primary');
-    const originalHtml = btn.html();
-    btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Сохранение...');
 
     $.ajax({
         url: '/api/equipment',
         method: 'POST',
         contentType: 'application/json',
         data: JSON.stringify(data),
-        success: function(response) {
-            if (response.success) {
-                showMessage('✅ Оборудование добавлено', 'success');
+        success: function(resp) {
+            if (resp.success) {
+                showMessage('Добавлено', 'success');
                 $('#addEquipmentModal').modal('hide');
-                $('#addEquipmentForm')[0].reset();
-                $('.type-form').hide();
-                $('#addEquipmentType').val('');
-                if (typeof loadEquipment === 'function') loadEquipment();
+                loadEquipment();
             } else {
-                showMessage(response.error || 'Ошибка при добавлении', 'danger');
+                showMessage(resp.error || 'Ошибка добавления', 'danger');
             }
         },
-        error: function(xhr) {
-            const error = xhr.responseJSON;
-            showMessage(error?.error || '❌ Ошибка при добавлении', 'danger');
-        },
-        complete: function() {
-            btn.prop('disabled', false).html(originalHtml);
-        }
+        error: function(xhr) { showMessage((xhr.responseJSON && xhr.responseJSON.error) || 'Ошибка добавления', 'danger'); }
     });
 }
-
-let roomsMap = {};
-
-function loadRoomsForDatalist(datalistId) {
-    $.ajax({
-        url: '/api/rooms/search',
-        method: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify({search: ''}),
-        success: function(rooms) {
-            const datalist = $('#' + datalistId);
-            datalist.empty();
-            roomsMap = {};
-            if (rooms && rooms.length > 0) {
-                for (let i = 0; i < rooms.length; i++) {
-                    const room = rooms[i];
-                    datalist.append(`<option value="${escapeHtml(room.number)}">${escapeHtml(room.number)}</option>`);
-                    roomsMap[room.number] = {
-                        id: room.id,
-                        department_id: room.department_id,
-                        department_name: room.department_name
-                    };
-                }
-            }
-            // Если поле уже содержит значение, обновим отдел
-            const input = $('#' + datalistId.replace('List', ''));
-            if (input.length) {
-                updateDepartmentDisplay(input.val(), input.attr('id'));
-            }
-        },
-        error: function() {
-            console.error("Ошибка загрузки кабинетов");
-        }
-    });
-}
-
-function updateDepartmentDisplay(roomNumber, inputId) {
-    const displaySpan = $('#' + inputId.replace('Room', 'DepartmentDisplay'));
-    if (roomsMap[roomNumber] && roomsMap[roomNumber].department_name) {
-        displaySpan.text(roomsMap[roomNumber].department_name);
-        displaySpan.closest('.mt-1').show();
-    } else if (roomNumber.trim() !== '') {
-        displaySpan.text('(новый кабинет)');
-        displaySpan.closest('.mt-1').show();
-    } else {
-        displaySpan.text('—');
-    }
-}
-
-// Функция для добавления новой строки диска
-// Добавление строки диска
-function addStorageRow(mode) {
-    const containerId = mode === 'add' ? 'addStorageContainer' : 'editStorageContainer';
-    const container = document.getElementById(containerId);
-    if (!container) return;
-
-    const row = document.createElement('div');
-    row.className = 'row storage-row mb-1';
-    row.innerHTML = `
-        <div class="col-5">
-            <select class="form-select form-select-sm storage-type">
-                <option value="">Тип</option>
-                <option value="HDD">HDD</option>
-                <option value="SSD">SSD</option>
-                <option value="NVMe">NVMe</option>
-                <option value="SSD M.2">SSD M.2</option>
-            </select>
-        </div>
-        <div class="col-5">
-            <select class="form-select form-select-sm storage-size" onchange="toggleStorageCustom(this)">
-                <option value="">Объем</option>
-                <option value="128">128 ГБ</option>
-                <option value="256">256 ГБ</option>
-                <option value="512">512 ГБ</option>
-                <option value="1024">1 ТБ</option>
-                <option value="custom">Другое</option>
-            </select>
-            <input type="text" class="form-control form-control-sm storage-custom" placeholder="Введите объем" style="display:none;">            
-        </div>
-
-        <div class="col-2 text-end">
-            <button type="button" class="btn btn-sm btn-outline-danger remove-storage-btn" onclick="this.closest('.storage-row').remove()">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-    `;
-    container.appendChild(row);
-}
-
-// Сбор данных о дисках из контейнера
-function getStorageRows(mode) {
-    const containerId = mode === 'add' ? 'addStorageContainer' : 'editStorageContainer';
-    const container = document.getElementById(containerId);
-    if (!container) return [];
-
-    const rows = container.querySelectorAll('.storage-row');
-    const disks = [];
-    rows.forEach(row => {
-        const type = row.querySelector('.storage-type').value;
-        const size = row.querySelector('.storage-size').value;
-        if (type && size) {
-            disks.push(`${type} ${size}GB`);
-        } else if (type && !size) {
-            disks.push(type);
-        } else if (!type && size) {
-            disks.push(`${size}GB`);
-        }
-        // Если оба пустые – пропускаем
-    });
-    return disks;
-}
-
-function toggleStorageCustom(select) {
-    const row = select.closest('.storage-row');
-    const customInput = row.querySelector('.storage-custom');
-    if (select.value === 'custom') {
-        customInput.style.display = 'block';
-        customInput.focus();
-    } else {
-        customInput.style.display = 'none';
-    }
-}
-
-// При получении данных дисков учитываем custom
-function getStorageRows(mode) {
-    const containerId = mode === 'add' ? 'addStorageContainer' : 'editStorageContainer';
-    const container = document.getElementById(containerId);
-    if (!container) return [];
-    const rows = container.querySelectorAll('.storage-row');
-    const disks = [];
-    rows.forEach(row => {
-        const type = row.querySelector('.storage-type').value;
-        const sizeSelect = row.querySelector('.storage-size');
-        const customInput = row.querySelector('.storage-custom');
-        let size = sizeSelect.value;
-        if (size === 'custom') {
-            size = customInput.value.trim();
-        }
-        if (type && size) {
-            disks.push(`${type} ${size}GB`);
-        } else if (type && !size) {
-            disks.push(type);
-        } else if (!type && size) {
-            disks.push(`${size}GB`);
-        }
-    });
-    return disks;
-}
-
-// Заполнение контейнера из существующей строки storage (при редактировании)
-function populateStorageRows(storageString, mode) {
-    const containerId = mode === 'add' ? 'addStorageContainer' : 'editStorageContainer';
-    const container = document.getElementById(containerId);
-    if (!container) return;
-
-    container.innerHTML = '';
-
-    if (!storageString) {
-        // Если нет данных, добавляем одну пустую строку
-        addStorageRow(mode);
-        return;
-    }
-
-    // Разбиваем строку по разделителям " + " или ", "
-    const parts = storageString.split(/\s*\+\s*|\s*,\s*/);
-    parts.forEach(part => {
-        const trimmed = part.trim();
-        if (!trimmed) return;
-
-        let type = '';
-        let size = '';
-        const match = trimmed.match(/^(HDD|SSD|NVMe|SSD M\.2)\s*(\d+)\s*GB$/i);
-        if (match) {
-            type = match[1];
-            size = match[2];
-        } else {
-            type = trimmed;
-        }
-
-        const row = document.createElement('div');
-        row.className = 'row storage-row mb-1';
-        row.innerHTML = `
-            <div class="col-5">
-                <select class="form-select form-select-sm storage-type">
-                    <option value="">Тип</option>
-                    <option value="HDD" ${type === 'HDD' ? 'selected' : ''}>HDD</option>
-                    <option value="SSD" ${type === 'SSD' ? 'selected' : ''}>SSD</option>
-                    <option value="NVMe" ${type === 'NVMe' ? 'selected' : ''}>NVMe</option>
-                    <option value="SSD M.2" ${type === 'SSD M.2' ? 'selected' : ''}>SSD M.2</option>
-                </select>
-            </div>
-            <div class="col-5">
-                <select class="form-select form-select-sm storage-size">
-                    <option value="">Объем</option>
-                    <option value="128" ${size === '128' ? 'selected' : ''}>128 ГБ</option>
-                    <option value="256" ${size === '256' ? 'selected' : ''}>256 ГБ</option>
-                    <option value="512" ${size === '512' ? 'selected' : ''}>512 ГБ</option>
-                    <option value="1024" ${size === '1024' ? 'selected' : ''}>1 ТБ</option>
-                </select>
-            </div>
-            <div class="col-2 text-end">
-                <button type="button" class="btn btn-sm btn-outline-danger remove-storage-btn" onclick="this.closest('.storage-row').remove()">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-        `;
-        container.appendChild(row);
-    });
-}
-
-// ============================================================
-// 5. ФУНКЦИЯ ОБНОВЛЕНИЯ ФОРМЫ ПРИ РЕДАКТИРОВАНИИ
-// ============================================================
-function updateEditForm() {
-    const type = $('#editEquipmentType').val();
-
-    // Скрываем все группы полей
-    $('#editSystemFields').hide();
-    $('#editMonitorFields').hide();
-    $('#editNetworkFields').hide();
-    $('#editPeripheralFields').hide();
-    $('#editPrinterFields').hide();
-    $('#editUpsFields').hide();
-
-    // Определяем типы
-    const systemTypes = ['Компьютер', 'Ноутбук', 'Сервер', 'Моноблок', 'Другое'];
-    const monitorTypes = ['Монитор'];
-    const networkTypes = ['Сетевое оборудование'];
-    const printerTypes = ['Принтер', 'МФУ'];
-    const upsTypes = ['ИБП'];
-    const peripheralTypes = ['Мышь/Клавиатура', 'Веб-камера', 'Гарнитура', 'Колонки', 'Внешний диск', 'Док-станция', 'Мышь', 'Клавиатура'];
-
-    // Показываем соответствующие поля
-    if (systemTypes.includes(type)) $('#editSystemFields').show();
-    if (monitorTypes.includes(type)) $('#editMonitorFields').show();
-    if (networkTypes.includes(type)) $('#editNetworkFields').show();
-    if (printerTypes.includes(type)) $('#editPrinterFields').show();
-    if (upsTypes.includes(type)) $('#editUpsFields').show();
-    if (peripheralTypes.includes(type)) $('#editPeripheralFields').show();
-}
-
-// ============================================================
-// 6. ФУНКЦИЯ ЗАПОЛНЕНИЯ ФОРМЫ РЕДАКТИРОВАНИЯ
-// ============================================================
-function openEditEquipmentModal(equipment) {
-    console.log('Открытие редактирования:', equipment);
-
-    $('#editEquipmentId').val(equipment.id);
-    $('#editEquipmentType').val(equipment.type);
-    $('#editEquipmentBrand').val(equipment.brand || '');
-    $('#editEquipmentModel').val(equipment.model || '');
-    $('#editEquipmentSerial').val(equipment.serial_number || '');
-    $('#editEquipmentInventory').val(equipment.inventory_number || '');
-    $('#editEquipmentStatus').val(equipment.status || 'В работе');
-    $('#editEquipmentPurchaseDate').val(equipment.purchase_date || '');
-    $('#editEquipmentNotes').val(equipment.notes || '');
-
-    if (equipment.mol) $('#editEquipmentMOL').val(equipment.mol);
-    if (equipment.responsible) $('#editEquipmentResponsible').val(equipment.responsible);
-    if (equipment.room) $('#editEquipmentRoom').val(equipment.room);
-    if (equipment.organization_id) $('#editEquipmentOrganization').val(equipment.organization_id);
-
-    // Системные
-    $('#editEquipmentProcessor').val(equipment.processor || '');
-    $('#editEquipmentRam').val(equipment.ram || '');
-    $('#editEquipmentRamType').val(equipment.ram_type || '');
-    populateStorageRows(equipment.storage || '', 'edit');
-    $('#editEquipmentOs').val(equipment.os || '');
-    $('#editEquipmentOsKey').val(equipment.os_key || '');
-    $('#editEquipmentMonitorSize').val(equipment.monitor_size || '');
-    $('#editEquipmentResolution').val(equipment.resolution || '');
-    $('#editEquipmentRefreshRate').val(equipment.refresh_rate || '');
-    $('#editEquipmentPanelType').val(equipment.panel_type || '');
-    $('#editEquipmentResponseTime').val(equipment.response_time || '');
-    $('#editEquipmentViewingAngle').val(equipment.viewing_angle || '');   // <-- ДОБАВЛЕНО
-    $('#editEquipmentPorts').val(equipment.ports || '');
-    $('#editEquipmentPortCount').val(equipment.port_count || '');
-    $('#editEquipmentSpeed').val(equipment.speed || '');
-    $('#editEquipmentIpAddress').val(equipment.ip_address || '');
-
-    // Периферия
-    if (equipment.type === 'Мышь/Клавиатура' || equipment.type === 'Мышь' || equipment.type === 'Клавиатура') {
-        $('#editEquipmentConnectionType').val(equipment.connection_type || 'USB');
-        $('#editEquipmentColor').val(equipment.color || '');
-        $('#editEquipmentIsSet').prop('checked', equipment.is_set == 1);
-        $('#editEquipmentSetType').val(equipment.set_type || 'Клавиатура');
-    }
-
-    updateEditForm();
-    $('#editEquipmentModal').modal('show');
-}
-
-// ==================== ФУНКЦИИ ДЛЯ РАБОТЫ С КАБИНЕТАМИ В ОБОРУДОВАНИИ ====================
-
-// Загрузка списка кабинетов для datalist
-
-
-// ===== УПРАВЛЕНИЕ ПОДКЛЮЧЕНИЯМИ (МОНИТОР) =====
-function addConnectionRow(mode, connectionValue = '') {
-    const containerId = mode === 'add' ? 'addConnectionContainer' : 'editConnectionContainer';
-    let container = document.getElementById(containerId);
-    if (!container) {
-        // Если контейнера нет (например, в режиме edit), создадим его
-        if (mode === 'edit') {
-            const parent = document.querySelector('#editMonitorFields .card-body');
-            if (parent) {
-                container = document.createElement('div');
-                container.id = 'editConnectionContainer';
-                container.className = 'mb-2';
-                // Вставляем после метки "Типы подключения" (если есть)
-                const label = parent.querySelector('label[for="editConnectionLabel"]');
-                if (label) {
-                    label.after(container);
-                } else {
-                    parent.appendChild(container);
-                }
-            }
-        }
-        if (!container) return;
-    }
-    const row = document.createElement('div');
-    row.className = 'row connection-row mb-1';
-    row.innerHTML = `
-        <div class="col-10">
-            <select class="form-select form-select-sm connection-select">
-                <option value="HDMI" ${connectionValue === 'HDMI' ? 'selected' : ''}>HDMI</option>
-                <option value="DisplayPort" ${connectionValue === 'DisplayPort' ? 'selected' : ''}>DisplayPort</option>
-                <option value="VGA" ${connectionValue === 'VGA' ? 'selected' : ''}>VGA</option>
-                <option value="DVI" ${connectionValue === 'DVI' ? 'selected' : ''}>DVI</option>
-            </select>
-        </div>
-        <div class="col-2 text-end">
-            <button type="button" class="btn btn-sm btn-outline-danger remove-connection-btn" onclick="this.closest('.connection-row').remove()">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-    `;
-    container.appendChild(row);
-}
-
-function getConnections(mode) {
-    const containerId = mode === 'add' ? 'addConnectionContainer' : 'editConnectionContainer';
-    const container = document.getElementById(containerId);
-    if (!container) return [];
-    const selects = container.querySelectorAll('.connection-select');
-    const connections = [];
-    selects.forEach(select => {
-        const val = select.value.trim();
-        if (val) connections.push(val);
-    });
-    return connections;
-}
-
-function populateConnections(containerId, connections) {
-    const container = document.getElementById(containerId);
-    if (!container) return;
-    container.innerHTML = '';
-    if (!connections || connections.length === 0) {
-        // Добавим одну пустую строку для удобства
-        addConnectionRow(containerId === 'editConnectionContainer' ? 'edit' : 'add', '');
-        return;
-    }
-    connections.forEach(conn => {
-        const mode = containerId === 'editConnectionContainer' ? 'edit' : 'add';
-        addConnectionRow(mode, conn);
-    });
-}
-
-// Добавление нового кабинета из формы оборудования
-// Загрузка списка кабинетов в datalist
-function loadRoomsForEquipmentDatalist(datalistId) {
-    console.log("Загрузка кабинетов для", datalistId);
-    $.ajax({
-        url: '/api/rooms/search',
-        method: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify({ search: '' }),
-        success: function(rooms) {
-            console.log("Получены комнаты:", rooms);
-            var datalist = $('#' + datalistId);
-            datalist.empty();
-            if (rooms && rooms.length > 0) {
-                for (var i = 0; i < rooms.length; i++) {
-                    datalist.append('<option value="' + escapeHtml(rooms[i].number) + '">' + escapeHtml(rooms[i].number) + '</option>');
-                }
-            } else {
-                console.warn("Комнаты не найдены");
-            }
-        },
-        error: function(xhr, status, error) {
-            console.error("Ошибка загрузки кабинетов:", error, xhr.responseText);
-        }
-    });
-}
-
-
-
-// Быстрое добавление нового кабинета (через кнопку "+")
-function addNewRoomFromEquipment(inputId, datalistId) {
-    var input = $('#' + inputId);
-    var currentRoom = input.val().trim();
-    if (!currentRoom) {
-        showMessage('Введите номер кабинета', 'warning');
-        return;
-    }
-
-    // Проверяем, есть ли уже в кэше
-    var exists = cachedRooms.some(function(room) {
-        return (room.number || room) === currentRoom;
-    });
-
-    if (exists) {
-        showMessage('Кабинет "' + currentRoom + '" уже существует', 'info');
-        return;
-    }
-
-    // Отправляем запрос на сервер (но можно и просто добавить локально)
-    $.ajax({
-        url: '/api/rooms/search',
-        method: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify({ search: currentRoom }),
-        success: function(rooms) {
-            var found = rooms.some(function(r) { return (r.number || r) === currentRoom; });
-            if (found) {
-                showMessage('Кабинет "' + currentRoom + '" уже есть в БД', 'info');
-                refreshRoomsCache();
-                return;
-            }
-            // Добавляем в кэш (без сохранения на сервер, сохранится при сохранении оборудования)
-            cachedRooms.push({ number: currentRoom });
-            fillRoomDatalist(datalistId);
-            input.val(currentRoom);
-            showMessage('Кабинет "' + currentRoom + '" добавлен в список', 'success');
-        },
-        error: function() {
-            showMessage('Ошибка проверки кабинета', 'danger');
-        }
-    });
-}
-// Загрузка кабинетов при открытии модального окна добавления оборудования
-$('#addEquipmentModal').on('show.bs.modal', function() {
-    loadRoomsForEquipmentDatalist('addEquipmentRoomsList');
-    // Очищаем поле кабинета
-    $('#addEquipmentRoom').val('');
-});
-
-// Загрузка кабинетов при открытии модального окна редактирования оборудования
-$('#editEquipmentModal').on('show.bs.modal', function() {
-    loadRoomsForEquipmentDatalist('editEquipmentRoomsList');
-});
-
-// ============================================================
-// 7. ФУНКЦИЯ СОХРАНЕНИЯ ИЗМЕНЕНИЙ
-// ============================================================
-function updateEquipment() {
-    const id = $('#editEquipmentId').val();
-    if (!id) {
-        showMessage('Ошибка: ID не найден', 'danger');
-        return;
-    }
-
-    const type = $('#editEquipmentType').val();
-
-    let inventoryNumber = $('#editEquipmentInventory').val().trim();
-    if (!inventoryNumber) inventoryNumber = null;
-
-    const data = {
-        type: type,
-        brand: $('#editEquipmentBrand').val().trim(),
-        model: '',
-        serial_number: $('#editEquipmentSerial').val().trim(),
-        inventory_number: inventoryNumber,
-        status: $('#editEquipmentStatus').val(),
-        responsible: $('#editEquipmentResponsible').val(),
-        mol: $('#editEquipmentMOL').val(),
-        room: $('#editEquipmentRoom').val(),
-        organization_id: $('#editEquipmentOrganization').val() || null,
-        purchase_date: $('#editEquipmentPurchaseDate').val() || null,
-        characteristics: $('#editEquipmentCharacteristics').val() || '',
-        notes: $('#editEquipmentNotes').val().trim()
-    };
-
-    // --- Специфические поля ---
-
-    const systemTypes = ['Компьютер', 'Ноутбук', 'Сервер', 'Моноблок', 'Другое'];
-    if (systemTypes.includes(type)) {
-        data.processor = $('#editEquipmentProcessor').val().trim();
-        data.ram = parseInt($('#editEquipmentRam').val()) || null;
-        data.ram_type = $('#editEquipmentRamType').val();
-        const disks = getStorageRows('edit');
-        data.storage = disks.join(' + ');
-        data.os = $('#editEquipmentOs').val().trim();
-        data.os_key = $('#editEquipmentOsKey').val().trim();
-    }
-
-    if (type === 'Монитор') {
-        data.monitor_size = parseInt($('#editEquipmentMonitorSize').val()) || null;
-        data.resolution = $('#editEquipmentResolution').val();
-        data.refresh_rate = parseInt($('#editEquipmentRefreshRate').val()) || null;
-        data.panel_type = $('#editEquipmentPanelType').val();
-        data.response_time = parseInt($('#editEquipmentResponseTime').val()) || null;
-        data.viewing_angle = $('#editEquipmentViewingAngle').val().trim();
-        data.ports = $('#editEquipmentPorts').val().trim();
-        const connections = getConnections('edit');
-        data.connection_type = connections.join(', ');
-    }
-
-    if (type === 'Сетевое оборудование') {
-        data.port_count = parseInt($('#editEquipmentPortCount').val()) || null;
-        data.speed = $('#editEquipmentSpeed').val();
-        data.ip_address = $('#editEquipmentIpAddress').val().trim();
-        data.network_type = $('#editEquipmentNetworkType').val();
-        data.poe = $('#editEquipmentPoE').val();
-        data.managed = $('#editEquipmentManaged').val();
-    }
-
-    if (['Принтер', 'МФУ'].includes(type)) {
-        data.print_type = $('#editEquipmentPrintType').val();
-        data.print_format = $('#editEquipmentPrintFormat').val();
-        data.print_speed = parseInt($('#editEquipmentPrintSpeed').val()) || null;
-        data.color_type = $('#editEquipmentColorType').val();
-        data.duplex = $('#editEquipmentDuplex').val();
-        data.printer_ports = $('#editEquipmentPrinterPorts').val().trim();
-        data.ip_address = $('#editEquipmentIpAddress').val().trim();
-        if (type === 'МФУ') {
-            data.scanner_resolution = $('#editEquipmentScannerResolution').val();
-            data.scanner_speed = $('#editEquipmentScannerSpeed').val().trim();
-            data.duplex_scanner = $('#editEquipmentDuplexScanner').val();
-            data.scan_format = $('#editEquipmentScanFormat').val();
-        }
-    }
-
-    if (type === 'Сканер') {
-        data.duplex_scanner = $('#editEquipmentDuplexScanner').val();
-        data.scan_format = $('#editEquipmentScanFormat').val();
-        data.connection_type = $('#editEquipmentConnectionType').val();
-        data.color = $('#editEquipmentColor').val().trim();
-        data.scanner_resolution = $('#editEquipmentScannerResolution').val().trim();
-        data.scanner_speed = $('#editEquipmentScannerSpeed').val().trim();
-    }
-
-    if (type === 'ИБП') {
-        data.ups_power = $('#editEquipmentUpsPower').val().trim();
-        data.ups_type = $('#editEquipmentUpsType').val();
-        data.ups_outlets = parseInt($('#editEquipmentUpsOutlets').val()) || null;
-        data.ups_usb = $('#editEquipmentUpsUsb').val();
-        data.ups_runtime = parseInt($('#editEquipmentUpsRuntime').val()) || null;
-    }
-
-    const peripheralTypes = ['Мышь/Клавиатура', 'Веб-камера', 'Гарнитура', 'Колонки', 'Внешний диск', 'Док-станция', 'Мышь', 'Клавиатура'];
-    if (peripheralTypes.includes(type)) {
-        data.connection_type = $('#editEquipmentConnectionType').val();
-        data.color = $('#editEquipmentColor').val().trim();
-        data.is_set = $('#editEquipmentIsSet').is(':checked') ? 1 : 0;
-        data.set_type = $('#editEquipmentSetType').val();
-        if (type === 'Внешний диск') {
-            data.storage = $('#editEquipmentStorage').val().trim();
-        }
-    }
-
-    const btn = $('#editEquipmentModal .btn-primary');
-    const originalHtml = btn.html();
-    btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Сохранение...');
-
-    $.ajax({
-        url: `/api/equipment/${id}`,
-        method: 'PUT',
-        contentType: 'application/json',
-        data: JSON.stringify(data),
-        success: function(response) {
-            if (response.success) {
-                showMessage('✅ Оборудование обновлено', 'success');
-                $('#editEquipmentModal').modal('hide');
-                if (typeof loadEquipment === 'function') loadEquipment();
-            } else {
-                showMessage(response.error || 'Ошибка при обновлении', 'danger');
-            }
-        },
-        error: function(xhr) {
-            const error = xhr.responseJSON;
-            showMessage(error?.error || '❌ Ошибка при обновлении', 'danger');
-        },
-        complete: function() {
-            btn.prop('disabled', false).html(originalHtml);
-        }
-    });
-}
-
-// ============================================================
-// 8. ЗАГРУЗКА СПИСКОВ ДЛЯ SELECT
-// ============================================================
-function loadEmployeesForSelects() {
-    console.log("🔄 Загрузка сотрудников для selects...");
-
-    // Находим selects
-    var molSelect = document.getElementById('addEquipmentMOL');
-    var respSelect = document.getElementById('addEquipmentResponsible');
-
-    if (!molSelect && !respSelect) {
-        console.error("❌ Select'ы не найдены в DOM!");
-        return;
-    }
-
-    // Загружаем сотрудников
-    $.ajax({
-        url: '/api/employees',
-        method: 'GET',
-        dataType: 'json',
-        success: function(data) {
-            console.log("✅ Сотрудники загружены:", data);
-
-            // Заполняем МОЛ
-            if (molSelect) {
-                molSelect.innerHTML = '<option value="">Выберите МОЛ</option>';
-                for (var i = 0; i < data.length; i++) {
-                    var name = data[i].name || data[i] || '';
-                    if (name) {
-                        var opt = document.createElement('option');
-                        opt.value = name;
-                        opt.textContent = name;
-                        molSelect.appendChild(opt);
-                    }
-                }
-                console.log("✅ MOL select заполнен, опций:", molSelect.options.length);
-            }
-
-            // Заполняем Ответственного
-            if (respSelect) {
-                respSelect.innerHTML = '<option value="">Выберите ответственного</option>';
-                for (var i = 0; i < data.length; i++) {
-                    var name = data[i].name || data[i] || '';
-                    if (name) {
-                        var opt = document.createElement('option');
-                        opt.value = name;
-                        opt.textContent = name;
-                        respSelect.appendChild(opt);
-                    }
-                }
-                console.log("✅ Responsible select заполнен, опций:", respSelect.options.length);
-            }
-        },
-        error: function(xhr) {
-            console.error("❌ Ошибка загрузки сотрудников:", xhr);
-            showMessage('Ошибка загрузки списка сотрудников', 'danger');
-        }
-    });
-}
-
-function loadRoomsForSelects() {
-    $.ajax({
-        url: '/api/rooms/search',
-        method: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify({search: ''}),
-        success: function(rooms) {
-            const selects = ['#addEquipmentRoom', '#editEquipmentRoom'];
-            for (let s of selects) {
-                const select = $(s);
-                const currentVal = select.val();
-                select.html('<option value="">Выберите кабинет</option>');
-                for (let room of rooms) {
-                    select.append(`<option value="${escapeHtml(room.number)}">${escapeHtml(room.number)}</option>`);
-                }
-                if (currentVal) select.val(currentVal);
-            }
-        }
-    });
-}
-
-function loadOrganizationsForSelects() {
-    $.ajax({
-        url: '/api/organizations/list',
-        method: 'GET',
-        success: function(orgs) {
-            const selects = ['#addEquipmentOrganization', '#editEquipmentOrganization'];
-            for (let s of selects) {
-                const select = $(s);
-                const currentVal = select.val();
-                select.html('<option value="">Выберите филиал</option>');
-                for (let org of orgs) {
-                    select.append(`<option value="${org.id}">${escapeHtml(org.name)}</option>`);
-                }
-                if (currentVal) select.val(currentVal);
-            }
-        }
-    });
-}
-
-// ============================================================
-// 9. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
-// ============================================================
-function escapeHtml(text) {
-    if (!text) return '';
-    var div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-function showMessage(message, type) {
-    const alertDiv = $(`
-        <div class="alert alert-${type} alert-dismissible fade show position-fixed top-0 end-0 m-3"
-             style="z-index: 9999; min-width: 300px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);" role="alert">
-            <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'} me-2"></i>
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    `);
-    $('body').append(alertDiv);
-    setTimeout(() => alertDiv.alert('close'), 3000);
-}
-
-$(document).on('input change', '#addEquipmentRoom', function() {
-    const val = $(this).val().trim();
-    updateDepartmentDisplay(val, 'addEquipmentRoom');
-});
-// аналогично для editEquipmentRoom
-
-// При вводе или выборе кабинета в модальном окне редактирования
-$(document).on('input change', '#editEquipmentRoom', function() {
-    const val = $(this).val().trim();
-    updateDepartmentDisplay(val, 'editEquipmentRoom');
-});
-
-// Переменная для debounce
-let departmentSearchTimeout = null;
-let departmentsCache = {}; // кэш для быстрого доступа (опционально)
-
-// Функция поиска отдела по office (асинхронно)
-function searchDepartmentByOffice(office, callback) {
-    if (!office || office.trim() === '') {
-        callback(null);
-        return;
-    }
-    $.ajax({
-        url: '/api/departments/search',
-        method: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify({ search: office.trim() }),
-        success: function(depts) {
-            // Ищем точное совпадение по office (регистронезависимо)
-            const exact = depts.find(d => d.office && d.office.toLowerCase() === office.trim().toLowerCase());
-            if (exact) {
-                callback({ id: exact.id, name: exact.name });
-            } else {
-                callback(null);
-            }
-        },
-        error: function() {
-            callback(null);
-        }
-    });
-}
-
-function loadDepartmentsForDatalist(datalistId) {
-    $.ajax({
-        url: '/api/departments/search',
-        method: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify({ search: '' }),
-        success: function(depts) {
-            const datalist = $('#' + datalistId);
-            datalist.empty();
-            if (depts && depts.length > 0) {
-                for (let i = 0; i < depts.length; i++) {
-                    const d = depts[i];
-                    if (d.office) {
-                        datalist.append(`<option value="${escapeHtml(d.office)}">${escapeHtml(d.office)}</option>`);
-                    }
-                }
-            }
-            // Если поле уже содержит значение, обновляем отображение
-            const input = $('#' + datalistId.replace('List', ''));
-            if (input.length) {
-                const val = input.val().trim();
-                if (val) {
-                    // Проверим, есть ли точное совпадение в загруженных
-                    const exact = depts.find(d => d.office && d.office.toLowerCase() === val.toLowerCase());
-                    if (exact) {
-                        const displaySpan = $('#' + input.attr('id').replace('Room', 'DepartmentDisplay'));
-                        displaySpan.text(exact.name);
-                    } else {
-                        // Если нет, оставляем как есть, позже сработает input
-                    }
-                }
-            }
-        }
-    });
-}
-
-
-
-// Функция обновления отображения отдела с асинхронным поиском
-function updateDepartmentDisplayLive(office, inputId) {
-    const displaySpan = $('#' + inputId.replace('Room', 'DepartmentDisplay'));
-    if (!office || office.trim() === '') {
-        displaySpan.text('—');
-        displaySpan.closest('.mt-1').show();
-        return;
-    }
-    // Показываем индикатор загрузки
-    displaySpan.text('Поиск...');
-    clearTimeout(departmentSearchTimeout);
-    departmentSearchTimeout = setTimeout(function() {
-        searchDepartmentByOffice(office, function(result) {
-            if (result) {
-                displaySpan.text(result.name);
-            } else {
-                displaySpan.text('(новый кабинет)');
-            }
-            displaySpan.closest('.mt-1').show();
-        });
-    }, 300); // задержка 300 мс
-}
-// ============================================================
-// ГЛОБАЛЬНЫЙ КЭШ КАБИНЕТОВ
-// ============================================================
-let cachedRooms = [];
-
-// Загрузка кабинетов в кэш (выполняется один раз при загрузке страницы)
-function loadRoomsCache() {
-    console.log("⏳ Загрузка кабинетов в кэш...");
-    $.ajax({
-        url: '/api/rooms/search',
-        method: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify({ search: '' }),
-        success: function(rooms) {
-            cachedRooms = rooms || [];
-            console.log("✅ Кабинеты загружены в кэш:", cachedRooms.length);
-            // Сразу заполняем datalist'ы, если они уже есть на странице
-            fillRoomDatalist('addEquipmentRoomsList');
-            fillRoomDatalist('editEquipmentRoomsList');
-        },
-        error: function(xhr, status, error) {
-            console.error("❌ Ошибка загрузки кабинетов:", error, xhr.responseText);
-        }
-    });
-}
-
-// Мгновенное заполнение datalist из кэша
-function fillRoomDatalist(datalistId) {
-    var datalist = $('#' + datalistId);
-    if (!datalist.length) {
-        console.warn("Datalist с id '" + datalistId + "' не найден");
-        return;
-    }
-    datalist.empty();
-    if (cachedRooms && cachedRooms.length > 0) {
-        for (var i = 0; i < cachedRooms.length; i++) {
-            var roomNumber = cachedRooms[i].number || cachedRooms[i];
-            datalist.append('<option value="' + escapeHtml(roomNumber) + '">' + escapeHtml(roomNumber) + '</option>');
-        }
-        console.log("📋 Datalist '" + datalistId + "' заполнен, опций:", datalist.children().length);
-    } else {
-        console.warn("⚠️ Кэш пуст, попытка загрузить заново...");
-        loadRoomsCache();
-    }
-}
-
-// Функция для обновления кэша после добавления нового кабинета (опционально)
-function refreshRoomsCache() {
-    loadRoomsCache();
-}
-
-// ============================================================
-// 10. ИНИЦИАЛИЗАЦИЯ ПРИ ЗАГРУЗКЕ
-// ============================================================
-// ============================================================
-// ЕДИНАЯ ИНИЦИАЛИЗАЦИЯ ДЛЯ РАБОТЫ С КАБИНЕТАМИ И МОДАЛКАМИ
-// ============================================================
-// ============================================================
-// ЕДИНАЯ ИНИЦИАЛИЗАЦИЯ
-// ============================================================
-$(document).ready(function() {
-
-    // 1. Предзагружаем кабинеты в кэш при загрузке страницы
-    loadRoomsCache();
-
-    // 2. Загружаем сотрудников (с небольшой задержкой)
-    setTimeout(function() {
-        loadEmployeesForSelects();
-    }, 500);
-
-    // 3. При открытии модального окна ДОБАВЛЕНИЯ
-    $('#addEquipmentModal').on('show.bs.modal', function() {
-        console.log("🔓 Открытие addEquipmentModal");
-
-        // Сброс формы
-        $('#addEquipmentForm')[0].reset();
-        $('.type-form').hide();
-        $('#addEquipmentType').val('');
-        $('#addEquipmentIsSet').prop('checked', false);
-        $('#addEquipmentSetType').val('Клавиатура');
-
-        // Загружаем сотрудников (повторно, на случай обновления)
-        setTimeout(function() {
-            loadEmployeesForSelects();
-        }, 200);
-
-        // Загружаем организации в select (если есть)
-        loadOrganizationsForSelects();
-
-        // МГНОВЕННО заполняем datalist кабинетов из кэша
-        fillRoomDatalist('addEquipmentRoomsList');
-
-        // Очищаем и добавляем строку диска
-        const container = document.getElementById('addStorageContainer');
-        if (container) {
-            container.innerHTML = '';
-            addStorageRow('add');
-        }
-
-        // Очищаем контейнер подключений
-        const connContainer = document.getElementById('addConnectionContainer');
-        if (connContainer) {
-            connContainer.innerHTML = '';
-            addConnectionRow('add', '');
-        }
-
-        // Сброс отображения отдела
-        $('#addEquipmentDepartmentDisplay').text('—');
-        $('#addEquipmentRoom').val('');
-    });
-
-    // 4. При открытии модального окна РЕДАКТИРОВАНИЯ
-    $('#editEquipmentModal').on('show.bs.modal', function() {
-        console.log("🔓 Открытие editEquipmentModal");
-
-        setTimeout(function() {
-            loadEmployeesForSelects();
-        }, 200);
-        loadOrganizationsForSelects();
-
-        // МГНОВЕННО заполняем datalist кабинетов из кэша
-        fillRoomDatalist('editEquipmentRoomsList');
-
-        // Очищаем контейнер дисков (заполнится позже)
-        const container = document.getElementById('editStorageContainer');
-        if (container) {
-            container.innerHTML = '';
-        }
-    });
-
-    // 5. Обновление отдела при вводе/выборе кабинета
-    $(document).on('input', '#addEquipmentRoom', function() {
-        const val = $(this).val().trim();
-        updateDepartmentDisplayLive(val, 'addEquipmentRoom');
-    });
-    $(document).on('change', '#addEquipmentRoom', function() {
-        const val = $(this).val().trim();
-        updateDepartmentDisplayLive(val, 'addEquipmentRoom');
-    });
-
-    $(document).on('input', '#editEquipmentRoom', function() {
-        const val = $(this).val().trim();
-        updateDepartmentDisplayLive(val, 'editEquipmentRoom');
-    });
-    $(document).on('change', '#editEquipmentRoom', function() {
-        const val = $(this).val().trim();
-        updateDepartmentDisplayLive(val, 'editEquipmentRoom');
-    });
-
-    // 6. Если вдруг datalist пуст при фокусе – заполняем повторно
-    $('#addEquipmentRoom, #editEquipmentRoom').on('focus', function() {
-        var input = $(this);
-        var datalistId = input.attr('list');
-        var datalist = $('#' + datalistId);
-        if (datalist.children().length === 0) {
-            fillRoomDatalist(datalistId);
-        }
-    });
-
-    // 7. Обработчики изменения типа оборудования
-    $('#addEquipmentType').on('change', function() {
-        updateEquipmentForm();
-    });
-    $('#editEquipmentType').on('change', function() {
-        updateEditForm();
-    });
-
-});
 </script>

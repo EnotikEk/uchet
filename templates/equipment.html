@@ -29,18 +29,13 @@
                 </div>
             </div>
         </div>
-        
-        <!-- Фильтры поиска -->
-        <!-- equipment.html - блок фильтров поиска -->
 
         <!-- Строка поиска -->
         <div class="row mb-3">
             <div class="col-md-12">
                 <div class="row g-2 mb-2">
                     <div class="col-md-3">
-                        <label class="form-label small mb-1 text-muted">
-                            <i class="fas fa-search"></i> Искать по:
-                        </label>
+                        <label class="form-label small mb-1 text-muted"><i class="fas fa-search"></i> Искать по:</label>
                         <select class="form-select" id="searchField">
                             <option value="all">🌍 Везде</option>
                             <option value="type">🏷️ По типу</option>
@@ -50,77 +45,87 @@
                             <option value="inventory_number">🔢 По инвентарному номеру</option>
                             <option value="responsible">👤 По ответственному</option>
                             <option value="mol">👤 По МОЛ</option>
-                            <option value="room">🚪 По кабинету</option>
+                            <option value="room">🚪 По помещению</option>
                             <option value="organization">🏢 По филиалу</option>
                             <option value="status">📊 По статусу</option>
                         </select>
                     </div>
                     <div class="col-md-7">
-                        <label class="form-label small mb-1 text-muted">
-                            <i class="fas fa-keyboard"></i> Поисковый запрос:
-                        </label>
+                        <label class="form-label small mb-1 text-muted"><i class="fas fa-keyboard"></i> Поисковый запрос:</label>
                         <div class="input-group">
-                            <input type="text" class="form-control" id="searchInput" placeholder="Введите текст для поиска...">
-                            <button class="btn btn-success" onclick="searchEquipment()">
-                                <i class="fas fa-search"></i> Поиск
-                            </button>
-                            <button class="btn btn-danger" onclick="resetSearch()">
-                                <i class="fas fa-times"></i> Сбросить
-                            </button>
+                            <input type="text" class="form-control" id="searchInput" placeholder="Введите текст для поиска..." onkeypress="if(event.key==='Enter')searchEquipment()">
+                            <button class="btn btn-success" onclick="searchEquipment()"><i class="fas fa-search"></i> Поиск</button>
+                            <button class="btn btn-danger" onclick="resetSearch()"><i class="fas fa-times"></i> Сбросить</button>
                         </div>
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label small mb-1 text-muted">
-                            <i class="fas fa-filter"></i> Фильтр:
-                        </label>
+                        <label class="form-label small mb-1 text-muted"><i class="fas fa-filter"></i> Фильтр:</label>
                         <select class="form-select" id="typeFilter" onchange="filterByType()">
                             <option value="">📋 Все типы</option>
-                            <option value="Компьютер">🖲️ Компьютер</option>
-                            <option value="Ноутбук">💻 Ноутбук</option>
-                            <option value="Монитор">🖥️ Монитор</option>
-                            <option value="Моноблок">🖥️ Моноблок</option>
-                            <option value="Сервер">🗄️ Сервер</option>
-                            <option value="Сетевое оборудование">🌐 Сетевое оборудование</option>
-                            <option value="Принтер">🖨️ Принтер</option>
-                            <option value="МФУ">🖨️ МФУ</option>
-                            <option value="Сканер">📠 Сканер</option>
-                            <option value="ИБП">🔋 ИБП</option>
-                            <option value="Мышь/Клавиатура">🖱️⌨️ Мышь/Клавиатура</option>
-                            <option value="Внешний диск">💾 Внешний диск</option>
-                            <option value="Веб-камера/Гарнитура/Микрофон">📷🎧🎤 Веб-камера/Гарнитура/Микрофон</option>
-                            <option value="Колонки">🔊 Колонки</option>
-                            <option value="Другое">📦 Другое</option>
+                            <optgroup label="Компьютеры">
+                                <option value="Компьютер">Компьютер</option>
+                                <option value="Ноутбук">Ноутбук</option>
+                                <option value="Моноблок">Моноблок</option>
+                                <option value="Сервер">Сервер</option>
+                                <option value="Планшет">Планшет</option>
+                            </optgroup>
+                            <optgroup label="Мониторы">
+                                <option value="Монитор">Монитор</option>
+                            </optgroup>
+                            <optgroup label="МФУ и оргтехника">
+                                <option value="МФУ">МФУ</option>
+                                <option value="Принтер">Принтер</option>
+                                <option value="Сканер">Сканер</option>
+                            </optgroup>
+                            <optgroup label="Периферия">
+                                <option value="Сетевое оборудование">Сетевое оборудование</option>
+                                <option value="ИБП">ИБП</option>
+                                <option value="Мышь/Клавиатура">Мышь/Клавиатура</option>
+                                <option value="Внешний диск">Внешний диск</option>
+                                <option value="Веб-камера/Гарнитура/Микрофон">Веб-камера/Гарнитура/Микрофон</option>
+                                <option value="Колонки">Колонки</option>
+                                <option value="Другое">Другое</option>
+                            </optgroup>
+                            <optgroup label="Комплектующие и расходники">
+                                <option value="Процессор">Процессор</option>
+                                <option value="Оперативная память">Оперативная память</option>
+                                <option value="Накопитель">Накопитель</option>
+                                <option value="Материнская плата">Материнская плата</option>
+                                <option value="Видеокарта">Видеокарта</option>
+                                <option value="Аккумулятор">Аккумулятор</option>
+                                <option value="Контроллер">Контроллер</option>
+                                <option value="Привод">Привод</option>
+                                <option value="Звуковая карта">Звуковая карта</option>
+                                <option value="Блок питания">Блок питания</option>
+                                <option value="PCI-устройство">PCI-устройство</option>
+                                <option value="Сетевая карта">Сетевая карта</option>
+                                <option value="Кабель">Кабель</option>
+                            </optgroup>
                         </select>
                     </div>
                 </div>
             </div>
         </div>
-        
+
         <div class="table-responsive" style="border: 1px solid #dee2e6; border-radius: 8px;">
             <table class="table table-bordered table-hover mb-0" id="equipmentTable" style="width: 100%;">
                 <thead style="background-color: #343a40; color: white; position: sticky; top: 0; z-index: 10;">
                     <tr>
-                        <th style="width: 60px; text-align: center;"><i class="fas fa-info-circle"></i> Детали</th>
-                        <th><i class="fas fa-user-check"></i> МОЛ</th>
+                        <th style="width: 56px;">Фото</th>
                         <th><i class="fas fa-tag"></i> Тип</th>
-                        <th><i class="fas fa-cube"></i> Модель</th>
-                        <th><i class="fas fa-barcode"></i> Серийный номер</th>
-                        <th><i class="fas fa-hashtag"></i> Инв. номер</th>
+                        <th><i class="fas fa-user-check"></i> МОЛ</th>
+                        <th><i class="fas fa-cube"></i> Бренд / модель</th>
+                        <th><i class="fas fa-barcode"></i> С/н, инв. №</th>
                         <th><i class="fas fa-microchip"></i> Характеристики</th>
                         <th><i class="fas fa-chart-line"></i> Статус</th>
-                        <th><i class="fas fa-door-open"></i> Кабинет</th>
+                        <th><i class="fas fa-door-open"></i> Помещение</th>
+                        <th><i class="fas fa-desktop"></i> Установлено на</th>
                         <th><i class="fas fa-building"></i> Филиал</th>
-                        <th style="width: 80px; text-align: center;"><i class="fas fa-exchange-alt"></i> Переместить</th>
-                        <th style="width: 80px; text-align: center;"><i class="fas fa-history"></i> История</th>
-                        <th style="width: 60px; text-align: center;"><i class="fas fa-trash"></i> Удалить</th>
+                        <th style="width: 220px; text-align: center;">Действия</th>
                     </tr>
                 </thead>
                 <tbody id="equipmentTableBody">
-                    <tr>
-                        <td colspan="13" class="text-center text-muted py-4">
-                            <i class="fas fa-spinner fa-spin me-2"></i> Загрузка данных...
-                        </td>
-                    </tr>
+                    <tr><td colspan="11" class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin me-2"></i> Загрузка данных...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -128,7 +133,7 @@
     </div>
 </div>
 
-<!-- Модальное окно статистики -->
+<!-- Статистика -->
 <div class="modal fade" id="statisticsModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -137,9 +142,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body" id="statisticsContent">
-                <div class="text-center py-4">
-                    <i class="fas fa-spinner fa-spin fa-2x"></i> Загрузка...
-                </div>
+                <div class="text-center py-4"><i class="fas fa-spinner fa-spin fa-2x"></i> Загрузка...</div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
@@ -148,12 +151,12 @@
     </div>
 </div>
 
-<!-- Модальное окно печати отчета (ИСПРАВЛЕННОЕ) -->
+<!-- Печать отчёта -->
 <div class="modal fade" id="printReportModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title"><i class="fas fa-print"></i> Печать отчета по оборудованию</h5>
+                <h5 class="modal-title"><i class="fas fa-print"></i> Печать отчета</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
@@ -161,13 +164,11 @@
                     <div class="mb-3">
                         <label class="form-label">Тип отчета <span class="text-danger">*</span></label>
                         <select class="form-select" id="reportType" onchange="toggleReportFields()">
-                            <option value="mol">По Материально-ответственному лицу (МОЛ)</option>
+                            <option value="mol">По материально-ответственному лицу (МОЛ)</option>
                             <option value="responsible">По ответственному сотруднику</option>
-                            <option value="room">По кабинету</option>
+                            <option value="room">По помещению</option>
                         </select>
                     </div>
-                    
-                    <!-- Блок для выбора сотрудника (МОЛ или ответственный) -->
                     <div id="employeeSelectBlock">
                         <div class="mb-3">
                             <label class="form-label">Выберите сотрудника <span class="text-danger">*</span></label>
@@ -179,17 +180,17 @@
                             </select>
                         </div>
                     </div>
-                    
-                    <!-- Блок для выбора кабинета -->
                     <div id="roomSelectBlock" style="display: none;">
                         <div class="mb-3">
-                            <label class="form-label">Выберите кабинет <span class="text-danger">*</span></label>
+                            <label class="form-label">Выберите помещение <span class="text-danger">*</span></label>
                             <select class="form-select" id="reportRoom">
-                                <option value="">-- Выберите кабинет --</option>
+                                <option value="">-- Выберите помещение --</option>
+                                {% for room in rooms %}
+                                <option value="{{ room.number }}">{{ room.number }}</option>
+                                {% endfor %}
                             </select>
                         </div>
                     </div>
-                    
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle"></i> <span id="reportHint">Будет сформирован отчет со всем оборудованием, закрепленным за выбранным сотрудником.</span>
                     </div>
@@ -197,15 +198,13 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                <button type="button" class="btn btn-danger" onclick="generateAndPrintReport()">
-                    <i class="fas fa-print"></i> Сформировать и печатать
-                </button>
+                <button type="button" class="btn btn-danger" onclick="generateAndPrintReport()"><i class="fas fa-print"></i> Сформировать и печатать</button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Модальное окно просмотра/редактирования оборудования -->
+<!-- Просмотр / редактирование -->
 <div class="modal fade" id="viewEquipmentModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -215,84 +214,56 @@
             </div>
             <div class="modal-body">
                 <input type="hidden" id="viewEquipmentId">
+                <datalist id="editRoomList">{% for room in rooms %}<option value="{{ room.number }}">{% endfor %}</datalist>
+                <datalist id="editMolList">{% for emp in employees %}<option value="{{ emp }}">{% endfor %}</datalist>
+                <div class="row mb-3">
+                    <div class="col-md-4 text-center">
+                        <img id="viewEquipmentPhotoImg" src="" alt="Фото" class="img-fluid rounded mb-2" style="max-height:160px; display:none; border:1px solid #dee2e6;">
+                        <div id="viewEquipmentNoPhoto" class="text-muted small mb-2"><i class="fas fa-image fa-2x d-block mb-1"></i>Нет фото</div>
+                        <input type="file" class="form-control form-control-sm" id="viewEquipmentPhotoInput" accept=".jpg,.jpeg,.png,.webp">
+                        <div class="d-flex gap-1 mt-1 justify-content-center">
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="uploadEquipmentPhoto()"><i class="fas fa-upload"></i> Загрузить</button>
+                            <button type="button" class="btn btn-sm btn-outline-danger" id="viewEquipmentPhotoDeleteBtn" onclick="deleteEquipmentPhoto()" style="display:none;"><i class="fas fa-trash"></i></button>
+                        </div>
+                    </div>
+                    <div class="col-md-8">
+                        <div class="row">
+                            <div class="col-md-6 mb-2"><label class="fw-bold">Тип:</label><p id="viewEquipmentType" class="mb-2">—</p></div>
+                            <div class="col-md-6 mb-2"><label class="fw-bold">Бренд / модель:</label><p id="viewEquipmentModel" class="mb-2">—</p></div>
+                            <div class="col-md-6 mb-2"><label class="fw-bold">Серийный номер:</label><p id="viewEquipmentSerial" class="mb-2">—</p></div>
+                            <div class="col-md-6 mb-2"><label class="fw-bold">Инвентарный номер:</label><p id="viewEquipmentInventory" class="mb-2">—</p></div>
+                            <div class="col-md-6 mb-2"><label class="fw-bold">Статус:</label><p id="viewEquipmentStatus" class="mb-2">—</p></div>
+                            <div class="col-md-6 mb-2"><label class="fw-bold">Помещение:</label><p id="viewEquipmentRoom" class="mb-2">—</p></div>
+                        </div>
+                    </div>
+                </div>
                 <div class="row">
-                    <div class="col-md-6 mb-2">
-                        <label class="fw-bold">Тип:</label>
-                        <p id="viewEquipmentType" class="mb-2">—</p>
-                    </div>
-                    <div class="col-md-6 mb-2">
-                        <label class="fw-bold">Модель:</label>
-                        <p id="viewEquipmentModel" class="mb-2">—</p>
-                    </div>
-                    <div class="col-md-6 mb-2">
-                        <label class="fw-bold">Серийный номер:</label>
-                        <p id="viewEquipmentSerial" class="mb-2">—</p>
-                    </div>
-                    <div class="col-md-6 mb-2">
-                        <label class="fw-bold">Инвентарный номер:</label>
-                        <p id="viewEquipmentInventory" class="mb-2">—</p>
-                    </div>
-                    <div class="col-md-6 mb-2">
-                        <label class="fw-bold">МОЛ:</label>
-                        <p id="viewEquipmentMOL" class="mb-2">—</p>
-                    </div>
-                    <div class="col-md-6 mb-2">
-                        <label class="fw-bold">Пользователь:</label>
-                        <p id="viewEquipmentResponsible" class="mb-2">—</p>
-                    </div>
-                    <div class="col-md-6 mb-2">
-                        <label class="fw-bold">Кабинет:</label>
-                        <p id="viewEquipmentRoom" class="mb-2">—</p>
-                    </div>
-                    <div class="col-md-6 mb-2">
-                        <label class="fw-bold">Филиал:</label>
-                        <p id="viewEquipmentOrganization" class="mb-2">—</p>
-                    </div>
-                    <div class="col-md-6 mb-2">
-                        <label class="fw-bold">Статус:</label>
-                        <p id="viewEquipmentStatus" class="mb-2">—</p>
-                    </div>
-                    <div class="col-md-6 mb-2">
-                        <label class="fw-bold">Дата принятия:</label>
-                        <p id="viewEquipmentPurchaseDate" class="mb-2">—</p>
-                    </div>
-                    <div class="col-md-12 mb-2">
-                        <label class="fw-bold">Характеристики:</label>
-                        <p id="viewEquipmentSpecs" class="mb-2">—</p>
-                    </div>
-                    <div class="col-md-12 mb-2">
-                        <label class="fw-bold">Характеристики:</label>
-                        <p id="viewEquipmentCharacteristics" class="mb-2">—</p>
-                    </div>
-                    <div class="col-md-12 mb-2">
-                        <label class="fw-bold">Примечание:</label>
-                        <p id="viewEquipmentNotes" class="mb-2">—</p>
-                    </div>
-                    <div class="col-md-12 mb-2">
-                        <label class="fw-bold">Кто добавил:</label>
-                        <p id="viewEquipmentCreatedBy" class="mb-2">—</p>
-                    </div>
-                    <div class="col-md-12 mb-2">
-                        <label class="fw-bold">Дата добавления:</label>
-                        <p id="viewEquipmentCreatedAt" class="mb-2">—</p>
-                    </div>
-                    <div class="col-md-12 mb-2">
-                        <label class="fw-bold">Отдел кабинета:</label>
-                        <p id="viewEquipmentDepartment" class="mb-2">—</p>
-                    </div>
+                    <div class="col-md-6 mb-2"><label class="fw-bold">МОЛ:</label><p id="viewEquipmentMOL" class="mb-2">—</p></div>
+                    <div class="col-md-6 mb-2"><label class="fw-bold">Ответственный:</label><p id="viewEquipmentResponsible" class="mb-2">—</p></div>
+                    <div class="col-md-6 mb-2"><label class="fw-bold">Филиал:</label><p id="viewEquipmentOrganization" class="mb-2">—</p></div>
+                    <div class="col-md-6 mb-2"><label class="fw-bold">Помещение отдела:</label><p id="viewEquipmentDepartment" class="mb-2">—</p></div>
+                    <div class="col-md-6 mb-2"><label class="fw-bold">Установлено на компьютере:</label><p id="viewEquipmentParent" class="mb-2">—</p></div>
+                    <div class="col-md-6 mb-2"><label class="fw-bold">Сетевое имя:</label><p id="viewEquipmentNetworkName" class="mb-2">—</p></div>
+                    <div class="col-md-6 mb-2"><label class="fw-bold">Год производства:</label><p id="viewEquipmentManufactureYear" class="mb-2">—</p></div>
+                    <div class="col-md-6 mb-2"><label class="fw-bold">Дата принятия:</label><p id="viewEquipmentPurchaseDate" class="mb-2">—</p></div>
+                    <div class="col-md-6 mb-2"><label class="fw-bold">Гарантия до:</label><p id="viewEquipmentWarranty" class="mb-2">—</p></div>
+                    <div class="col-md-6 mb-2"><label class="fw-bold">Цена:</label><p id="viewEquipmentPrice" class="mb-2">—</p></div>
+                    <div class="col-md-6 mb-2"><label class="fw-bold">Поставщик:</label><p id="viewEquipmentSupplier" class="mb-2">—</p></div>
+                    <div class="col-md-12 mb-2"><label class="fw-bold">Характеристики:</label><p id="viewEquipmentCharacteristics" class="mb-2">—</p></div>
+                    <div class="col-md-12 mb-2"><label class="fw-bold">Примечание:</label><p id="viewEquipmentNotes" class="mb-2">—</p></div>
+                    <div class="col-md-6 mb-2"><label class="fw-bold">Кто добавил:</label><p id="viewEquipmentCreatedBy" class="mb-2">—</p></div>
+                    <div class="col-md-6 mb-2"><label class="fw-bold">Дата добавления:</label><p id="viewEquipmentCreatedAt" class="mb-2">—</p></div>
                 </div>
             </div>
             <div class="modal-footer" id="viewEquipmentFooter">
-                <button type="button" class="btn btn-warning" id="editEquipmentBtn">
-                    <i class="fas fa-edit"></i> Редактировать
-                </button>
+                <button type="button" class="btn btn-warning" id="editEquipmentBtn" onclick="enableEquipmentEditMode()"><i class="fas fa-edit"></i> Редактировать</button>
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Модальное окно перемещения оборудования -->
+<!-- Перемещение -->
 <div class="modal fade" id="movementModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -303,103 +274,68 @@
             <div class="modal-body">
                 <form id="movementForm">
                     <input type="hidden" id="movementEquipmentId">
-                    
-                    <div class="row mb-3">
-                        <div class="col-md-12">
-                            <div class="alert alert-info">
-                                <strong><i class="fas fa-desktop"></i> Оборудование:</strong> <span id="movementEquipmentName"></span>
-                            </div>
-                        </div>
-                    </div>
-                    
+                    <div class="alert alert-info"><strong><i class="fas fa-desktop"></i> Оборудование:</strong> <span id="movementEquipmentName"></span></div>
                     <div class="row mb-3">
                         <div class="col-md-3">
-                            <div class="card bg-light">
-                                <div class="card-body text-center">
-                                    <i class="fas fa-user fa-2x text-primary"></i>
-                                    <p class="mb-0 small">Текущий МОЛ</p>
-                                    <strong id="currentMOL">—</strong>
-                                </div>
-                            </div>
+                            <div class="card bg-light"><div class="card-body text-center">
+                                <i class="fas fa-user fa-2x text-primary"></i>
+                                <p class="mb-0 small">Текущий МОЛ</p><strong id="currentMOL">—</strong>
+                            </div></div>
                         </div>
                         <div class="col-md-3">
-                            <div class="card bg-light">
-                                <div class="card-body text-center">
-                                    <i class="fas fa-user-tie fa-2x text-info"></i>
-                                    <p class="mb-0 small">Текущий ответственный</p>
-                                    <strong id="currentResponsible">—</strong>
-                                </div>
-                            </div>
+                            <div class="card bg-light"><div class="card-body text-center">
+                                <i class="fas fa-user-tie fa-2x text-info"></i>
+                                <p class="mb-0 small">Текущий ответственный</p><strong id="currentResponsible">—</strong>
+                            </div></div>
                         </div>
                         <div class="col-md-3">
-                            <div class="card bg-light">
-                                <div class="card-body text-center">
-                                    <i class="fas fa-door-open fa-2x text-success"></i>
-                                    <p class="mb-0 small">Текущий кабинет</p>
-                                    <strong id="currentRoom">—</strong>
-                                </div>
-                            </div>
+                            <div class="card bg-light"><div class="card-body text-center">
+                                <i class="fas fa-door-open fa-2x text-success"></i>
+                                <p class="mb-0 small">Текущее помещение</p><strong id="currentRoom">—</strong>
+                            </div></div>
                         </div>
                         <div class="col-md-3">
-                            <div class="card bg-light">
-                                <div class="card-body text-center">
-                                    <i class="fas fa-building fa-2x text-warning"></i>
-                                    <p class="mb-0 small">Текущий филиал</p>
-                                    <strong id="currentOrganization">—</strong>
-                                </div>
-                            </div>
+                            <div class="card bg-light"><div class="card-body text-center">
+                                <i class="fas fa-building fa-2x text-warning"></i>
+                                <p class="mb-0 small">Текущий филиал</p><strong id="currentOrganization">—</strong>
+                            </div></div>
                         </div>
                     </div>
-                    
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">➡️ Новый МОЛ</label>
-                            <select class="form-select" id="movementToMOL">
-                                <option value="">Выберите МОЛ</option>
-                                {% for emp in employees %}
-                                <option value="{{ emp }}">{{ emp }}</option>
-                                {% endfor %}
-                            </select>
+                            <input class="form-control" id="movementToMOL" list="movementMolList" placeholder="Оставьте пустым, если без изменений">
+                            <datalist id="movementMolList">{% for emp in employees %}<option value="{{ emp }}">{% endfor %}</datalist>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">➡️ Новый ответственный</label>
-                            <select class="form-select" id="movementToEmployee">
-                                <option value="">Выберите ответственного</option>
-                                {% for emp in employees %}
-                                <option value="{{ emp }}">{{ emp }}</option>
-                                {% endfor %}
-                            </select>
+                            <input class="form-control" id="movementToEmployee" list="movementEmpList" placeholder="Оставьте пустым, если без изменений">
+                            <datalist id="movementEmpList">{% for emp in employees %}<option value="{{ emp }}">{% endfor %}</datalist>
                         </div>
                     </div>
-                    
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">➡️ Новый кабинет</label>
-                            <select class="form-select" id="movementToRoom">
-                                <option value="">Выберите кабинет</option>
-                                {% for room in rooms %}
-                                <option value="{{ room.number }}">{{ room.number }}</option>
-                                {% endfor %}
-                            </select>
+                            <label class="form-label">➡️ Новое помещение</label>
+                            <input class="form-control" id="movementToRoom" list="movementRoomList" placeholder="Оставьте пустым, если без изменений">
+                            <datalist id="movementRoomList">{% for room in rooms %}<option value="{{ room.number }}">{% endfor %}</datalist>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">➡️ Новый филиал</label>
                             <select class="form-select" id="movementToOrganization">
-                                <option value="">Выберите филиал</option>
+                                <option value="">Без изменений</option>
                                 {% for org in organizations %}
                                 <option value="{{ org.id }}">{{ org.name }}</option>
                                 {% endfor %}
                             </select>
                         </div>
                     </div>
-                    
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Причина перемещения</label>
                             <select class="form-select" id="movementReason" onchange="onReasonChange()">
                                 <option value="Смена МОЛ">Смена МОЛ</option>
                                 <option value="Смена ответственного">Смена ответственного</option>
-                                <option value="Переезд в другой кабинет">Переезд в другой кабинет</option>
+                                <option value="Переезд в другое помещение">Переезд в другое помещение</option>
                                 <option value="Передача в другой филиал">Передача в другой филиал</option>
                                 <option value="Ремонт">🔧 Ремонт</option>
                                 <option value="Временное использование">Временное использование</option>
@@ -411,19 +347,17 @@
                             <label class="form-label">Новый статус</label>
                             <select class="form-select" id="movementNewStatus">
                                 <option value="">Не менять</option>
-                                <option value="В работе">В работе</option>
-                                <option value="Ремонт">🔧 Ремонт</option>
-                                <option value="На складе">На складе</option>
-                                <option value="Списано">Списано</option>
+                                {% for st in statuses %}
+                                <option value="{{ st }}">{{ st }}</option>
+                                {% endfor %}
                             </select>
-                            <small class="text-muted" id="statusHint">Выберите новый статус или оставьте без изменений</small>
+                            <small class="text-muted">Выберите новый статус или оставьте без изменений</small>
                         </div>
                     </div>
-                    
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Дата перемещения</label>
-                            <input type="date" class="form-control" id="movementDate" value="{{ now.strftime('%Y-%m-%d') if now else '' }}">
+                            <input type="date" class="form-control" id="movementDate">
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Комментарий</label>
@@ -434,15 +368,13 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                <button type="button" class="btn btn-success" onclick="addMovement()">
-                    <i class="fas fa-save"></i> Записать перемещение
-                </button>
+                <button type="button" class="btn btn-success" onclick="addMovement()"><i class="fas fa-save"></i> Записать перемещение</button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Модальное окно истории перемещений -->
+<!-- История перемещений -->
 <div class="modal fade" id="movementsModal" tabindex="-1">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
@@ -455,22 +387,11 @@
                     <table class="table table-bordered table-hover">
                         <thead class="table-dark">
                             <tr>
-                                <th>Дата</th>
-                                <th>От МОЛ</th>
-                                <th>К МОЛ</th>
-                                <th>От ответственного</th>
-                                <th>К ответственному</th>
-                                <th>Из кабинета</th>
-                                <th>В кабинет</th>
-                                <th>Из филиала</th>
-                                <th>В филиал</th>
-                                <th>Причина</th>
-                                <th>Кто записал</th>
+                                <th>Дата</th><th>От МОЛ</th><th>К МОЛ</th><th>От ответственного</th><th>К ответственному</th>
+                                <th>Из помещения</th><th>В помещение</th><th>Из филиала</th><th>В филиал</th><th>Причина</th><th>Кто записал</th>
                             </tr>
                         </thead>
-                        <tbody id="movementsTableBody">
-                            <tr><td colspan="11" class="text-center">Загрузка...</td></tr>
-                        </tbody>
+                        <tbody id="movementsTableBody"><tr><td colspan="11" class="text-center">Загрузка...</td></tr></tbody>
                     </table>
                 </div>
             </div>
@@ -481,7 +402,7 @@
     </div>
 </div>
 
-<!-- Модальное окно импорта оборудования из Excel -->
+<!-- Импорт из Excel -->
 <div class="modal fade" id="importEquipmentModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -496,33 +417,17 @@
                         <input type="file" class="form-control" id="equipmentExcelFile" accept=".xlsx,.xls" required>
                     </div>
                     <div id="sheetSelectionBlock" style="display: none;">
-                        <div class="mb-3">
-                            <label class="form-label">Выберите листы для импорта <span class="text-danger">*</span></label>
-                            <div id="sheetCheckboxes"></div>
-                            <div class="mt-2">
-                                <button type="button" class="btn btn-sm btn-outline-secondary" id="toggleSheetsBtn">
-                                    <i class="fas fa-check-double"></i> Выбрать все
-                                </button>
-                            </div>
-                            <small class="text-muted">Отметьте листы, которые нужно импортировать</small>
+                        <div class="mb-2 d-flex justify-content-between align-items-center">
+                            <label class="form-label mb-0">Листы для импорта</label>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="toggleSheetsBtn" onclick="toggleAllSheets()">Снять все</button>
                         </div>
-                    </div>
-                    <div class="alert alert-warning">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        <strong>Внимание:</strong>
-                        <ul class="mb-0">
-                            <li>Если инвентарный номер уже существует – запись будет <strong>обновлена</strong>.</li>
-                            <li>Новые сотрудники и кабинеты будут <strong>автоматически добавлены</strong>.</li>
-                            <li>Пустые инвентарные номера пропускаются.</li>
-                        </ul>
+                        <div id="sheetCheckboxes" class="border rounded p-2" style="max-height: 200px; overflow-y: auto;"></div>
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                <button type="button" class="btn btn-info" id="importEquipmentBtn" style="color: white; display: none;" onclick="importEquipmentExcel()">
-                    <i class="fas fa-upload"></i> Импортировать
-                </button>
+                <button type="button" class="btn btn-info" style="color:white;" onclick="importEquipmentExcel()"><i class="fas fa-upload"></i> Импортировать</button>
             </div>
         </div>
     </div>
@@ -535,2653 +440,558 @@
 {% block extra_js %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
-// ============================================================
-// ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
-// ============================================================
-let equipmentData = [];
+const EQUIPMENT_STATUSES = {{ statuses|tojson }};
+const EQUIPMENT_COMPUTERS = {{ computers|tojson }};
+
+const STATUS_BADGE = {
+    'Установлено': 'bg-success',
+    'Резерв': 'bg-primary',
+    'Нераспределено (на складе)': 'bg-info text-dark',
+    'Ремонтируется': 'bg-warning text-dark',
+    'Сломано': 'bg-danger',
+    'Списание': 'bg-dark',
+    'Списано': 'bg-secondary'
+};
+function statusBadge(status) {
+    const cls = STATUS_BADGE[status] || 'bg-secondary';
+    return `<span class="badge ${cls}">${escapeHtml(status || '—')}</span>`;
+}
+
 let allEquipmentData = [];
 let currentEquipmentData = null;
-let employeesList = [];
-let roomsList = [];
 
-// ============================================================
-// ЗАГРУЗКА СПИСКОВ
-// ============================================================
-
-function loadEmployeesList() {
-    $.ajax({
-        url: '/api/employees',
-        method: 'GET',
-        dataType: 'json',
-        success: function(data) {
-            employeesList = data;
-            // Обновляем все datalist'ы после загрузки
-            updateAllDatalists();
-        },
-        error: function() {
-            console.error('Ошибка загрузки сотрудников');
-        }
-    });
-}
-
-function loadRoomsList() {
-    return new Promise((resolve, reject) => {
-        $.ajax({
-            url: '/api/rooms/search',
-            method: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify({search: ''}),
-            success: function(data) {
-                roomsList = data;
-                console.log("Кабинеты загружены:", roomsList);
-                updateRoomSelects();
-                resolve(data);
-            },
-            error: function(xhr) {
-                console.error("Ошибка загрузки кабинетов:", xhr);
-                $.ajax({
-                    url: '/api/equipment',
-                    method: 'GET',
-                    success: function(equipData) {
-                        const rooms = [];
-                        const seen = new Set();
-                        for (let item of equipData) {
-                            if (item.room && item.room !== '' && !seen.has(item.room)) {
-                                seen.add(item.room);
-                                rooms.push({number: item.room});
-                            }
-                        }
-                        roomsList = rooms;
-                        updateRoomSelects();
-                        resolve(rooms);
-                    },
-                    error: function() {
-                        reject('Ошибка загрузки кабинетов');
-                    }
-                });
-            }
-        });
-    });
-}
-
-function updateEmployeeSelects() {
-    const reportEmployee = $('#reportEmployee');
-    if (reportEmployee.length) {
-        const currentVal = reportEmployee.val();
-        reportEmployee.html('<option value="">-- Выберите сотрудника --</option>');
-        if (employeesList && employeesList.length > 0) {
-            for (let i = 0; i < employeesList.length; i++) {
-                const emp = employeesList[i];
-                const empName = emp.name || emp;
-                reportEmployee.append(`<option value="${escapeHtml(empName)}">${escapeHtml(empName)}</option>`);
-            }
-        }
-        if (currentVal) reportEmployee.val(currentVal);
-    }
-}
-
-function updateRoomSelects() {
-    const reportRoomSelect = $('#reportRoom');
-    if (reportRoomSelect.length) {
-        const currentVal = reportRoomSelect.val();
-        reportRoomSelect.html('<option value="">-- Выберите кабинет --</option>');
-        
-        if (roomsList && roomsList.length > 0) {
-            for (let i = 0; i < roomsList.length; i++) {
-                const room = roomsList[i];
-                const roomNumber = room.number || room;
-                reportRoomSelect.append(`<option value="${escapeHtml(roomNumber)}">${escapeHtml(roomNumber)}</option>`);
-            }
-        } else {
-            reportRoomSelect.append('<option value="" disabled>Нет доступных кабинетов</option>');
-        }
-        
-        if (currentVal) {
-            reportRoomSelect.val(currentVal);
-        }
-    }
-}
-
-// ============================================================
-// ФУНКЦИИ ДЛЯ ПЕЧАТИ ОТЧЕТА
-// ============================================================
-
-// ===== БЫСТРОЕ ДОБАВЛЕНИЕ СОТРУДНИКА (без модального окна) =====
-// ===== БЫСТРОЕ ДОБАВЛЕНИЕ СОТРУДНИКА =====
-function quickAddEmployee(inputId, datalistId) {
-    const input = document.getElementById(inputId);
-    const name = input.value.trim();
-    if (!name) {
-        showMessage('Введите ФИО сотрудника', 'warning');
-        return;
-    }
-
-    const btn = input.closest('.input-group').querySelector('.btn');
-    const originalHtml = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-
-    $.ajax({
-        url: '/api/employees',
-        method: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify({ name: name }),
-        success: function(response) {
-            if (response.success) {
-                showMessage('✅ Сотрудник добавлен', 'success');
-                // Обновляем все datalist'ы
-                updateAllDatalists();
-                // Оставляем введённое значение
-                input.value = name;
-            } else {
-                showMessage(response.error || 'Ошибка при добавлении', 'danger');
-            }
-        },
-        error: function(xhr) {
-            const error = xhr.responseJSON;
-            showMessage(error?.error || '❌ Ошибка при добавлении', 'danger');
-        },
-        complete: function() {
-            btn.disabled = false;
-            btn.innerHTML = originalHtml;
-        }
-    });
-}
-// ===== ОБНОВЛЕНИЕ ВСЕХ DATALIST'ОВ =====
-function updateAllDatalists() {
-    $.ajax({
-        url: '/api/employees',
-        method: 'GET',
-        dataType: 'json',
-        success: function(data) {
-            const names = data.map(item => item.name || item);
-            // Список ID всех datalist'ов, которые используются в формах
-            const datalistIds = [
-                'molDatalist',           // для добавления МОЛ
-                'responsibleDatalist',   // для добавления Ответственного
-                'editMolDatalist',       // для редактирования МОЛ
-                'editResponsibleDatalist' // для редактирования Ответственного
-            ];
-            datalistIds.forEach(id => {
-                const dl = document.getElementById(id);
-                if (dl) {
-                    dl.innerHTML = '';
-                    names.forEach(name => {
-                        const opt = document.createElement('option');
-                        opt.value = name;
-                        dl.appendChild(opt);
-                    });
-                }
-            });
-            // Обновляем глобальный массив сотрудников
-            employeesList = data;
-        },
-        error: function() {
-            console.error('Ошибка обновления списка сотрудников');
-        }
-    });
-}
-
-function toggleReportFields() {
-    const reportType = $('#reportType').val();
-    const employeeBlock = $('#employeeSelectBlock');
-    const roomBlock = $('#roomSelectBlock');
-    const hint = $('#reportHint');
-    
-    if (reportType === 'room') {
-        employeeBlock.hide();
-        roomBlock.show();
-        hint.text('Будет сформирован отчет со всем оборудованием, закрепленным за выбранным кабинетом.');
-        if (roomsList.length === 0) {
-            loadRoomsList();
-        } else {
-            updateRoomSelects();
-        }
-    } else {
-        employeeBlock.show();
-        roomBlock.hide();
-        if (reportType === 'mol') {
-            hint.text('Будет сформирован отчет со всем оборудованием, закрепленным за выбранным МОЛ.');
-        } else {
-            hint.text('Будет сформирован отчет со всем оборудованием, закрепленным за выбранным ответственным сотрудником.');
-        }
-    }
-}
-
-function generateAndPrintReport() {
-    const reportType = $('#reportType').val();
-    
-    if (reportType === 'room') {
-        const roomNumber = $('#reportRoom').val();
-        if (!roomNumber) {
-            showMessage('Выберите кабинет', 'danger');
-            $('#reportRoom').focus();
-            return;
-        }
-        generateAndPrintRoomReport(roomNumber);
-        return;
-    }
-    
-    const employeeName = $('#reportEmployee').val();
-    if (!employeeName) {
-        showMessage('Выберите сотрудника', 'danger');
-        $('#reportEmployee').focus();
-        return;
-    }
-    
-    const btn = $('#printReportModal .btn-danger');
-    const originalHtml = btn.html();
-    btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Загрузка...');
-    
-    console.log("Отправка запроса на формирование отчета:", {
-        type: reportType,
-        employee_name: employeeName
-    });
-    
-    $.ajax({
-        url: '/api/equipment/report',
-        method: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify({
-            type: reportType,
-            employee_name: employeeName
-        }),
-        success: function(data) {
-            console.log("Ответ сервера:", data);
-            
-            if (data.error) {
-                showMessage(data.error, 'danger');
-                btn.prop('disabled', false).html(originalHtml);
-                return;
-            }
-            
-            if (!data.equipment || data.equipment.length === 0) {
-                showMessage('У выбранного сотрудника нет закрепленного оборудования', 'warning');
-                btn.prop('disabled', false).html(originalHtml);
-                return;
-            }
-            
-            $('#printReportModal').modal('hide');
-            openPrintWindow(data);
-        },
-        error: function(xhr) {
-            console.error("Ошибка:", xhr);
-            let errorMsg = 'Ошибка при формировании отчета';
-            try {
-                const response = JSON.parse(xhr.responseText);
-                errorMsg = response.error || errorMsg;
-            } catch(e) {
-                errorMsg = xhr.statusText || errorMsg;
-            }
-            showMessage(errorMsg, 'danger');
-            btn.prop('disabled', false).html(originalHtml);
-        },
-        complete: function() {
-            btn.prop('disabled', false).html(originalHtml);
-        }
-    });
-}
-
-function generateAndPrintRoomReport(roomNumber) {
-    if (!roomNumber) {
-        showMessage('Выберите кабинет', 'danger');
-        return;
-    }
-    
-    const btn = $('#printReportModal .btn-danger');
-    const originalHtml = btn.html();
-    btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Загрузка...');
-    
-    const filteredData = allEquipmentData.filter(item => item.room === roomNumber);
-    
-    if (filteredData.length === 0) {
-        showMessage(`В кабинете ${roomNumber} нет оборудования`, 'warning');
-        btn.prop('disabled', false).html(originalHtml);
-        return;
-    }
-    
-    $('#printReportModal').modal('hide');
-    
-    const reportData = {
-        room: roomNumber,
-        equipment: filteredData,
-        count: filteredData.length,
-        generated_at: new Date().toLocaleString('ru-RU'),
-        generated_by: $('#userName').text() || 'Пользователь'
-    };
-    
-    openRoomPrintWindow(reportData);
-    btn.prop('disabled', false).html(originalHtml);
-}
-
-function openRoomPrintWindow(data) {
-    const printWindow = window.open('', '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
-    
-    if (!printWindow) {
-        showMessage('Пожалуйста, разрешите всплывающие окна для этого сайта', 'warning');
-        return;
-    }
-    
-    const reportDate = new Date().toLocaleDateString('ru-RU', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-    });
-    
-    let equipmentHtml = '';
-    
-    if (data.equipment && data.equipment.length > 0) {
-        for (let i = 0; i < data.equipment.length; i++) {
-            const item = data.equipment[i];
-            
-            let specsShort = [];
-            if (item.processor) specsShort.push(item.processor.split(' ').slice(0, 2).join(' '));
-            if (item.ram) specsShort.push(`${item.ram}ГБ`);
-            if (item.storage) {
-                const storageClean = item.storage.replace('SSD ', '').replace('HDD ', '').replace('NVMe ', '');
-                specsShort.push(storageClean);
-            }
-            if (item.monitor_size) specsShort.push(`${item.monitor_size}"`);
-            if (item.print_type) specsShort.push(item.print_type);
-            if (item.color_type) specsShort.push(item.color_type);
-            const specsText = specsShort.length > 0 ? specsShort.join(', ') : '—';
-            
-            equipmentHtml += `
-                <tr>
-                    <td style="padding: 6px 4px; border: 1px solid #dee2e6; text-align: center; font-size: 10px;">${i + 1}</td>
-                    <td style="padding: 6px 4px; border: 1px solid #dee2e6; font-size: 10px;">${escapeHtml(item.type) || '—'}</td>
-                    <td style="padding: 6px 4px; border: 1px solid #dee2e6; font-size: 10px;"><strong>${escapeHtml(item.brand)}</strong> ${escapeHtml(item.model)}</td>
-                    <td style="padding: 6px 4px; border: 1px solid #dee2e6; font-size: 9px;"><code style="font-size: 9px;">${escapeHtml(item.serial_number) || '—'}</code></td>
-                    <td style="padding: 6px 4px; border: 1px solid #dee2e6; font-size: 9px;"><code style="font-size: 9px;">${escapeHtml(item.inventory_number) || '—'}</code></td>
-                    <td style="padding: 6px 4px; border: 1px solid #dee2e6; font-size: 9px;">${specsText}</td>
-                    <td style="padding: 6px 4px; border: 1px solid #dee2e6; text-align: center;">
-                        <span style="background: ${getStatusColorForPrint(item.status)}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 9px; display: inline-block;">
-                            ${escapeHtml(item.status)}
-                        </span>
-                    </td>
-                    <td style="padding: 6px 4px; border: 1px solid #dee2e6; text-align: center; font-size: 9px;">${escapeHtml(item.mol) || '—'}</td>
-                </tr>
-            `;
-        }
-    }
-    
-    const printHtml = `<!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <title>Отчет по кабинету ${escapeHtml(data.room)}</title>
-        <style>
-            @media print {
-                @page { size: A4 landscape; margin: 8mm; }
-                body { margin: 0; padding: 0; }
-                .no-print { display: none; }
-                table { page-break-inside: avoid; }
-                tr { page-break-inside: avoid; page-break-after: avoid; }
-                thead { display: table-header-group; }
-                tfoot { display: table-footer-group; }
-            }
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { font-family: 'Segoe UI', 'Arial', sans-serif; background: white; padding: 10px; font-size: 11px; line-height: 1.3; }
-            .report-container { max-width: 100%; margin: 0 auto; }
-            .header { text-align: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #333; }
-            .company-name { font-size: 16px; font-weight: bold; margin-bottom: 5px; }
-            .report-title { font-size: 14px; font-weight: bold; margin: 8px 0; }
-            .report-info { margin: 10px 0; padding: 8px; background: #f8f9fa; border-radius: 5px; font-size: 10px; display: flex; justify-content: space-between; flex-wrap: wrap; }
-            .report-info span { margin: 2px 0; }
-            table { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; }
-            th { background: #343a40; color: white; padding: 8px 4px; text-align: left; font-weight: bold; border: 1px solid #495057; font-size: 10px; }
-            td { padding: 6px 4px; border: 1px solid #dee2e6; vertical-align: top; }
-            th:nth-child(1), td:nth-child(1) { width: 35px; text-align: center; }
-            th:nth-child(2), td:nth-child(2) { width: 80px; }
-            th:nth-child(3), td:nth-child(3) { width: 140px; }
-            th:nth-child(4), td:nth-child(4) { width: 100px; }
-            th:nth-child(5), td:nth-child(5) { width: 100px; }
-            th:nth-child(6), td:nth-child(6) { width: 100px; }
-            th:nth-child(7), td:nth-child(7) { width: 65px; text-align: center; }
-            th:nth-child(8), td:nth-child(8) { width: 80px; text-align: center; }
-            .signatures { margin-top: 30px; display: flex; justify-content: space-between; padding: 0 20px; }
-            .signature-block { text-align: center; width: 250px; }
-            .signature-line { margin-top: 40px; border-top: 1px solid #000; width: 100%; }
-            .signature-label { font-size: 10px; margin-top: 5px; color: #666; }
-            .stamp-place { margin-top: 20px; text-align: right; font-style: italic; color: #999; }
-            .print-button { text-align: center; margin-bottom: 15px; }
-            .print-button button { padding: 8px 16px; font-size: 12px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; margin: 0 5px; }
-            .print-button button:hover { background: #0056b3; }
-            .footer { margin-top: 15px; text-align: center; font-size: 9px; color: #999; border-top: 1px solid #eee; padding-top: 10px; }
-        </style>
-    </head>
-    <body>
-        <div class="print-button no-print">
-            <button onclick="window.print();">🖨️ Печатать</button>
-            <button onclick="window.close();" style="background: #6c757d;">✖️ Закрыть</button>
-        </div>
-        <div class="report-container">
-            <div class="header">
-                <div class="company-name">ОТЧЕТ ПО ОБОРУДОВАНИЮ</div>
-                <div class="report-title">Кабинет: ${escapeHtml(data.room)}</div>
-                <div class="report-info">
-                    <span>Дата формирования: ${reportDate}</span>
-                    <span><strong>Всего единиц: ${data.count}</strong></span>
-                    <span>Сформировал: ${escapeHtml(data.generated_by)}</span>
-                </div>
-            </div>
-            <table>
-                <thead>
-                    <tr>
-                        <th>№</th>
-                        <th>Тип</th>
-                        <th>Модель</th>
-                        <th>Серийный номер</th>
-                        <th>Инв. номер</th>
-                        <th>Характеристики</th>
-                        <th>Статус</th>
-                        <th>МОЛ</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${equipmentHtml}
-                </tbody>
-                <tfoot>
-                    <tr>
-                        <td colspan="8" style="text-align: right; background: #f8f9fa; font-size: 10px; padding: 8px;">
-                            <strong>Итого: ${data.count} единиц</strong>
-                        </td>
-                    </tr>
-                </tfoot>
-            </table>
-            <div class="signatures">
-                <div class="signature-block">
-                    <div class="signature-line"></div>
-                    <div class="signature-label">(подпись материально-ответственного лица)</div>
-                </div>
-                <div class="signature-block">
-                    <div class="signature-line"></div>
-                    <div class="signature-label">(подпись руководителя)</div>
-                </div>
-            </div>
-            <div class="stamp-place">М.П.</div>
-            <div class="footer">
-                Отчет сформирован автоматически из системы учёта IT-ресурсов «IT-Hub»
-            </div>
-        </div>
-    </body>
-    </html>`;
-    
-    printWindow.document.write(printHtml);
-    printWindow.document.close();
-}
-
-function openPrintWindow(data) {
-    const printWindow = window.open('', '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
-    
-    if (!printWindow) {
-        showMessage('Пожалуйста, разрешите всплывающие окна для этого сайта', 'warning');
-        return;
-    }
-    
-    const reportDate = new Date().toLocaleDateString('ru-RU', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-    });
-    
-    let equipmentHtml = '';
-    
-    if (data.equipment && data.equipment.length > 0) {
-        for (let i = 0; i < data.equipment.length; i++) {
-            const item = data.equipment[i];
-            let specsShort = [];
-            if (item.processor) specsShort.push(item.processor.split(' ')[0]);
-            if (item.ram) specsShort.push(`${item.ram}ГБ`);
-            if (item.storage) specsShort.push(item.storage.replace('SSD ', '').replace('HDD ', ''));
-            const specsText = specsShort.length > 0 ? specsShort.join(', ') : '—';
-            
-            equipmentHtml += `
-                <tr>
-                    <td style="padding: 6px 4px; border: 1px solid #dee2e6; text-align: center; font-size: 10px;">${i + 1}</td>
-                    <td style="padding: 6px 4px; border: 1px solid #dee2e6; font-size: 10px;">${escapeHtml(item.type) || '—'}</td>
-                    <td style="padding: 6px 4px; border: 1px solid #dee2e6; font-size: 10px;"><strong>${escapeHtml(item.brand)}</strong> ${escapeHtml(item.model)}</td>
-                    <td style="padding: 6px 4px; border: 1px solid #dee2e6; font-size: 9px;"><code style="font-size: 9px;">${escapeHtml(item.serial_number) || '—'}</code></td>
-                    <td style="padding: 6px 4px; border: 1px solid #dee2e6; font-size: 9px;"><code style="font-size: 9px;">${escapeHtml(item.inventory_number) || '—'}</code></td>
-                    <td style="padding: 6px 4px; border: 1px solid #dee2e6; font-size: 9px;">${specsText}</td>
-                    <td style="padding: 6px 4px; border: 1px solid #dee2e6; text-align: center; font-size: 10px;">${escapeHtml(item.room) || '—'}</td>
-                    <td style="padding: 6px 4px; border: 1px solid #dee2e6; text-align: center;">
-                        <span style="background: ${getStatusColorForPrint(item.status)}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 9px; display: inline-block;">
-                            ${escapeHtml(item.status)}
-                        </span>
-                    </td>
-                </tr>
-            `;
-        }
-    } else {
-        equipmentHtml = `<tr><td colspan="8" style="padding: 30px; text-align: center; font-size: 12px;">📭 За выбранным сотрудником не закреплено оборудование</td></tr>`;
-    }
-    
-    const printHtml = `<!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <title>Отчет по оборудованию - ${escapeHtml(data.employee_name)}</title>
-        <style>
-            @media print {
-                @page { size: A4; margin: 8mm; }
-                body { margin: 0; padding: 0; }
-                .no-print { display: none; }
-                table { page-break-inside: avoid; }
-                tr { page-break-inside: avoid; page-break-after: avoid; }
-                thead { display: table-header-group; }
-                tfoot { display: table-footer-group; }
-            }
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { font-family: 'Segoe UI', 'Arial', sans-serif; background: white; padding: 10px; font-size: 11px; line-height: 1.3; }
-            .report-container { max-width: 100%; margin: 0 auto; }
-            .header { text-align: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #333; }
-            .company-name { font-size: 16px; font-weight: bold; margin-bottom: 5px; }
-            .report-title { font-size: 14px; font-weight: bold; margin: 8px 0; }
-            .report-info { margin: 10px 0; padding: 8px; background: #f8f9fa; border-radius: 5px; font-size: 10px; display: flex; justify-content: space-between; }
-            table { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; }
-            th { background: #343a40; color: white; padding: 8px 4px; text-align: left; font-weight: bold; border: 1px solid #495057; font-size: 10px; }
-            td { padding: 6px 4px; border: 1px solid #dee2e6; vertical-align: top; }
-            th:nth-child(1), td:nth-child(1) { width: 35px; text-align: center; }
-            th:nth-child(2), td:nth-child(2) { width: 70px; }
-            th:nth-child(3), td:nth-child(3) { width: 130px; }
-            th:nth-child(4), td:nth-child(4) { width: 95px; }
-            th:nth-child(5), td:nth-child(5) { width: 95px; }
-            th:nth-child(6), td:nth-child(6) { width: 85px; }
-            th:nth-child(7), td:nth-child(7) { width: 45px; text-align: center; }
-            th:nth-child(8), td:nth-child(8) { width: 65px; text-align: center; }
-            .signatures { margin-top: 30px; display: flex; justify-content: space-between; padding: 0 20px; }
-            .signature-block { text-align: center; width: 250px; }
-            .signature-line { margin-top: 40px; border-top: 1px solid #000; width: 100%; }
-            .signature-label { font-size: 10px; margin-top: 5px; color: #666; }
-            .stamp-place { margin-top: 20px; text-align: right; font-style: italic; color: #999; }
-            .print-button { text-align: center; margin-bottom: 15px; }
-            .print-button button { padding: 8px 16px; font-size: 12px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; margin: 0 5px; }
-            .print-button button:hover { background: #0056b3; }
-        </style>
-    </head>
-    <body>
-        <div class="print-button no-print">
-            <button onclick="window.print();">🖨️ Печатать</button>
-            <button onclick="window.close();" style="background: #6c757d;">✖️ Закрыть</button>
-        </div>
-        <div class="report-container">
-            <div class="header">
-                <div class="company-name">ОТЧЕТ ПО ОБОРУДОВАНИЮ</div>
-                <div class="report-title">
-                    ${data.report_type === 'mol' ? 'Материально-ответственное лицо' : 'Ответственный сотрудник'}: ${escapeHtml(data.employee_name)}
-                </div>
-                <div class="report-info">
-                    <span>Дата формирования: ${reportDate}</span>
-                    <span><strong>Всего единиц: ${data.count}</strong></span>
-                    <span>Сформировал: ${escapeHtml(data.generated_by)}</span>
-                </div>
-            </div>
-            <table>
-                <thead>
-                    <tr>
-                        <th>№</th>
-                        <th>Тип</th>
-                        <th>Модель</th>
-                        <th>Серийный номер</th>
-                        <th>Инв. номер</th>
-                        <th>Характеристики</th>
-                        <th>Каб.</th>
-                        <th>Статус</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${equipmentHtml}
-                </tbody>
-                <tfoot>
-                    <tr>
-                        <td colspan="8" style="text-align: right; background: #f8f9fa; font-size: 10px; padding: 8px;">
-                            <strong>Итого: ${data.count} единиц</strong>
-                        </td>
-                    </tr>
-                </tfoot>
-            </table>
-            <div class="signatures">
-                <div class="signature-block">
-                    <div class="signature-line"></div>
-                    <div class="signature-label">(подпись материально-ответственного лица)</div>
-                </div>
-                <div class="signature-block">
-                    <div class="signature-line"></div>
-                    <div class="signature-label">(подпись руководителя)</div>
-                </div>
-            </div>
-            <div class="stamp-place">М.П.</div>
-        </div>
-    </body>
-    </html>`;
-    
-    printWindow.document.write(printHtml);
-    printWindow.document.close();
-}
-
-// ============================================================
-// ОСНОВНЫЕ ФУНКЦИИ (ВСЕ СОХРАНЕНЫ)
-// ============================================================
-
-function loadEquipment() {
-    $('#equipmentTableBody').html('<tr><td colspan="13" class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin me-2"></i>Загрузка данных...</td></tr>');
-    
-    $.ajax({
-        url: '/api/equipment',
-        method: 'GET',
-        dataType: 'json',
-        success: function(data) {
-            equipmentData = data;
-            allEquipmentData = [...data];
-            renderEquipment(data);
-            $('#equipmentStats').html(`<div class="alert alert-success alert-dismissible fade show" role="alert">
-                <i class="fas fa-check-circle"></i> Загружено единиц оборудования: ${data.length}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>`);
-            setTimeout(() => $('#equipmentStats .alert').alert('close'), 3000);
-        },
-        error: function(xhr, status, error) {
-            console.error("Ошибка загрузки:", error);
-            $('#equipmentTableBody').html(`<tr><td colspan="13" class="text-center text-danger py-4">
-                ❌ Ошибка загрузки: ${error}<br>
-                <button class="btn btn-outline-danger mt-2" onclick="loadEquipment()">Повторить</button>
-            </td>
-            </tr>`);
-        }
-    });
-}
-
-function renderEquipment(data) {
-    const tbody = $('#equipmentTableBody');
-    tbody.empty();
-    
-    if (!data || data.length === 0) {
-        tbody.html('<tr><td colspan="13" class="text-center text-muted py-4">📭 Нет оборудования. Нажмите "Добавить оборудование"</td></tr>');
-        return;
-    }
-    
-    for (let i = 0; i < data.length; i++) {
-        const item = data[i];
-        
-        let typeIcon = getTypeIcon(item.type);
-        let statusClass = getStatusClass(item.status);
-        
-        let specs = [];
-        
-        // ===== СИСТЕМНЫЙ БЛОК (Компьютер, Ноутбук, Сервер, Моноблок, Другое) =====
-        if (['Компьютер', 'Ноутбук', 'Сервер', 'Моноблок', 'Другое'].includes(item.type)) {
-            if (item.processor) specs.push(`CPU: ${item.processor}`);
-            if (item.ram) specs.push(`RAM: ${item.ram} ГБ`);
-            if (item.ram_type) specs.push(`Тип RAM: ${item.ram_type}`);
-            if (item.storage) specs.push(`Диск: ${item.storage}`);
-            if (item.os) specs.push(`ОС: ${item.os}`);
-            if (item.os_key) specs.push(`Ключ ОС: ${item.os_key}`);
-        }
-        
-        // ===== МОНИТОР =====
-        if (item.type === 'Монитор') {
-            if (item.monitor_size) specs.push(`${item.monitor_size}"`);
-            if (item.resolution) specs.push(`Разр.: ${item.resolution}`);
-            if (item.refresh_rate) specs.push(`Частота: ${item.refresh_rate} Гц`);
-            if (item.panel_type) specs.push(`Матрица: ${item.panel_type}`);
-            if (item.response_time) specs.push(`Отклик: ${item.response_time} мс`);
-            if (item.viewing_angle) specs.push(`Угол обзора: ${item.viewing_angle}`);
-            if (item.ports) specs.push(`Интерф.: ${item.ports}`);
-            if (item.connection_type) specs.push(`Подкл.: ${item.connection_type}`);
-        }
-        
-        // ===== СЕТЕВОЕ ОБОРУДОВАНИЕ =====
-        if (item.type === 'Сетевое оборудование') {
-            if (item.port_count) specs.push(`Портов: ${item.port_count}`);
-            if (item.speed) specs.push(`Скорость: ${item.speed}`);
-            if (item.network_type) specs.push(`Тип: ${item.network_type}`);
-            if (item.poe) specs.push(`PoE: ${item.poe}`);
-            if (item.managed) specs.push(`Управл.: ${item.managed}`);
-            if (item.ip_address) specs.push(`IP: ${item.ip_address}`);
-        }
-        
-        // ===== ПРИНТЕР =====
-        if (item.type === 'Принтер') {
-            if (item.print_type) specs.push(`Тип: ${item.print_type}`);
-            if (item.print_format) specs.push(`Формат: ${item.print_format}`);
-            if (item.color_type) specs.push(`Цвет: ${item.color_type}`);
-            if (item.duplex) specs.push(`Двусторонняя печать: ${item.duplex}`);
-            if (item.ip_address) specs.push(`IP: ${item.ip_address}`);
-        }
-        
-        // ===== МФУ =====
-        if (item.type === 'МФУ') {
-            if (item.print_type) specs.push(`Тип печати: ${item.print_type}`);
-            if (item.print_format) specs.push(`Формат: ${item.print_format}`);
-            if (item.color_type) specs.push(`Цветность: ${item.color_type}`);
-            if (item.duplex) specs.push(`Двусторонняя печать: ${item.duplex}`);
-            if (item.ip_address) specs.push(`IP: ${item.ip_address}`);
-            if (item.scan_format) specs.push(`Формат скана: ${item.scan_format}`);
-            if (item.duplex_scanner) specs.push(`Двусторонний скан: ${item.duplex_scanner}`);
-        }
-        
-        // ===== ИБП =====
-        if (item.type === 'ИБП') {
-            if (item.ups_power) specs.push(`Мощн.: ${item.ups_power} VA`);
-            if (item.ups_type) specs.push(`Тип: ${item.ups_type}`);
-            if (item.ups_outlets) specs.push(`Розеток: ${item.ups_outlets}`);
-            if (item.ups_usb) specs.push(`USB: ${item.ups_usb}`);
-            if (item.ups_runtime) specs.push(`Автономия: ${item.ups_runtime} мин`);
-        }
-        
-        // ===== ПЕРИФЕРИЯ =====
-        const peripheralTypes = ['Мышь/Клавиатура', 'Веб-камера', 'Гарнитура', 'Внешний диск', 'Док-станция', 'Мышь', 'Клавиатура', 'Веб-камера/Гарнитура/Микрофон'];
-        if (peripheralTypes.includes(item.type)) {
-            if (item.connection_type) specs.push(`Подкл.: ${item.connection_type}`);
-            if (item.color) specs.push(`Цвет: ${item.color}`);
-            if (item.is_set) {
-                const setType = item.set_type || 'Комплект';
-                specs.push(`✅ ${setType}`);
-            } else {
-                if (item.set_type) specs.push(`Комплектация: ${item.set_type}`);
-                else specs.push(`❌ Не комплект`);
-            }
-            if (item.type === 'Внешний диск' && item.storage) specs.push(`Объём: ${item.storage}`);
-        }
-        
-        if (item.type === 'Колонки') {
-            if (item.color) specs.push(`Цвет: ${item.color}`);
-            if (item.connection_type) specs.push(`Подкл.: ${item.connection_type}`);
-        }
-        
-        // ===== СКАНЕР =====
-        if (item.type === 'Сканер') {
-            if (item.scan_format) specs.push(`Формат: ${item.scan_format}`);
-            if (item.duplex_scanner) specs.push(`Двусторонний скан: ${item.duplex_scanner}`);
-        }
-        
-        // ===== ДРУГОЕ (если ничего не подошло) =====
-        if (specs.length === 0 && !['Компьютер','Ноутбук','Сервер','Моноблок','Монитор','Сетевое оборудование','Принтер','МФУ','ИБП','Сканер','IP-телефон','Мышь/Клавиатура','Веб-камера','Гарнитура','Колонки','Внешний диск','Док-станция','Мышь','Клавиатура','Веб-камера/Гарнитура/Микрофон'].includes(item.type)) {
-            if (item.processor) specs.push(`CPU: ${item.processor}`);
-            if (item.ram) specs.push(`RAM: ${item.ram} ГБ`);
-            if (item.storage) specs.push(`Диск: ${item.storage}`);
-            if (item.os) specs.push(`ОС: ${item.os}`);
-        }
-        
-        // Если характеристик нет вообще - показываем "—"
-        if (specs.length === 0) {
-            specs.push('—');
-        }
-        
-        let specsHtml = `<small class="text-muted">${specs.join(', ')}</small>`;
-        
-        const row = $(`
-            <tr data-id="${item.id}" class="equipment-row" style="cursor: pointer;">
-                <td class="text-center">
-                    <i class="fas fa-info-circle text-info" style="font-size: 1.2rem;"></i>
-                </td>
-                <td style="vertical-align: middle;"><span class="badge bg-primary">${escapeHtml(item.mol) || '—'}</span></td>
-                <td style="vertical-align: middle;"><span class="badge bg-secondary">${typeIcon} ${escapeHtml(item.type) || '—'}</span></td>
-                <td style="vertical-align: middle;">
-                    <strong>${escapeHtml(item.brand) || ''}</strong>
-                </td>
-                <td style="vertical-align: middle;"><code>${escapeHtml(item.serial_number) || '—'}</code></td>
-                <td style="vertical-align: middle;"><code>${escapeHtml(item.inventory_number) || '—'}</code></td>
-                <td style="vertical-align: middle; max-width: 300px; word-wrap: break-word;">${specsHtml}</td>
-                <td class="text-center"><span class="badge ${statusClass}">${item.status}</span></td>
-                <td style="vertical-align: middle;">${escapeHtml(item.room) || '—'}</td>
-                <td style="vertical-align: middle;">${escapeHtml(item.organization) || '—'}</td>
-                <td class="text-center">
-                    <button class="btn btn-sm btn-success move-equipment-btn" 
-                        data-id="${item.id}"
-                        data-name="${escapeHtml(item.brand)} ${escapeHtml(item.model)}"
-                        data-mol="${escapeHtml(item.mol)}"
-                        data-responsible="${escapeHtml(item.responsible)}"
-                        data-room="${escapeHtml(item.room)}"
-                        data-organization="${escapeHtml(item.organization)}"
-                        data-status="${item.status}"
-                        title="Переместить">
-                        <i class="fas fa-exchange-alt"></i>
-                    </button>
-                </td>
-                <td class="text-center">
-                    <button class="btn btn-sm btn-info" style="color: white;" 
-                        onclick="showMovements(${item.id}, '${escapeHtml(item.brand)} ${escapeHtml(item.model)}')" 
-                        title="История перемещений">
-                        <i class="fas fa-history"></i>
-                    </button>
-                </td>
-                <td class="text-center">
-                    <button class="btn btn-sm btn-danger delete-equipment-btn" data-id="${item.id}">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </td>
-            </tr>
-        `);
-        row.data('equipment-data', item);
-        tbody.append(row);
-    }
-
-    // Обработчики событий
-    $('.equipment-row').off('click').on('click', function(e) {
-        if ($(e.target).closest('.move-equipment-btn, .delete-equipment-btn, .btn-info').length) return;
-        const data = $(this).data('equipment-data');
-        if (data) openEquipmentView(data);
-    });
-    
-    $('.delete-equipment-btn').off('click').on('click', function(e) {
-        e.stopPropagation();
-        const id = $(this).data('id');
-        deleteEquipment(id);
-    });
-    
-    $('.move-equipment-btn').off('click').on('click', function(e) {
-        e.stopPropagation();
-        const id = $(this).data('id');
-        const name = $(this).data('name');
-        const currentMOL = $(this).data('mol') || '—';
-        const currentResponsible = $(this).data('responsible') || '—';
-        const currentRoom = $(this).data('room') || '—';
-        const currentOrganization = $(this).data('organization') || '—';
-        const currentStatus = $(this).data('status') || 'В работе';
-        
-        $('#movementEquipmentId').val(id);
-        $('#movementEquipmentName').text(name);
-        $('#currentMOL').text(currentMOL);
-        $('#currentResponsible').text(currentResponsible);
-        $('#currentRoom').text(currentRoom);
-        $('#currentOrganization').text(currentOrganization);
-        $('#movementToMOL').val('');
-        $('#movementToEmployee').val('');
-        $('#movementToRoom').val('');
-        $('#movementToOrganization').val('');
-        $('#movementReason').val('Смена ответственного');
-        $('#movementNewStatus').val('').prop('disabled', false);
-        $('#movementComment').val('');
-        $('#movementDate').val(new Date().toISOString().split('T')[0]);
-        $('#statusHint').html('Выберите новый статус или оставьте без изменений').css('color', '#6c757d');
-        
-        $('#movementModal').modal('show');
-    });
-}
-
-function openEquipmentView(equipment) {
-    currentEquipmentData = equipment;
-    $('#viewEquipmentId').val(equipment.id);
-    $('#viewEquipmentType').text(equipment.type || '—');
-    $('#viewEquipmentModel').text(equipment.brand || '—');
-    $('#viewEquipmentSerial').text(equipment.serial_number || '—');
-    $('#viewEquipmentInventory').text(equipment.inventory_number || '—');
-    $('#viewEquipmentMOL').text(equipment.mol || '—');
-    $('#viewEquipmentResponsible').text(equipment.responsible || '—');
-    $('#viewEquipmentRoom').text(equipment.room || '—');
-    $('#viewEquipmentOrganization').text(equipment.organization || '—');
-    $('#viewEquipmentCharacteristics').text(equipment.characteristics || '—');
-    $('#viewEquipmentStatus').text(equipment.status || 'В работе');
-    $('#viewEquipmentPurchaseDate').text(equipment.purchase_date ? new Date(equipment.purchase_date).toLocaleDateString('ru-RU') : '—');
-    $('#viewEquipmentWarrantyUntil').text(equipment.warranty_until ? new Date(equipment.warranty_until).toLocaleDateString('ru-RU') : '—');
-    $('#viewEquipmentPrice').text(equipment.price ? equipment.price.toLocaleString('ru-RU') + ' ₽' : '—');
-    $('#viewEquipmentDepartment').text(equipment.department_name || '—');
-    
-    let specs = [];
-    
-    // Системные
-    if (equipment.processor) specs.push(`Процессор: ${equipment.processor}`);
-    if (equipment.ram) specs.push(`ОЗУ: ${equipment.ram} ГБ`);
-    if (equipment.ram_type) specs.push(`Тип ОЗУ: ${equipment.ram_type}`);
-    if (equipment.storage) specs.push(`Диск: ${equipment.storage}`);
-    if (equipment.os) specs.push(`ОС: ${equipment.os}`);
-    if (equipment.os_key) specs.push(`Ключ ОС: ${equipment.os_key}`);
-    
-    // Монитор
-    if (equipment.monitor_size) specs.push(`Диагональ: ${equipment.monitor_size}"`);
-    if (equipment.resolution) specs.push(`Разрешение: ${equipment.resolution}`);
-    if (equipment.refresh_rate) specs.push(`Частота: ${equipment.refresh_rate} Гц`);
-    if (equipment.panel_type) specs.push(`Матрица: ${equipment.panel_type}`);
-    if (equipment.response_time) specs.push(`Отклик: ${equipment.response_time} мс`);
-    if (equipment.viewing_angle) specs.push(`Угол обзора: ${equipment.viewing_angle}`);
-    if (equipment.ports) specs.push(`Интерфейсы: ${equipment.ports}`);
-    if (equipment.connection_type) specs.push(`Подключение: ${equipment.connection_type}`);
-    
-    // Сетевое
-    if (equipment.port_count) specs.push(`Портов: ${equipment.port_count}`);
-    if (equipment.speed) specs.push(`Скорость: ${equipment.speed}`);
-    if (equipment.ip_address) specs.push(`IP: ${equipment.ip_address}`);
-    if (equipment.network_type) specs.push(`Тип: ${equipment.network_type}`);
-    if (equipment.poe) specs.push(`PoE: ${equipment.poe}`);
-    if (equipment.managed) specs.push(`Управляемый: ${equipment.managed}`);
-    
-    // Принтер / МФУ
-    if (equipment.print_type) specs.push(`Тип печати: ${equipment.print_type}`);
-    if (equipment.print_format) specs.push(`Формат бумаги: ${equipment.print_format}`);
-    if (equipment.ip_address) specs.push(`IP адрес: ${equipment.ip_address}`);
-    if (equipment.color_type) specs.push(`Цветность: ${equipment.color_type}`);
-    if (equipment.duplex) specs.push(`Двусторонняя печать: ${equipment.duplex}`);
-    
-    // Сканер
-    if (equipment.scan_format) specs.push(`Формат скана: ${equipment.scan_format}`);
-    if (equipment.duplex_scanner) specs.push(`Двусторонний скан: ${equipment.duplex_scanner}`);
-
-    // ИБП
-    if (equipment.ups_power) specs.push(`Мощность: ${equipment.ups_power}`);
-    if (equipment.ups_type) specs.push(`Тип ИБП: ${equipment.ups_type}`);
-    if (equipment.ups_outlets) specs.push(`Розеток: ${equipment.ups_outlets}`);
-    if (equipment.ups_usb) specs.push(`USB: ${equipment.ups_usb}`);
-    if (equipment.ups_runtime) specs.push(`Автономия: ${equipment.ups_runtime} мин`);
-    
-    // Периферия
-    if (equipment.connection_type && !['Монитор','Сетевое оборудование','IP-телефон'].includes(equipment.type)) {
-        specs.push(`Подключение: ${equipment.connection_type}`);
-    }
-    if (equipment.color) specs.push(`Цвет: ${equipment.color}`);
-    if (equipment.type === 'Мышь/Клавиатура' || equipment.type === 'Мышь' || equipment.type === 'Клавиатура') {
-        if (equipment.is_set) {
-            const setType = equipment.set_type || 'Клавиатура+Мышь';
-            specs.push(`✅ Комплект: ${setType}`);
-        } else {
-            specs.push(`❌ Не комплект`);
-            if (equipment.set_type) specs.push(`Комплектация: ${equipment.set_type}`);
-        }
-    }
-    if (equipment.type === 'Веб-камера' || equipment.type === 'Гарнитура' || equipment.type === 'Микрофон' || equipment.type === 'Веб-камера/Гарнитура/Микрофон') {
-        if (equipment.is_set) {
-            const setType = equipment.set_type || 'Веб-камера+Гарнитура+Микрофон';
-            specs.push(`✅ Комплект для ВКС: ${setType}`);
-        } else {
-            specs.push(`❌ Не комплект`);
-            if (equipment.set_type) specs.push(`Комплектация: ${equipment.set_type}`);
-        }
-    }
-    
-    if (specs.length === 0) {
-        specs.push('—');
-    }
-    
-    $('#viewEquipmentSpecs').html(specs.join('<br>'));
-    $('#viewEquipmentNotes').text(equipment.notes || '—');
-    $('#viewEquipmentCreatedBy').text(equipment.created_by || '—');
-    $('#viewEquipmentCreatedAt').text(equipment.created_at ? new Date(equipment.created_at).toLocaleString('ru-RU') : '—');
-    
-    disableEquipmentEditMode();
-    $('#viewEquipmentModal').modal('show');
-}
-
-function disableEquipmentEditMode() {
-    if (!currentEquipmentData) return;
-    const eq = currentEquipmentData;
-    
-    // Базовые поля (оставляем как есть)
-    $('#viewEquipmentType').text(eq.type || '—');
-    $('#viewEquipmentModel').text(eq.brand || '—');
-    $('#viewEquipmentSerial').text(eq.serial_number || '—');
-    $('#viewEquipmentInventory').text(eq.inventory_number || '—');
-    $('#viewEquipmentMOL').text(eq.mol || '—');
-    $('#viewEquipmentResponsible').text(eq.responsible || '—');
-    $('#viewEquipmentRoom').text(eq.room || '—');
-    $('#viewEquipmentOrganization').text(eq.organization || '—');
-    $('#viewEquipmentCharacteristics').text(eq.characteristics || '—');
-    $('#viewEquipmentStatus').text(eq.status || 'В работе');
-    $('#viewEquipmentPurchaseDate').text(eq.purchase_date ? new Date(eq.purchase_date).toLocaleDateString('ru-RU') : '—');
-    $('#viewEquipmentDepartment').text(eq.department_name || '—');
-    if ($('#viewEquipmentPrice').length) {
-        $('#viewEquipmentPrice').text(eq.price ? eq.price.toLocaleString('ru-RU') + ' ₽' : '—');
-    }
-    
-    // Сбор характеристик
-    let specs = [];
-    
-    // Системные
-    if (eq.processor) specs.push(`Процессор: ${eq.processor}`);
-    if (eq.ram) specs.push(`ОЗУ: ${eq.ram} ГБ`);
-    if (eq.ram_type) specs.push(`Тип ОЗУ: ${eq.ram_type}`);
-    if (eq.storage) specs.push(`Диск: ${eq.storage}`);
-    if (eq.os) specs.push(`ОС: ${eq.os}`);
-    if (eq.os_key) specs.push(`Ключ ОС: ${eq.os_key}`);
-    
-    // Монитор
-    if (eq.monitor_size) specs.push(`Диагональ: ${eq.monitor_size}"`);
-    if (eq.resolution) specs.push(`Разрешение: ${eq.resolution}`);
-    if (eq.refresh_rate) specs.push(`Частота: ${eq.refresh_rate} Гц`);
-    if (eq.panel_type) specs.push(`Матрица: ${eq.panel_type}`);
-    if (eq.response_time) specs.push(`Отклик: ${eq.response_time} мс`);
-    if (eq.viewing_angle) specs.push(`Угол обзора: ${eq.viewing_angle}`);
-    if (eq.ports) specs.push(`Интерфейсы: ${eq.ports}`);
-    if (eq.connection_type) specs.push(`Подключение: ${eq.connection_type}`);
-    
-    // Сетевое
-    if (eq.port_count) specs.push(`Портов: ${eq.port_count}`);
-    if (eq.speed) specs.push(`Скорость: ${eq.speed}`);
-    if (eq.ip_address) specs.push(`IP: ${eq.ip_address}`);
-    if (eq.network_type) specs.push(`Тип: ${eq.network_type}`);
-    if (eq.poe) specs.push(`PoE: ${eq.poe}`);
-    if (eq.managed) specs.push(`Управляемый: ${eq.managed}`);
-    
-    // Принтер / МФУ
-    if (eq.print_type) specs.push(`Тип печати: ${eq.print_type}`);
-    if (eq.print_format) specs.push(`Формат: ${eq.print_format}`);
-    if (eq.print_speed) specs.push(`Скорость: ${eq.print_speed} стр/мин`);
-    if (eq.color_type) specs.push(`Цветность: ${eq.color_type}`);
-    if (eq.duplex) specs.push(`Двусторонняя печать: ${eq.duplex}`);
-    if (eq.printer_ports) specs.push(`Интерфейсы: ${eq.printer_ports}`);
-    
-    // Сканер (для МФУ)
-    if (eq.scan_format) specs.push(`Формат скана: ${eq.scan_format}`);
-    if (eq.duplex_scanner) specs.push(`Двусторонний скан: ${eq.duplex_scanner}`);
-    
-    // ИБП
-    if (eq.ups_power) specs.push(`Мощность: ${eq.ups_power}`);
-    if (eq.ups_type) specs.push(`Тип ИБП: ${eq.ups_type}`);
-    if (eq.ups_outlets) specs.push(`Розеток: ${eq.ups_outlets}`);
-    if (eq.ups_usb) specs.push(`USB: ${eq.ups_usb}`);
-    if (eq.ups_runtime) specs.push(`Автономия: ${eq.ups_runtime} мин`);
-    
-    // Периферия
-    if (eq.connection_type && !['Монитор','Сетевое оборудование','IP-телефон', 'Моноблок'].includes(eq.type)) {
-        specs.push(`Подключение: ${eq.connection_type}`);
-    }
-    if (eq.color) specs.push(`Цвет: ${eq.color}`);
-    if (eq.type === 'Мышь/Клавиатура' || eq.type === 'Мышь' || eq.type === 'Клавиатура') {
-        if (eq.is_set) {
-            const setType = eq.set_type || 'Клавиатура+Мышь';
-            specs.push(`✅ Комплект: ${setType}`);
-        } else {
-            specs.push(`❌ Не комплект`);
-            if (eq.set_type) specs.push(`Комплектация: ${eq.set_type}`);
-        }
-    }
-    if (eq.type === 'Веб-камера' || eq.type === 'Гарнитура' || eq.type === 'Микрофон' || eq.type === 'Веб-камера/Гарнитура/Микрофон') {
-        if (eq.is_set) {
-            const setType = eq.set_type || 'Веб-камера+Гарнитура+Микрофон';
-            specs.push(`✅ Комплект для ВКС: ${setType}`);
-        } else {
-            specs.push(`❌ Не комплект`);
-            if (eq.set_type) specs.push(`Комплектация: ${eq.set_type}`);
-        }
-    }
-    
-    // Если характеристик нет вообще
-    if (specs.length === 0) {
-        specs.push('—');
-    }
-    
-    $('#viewEquipmentSpecs').html(specs.join('<br>'));
-    $('#viewEquipmentNotes').text(eq.notes || '—');
-    $('#viewEquipmentCreatedBy').text(eq.created_by || '—');
-    $('#viewEquipmentCreatedAt').text(eq.created_at ? new Date(eq.created_at).toLocaleString('ru-RU') : '—');
-    
-    // Кнопки
-    $('#viewEquipmentFooter').html(`
-        <button type="button" class="btn btn-warning" id="editEquipmentBtn">
-            <i class="fas fa-edit"></i> Редактировать
-        </button>
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
-    `);
-    $('#editEquipmentBtn').off('click').on('click', enableEquipmentEditMode);
-}
-
-
-function enableEquipmentEditMode() {
-    const eq = currentEquipmentData;
-    if (!eq) {
-        showMessage('Ошибка: данные оборудования не найдены', 'danger');
-        return;
-    }
-
-    // Определяем группы типов
-    const peripheralTypes = ['Мышь/Клавиатура', 'Веб-камера', 'Гарнитура', 'Колонки', 'Внешний диск', 'Док-станция', 'Мышь', 'Клавиатура', 'ИБП', 'Веб-камера/Гарнитура/Микрофон'];
-    const computerTypes = ['Компьютер', 'Ноутбук', 'Сервер', 'Моноблок'];
-    const monitorTypes = ['Монитор', 'Моноблок'];   // <-- ДОБАВЛЕН МОНОБЛОК
-    const printerTypes = ['Принтер', 'МФУ'];
-    const scannerTypes = ['Сканер'];
-    const networkTypes = ['Сетевое оборудование', 'IP-телефон'];
-    const upsTypes = ['ИБП'];
-
-    const isPeripheral = peripheralTypes.includes(eq.type);
-    const isComputer = computerTypes.includes(eq.type);
-    const isMonitor = monitorTypes.includes(eq.type);
-    const isPrinter = printerTypes.includes(eq.type);
-    const isScanner = scannerTypes.includes(eq.type);
-    const isNetwork = networkTypes.includes(eq.type);
-    const isUps = upsTypes.includes(eq.type);
-    const isMouseKeyboard = eq.type === 'Мышь/Клавиатура' || eq.type === 'Мышь' || eq.type === 'Клавиатура';
-    const isVKS = eq.type === 'Веб-камера' || eq.type === 'Гарнитура' || eq.type === 'Микрофон' || eq.type === 'Веб-камера/Гарнитура/Микрофон';
-
-    // ---------- БАЗОВЫЕ ПОЛЯ ----------
-    $('#viewEquipmentType').html(`<span class="badge bg-secondary">${escapeHtml(eq.type) || '—'}</span><input type="hidden" id="editEquipmentType" value="${escapeHtml(eq.type)}">`);
-    $('#viewEquipmentModel').html(`
-        <div class="row">
-            <div class="col-12"><input type="text" class="form-control form-control-sm" id="editEquipmentBrand" placeholder="Введите модель" value="${escapeHtml(eq.brand || '')}"></div>
-        </div>
-    `);
-    $('#viewEquipmentSerial').html(`<input type="text" class="form-control form-control-sm" id="editEquipmentSerial" value="${escapeHtml(eq.serial_number || '')}">`);
-    let inventoryHtml = `<input type="text" class="form-control form-control-sm" id="editEquipmentInventory" value="${escapeHtml(eq.inventory_number || '')}">`;
-    inventoryHtml += `<small class="text-muted d-block">Необязательное поле</small>`;
-    $('#viewEquipmentInventory').html(inventoryHtml);
-    $('#viewEquipmentCharacteristics').html(
-        `<textarea class="form-control form-control-sm" id="editEquipmentCharacteristics" rows="2">${escapeHtml(eq.characteristics || '')}</textarea>`
-    );
-
-    // ----- МОЛ (input + datalist + кнопка +) -----
-    let molOptions = '';
-    if (employeesList && employeesList.length > 0) {
-        for (let i = 0; i < employeesList.length; i++) {
-            const empName = employeesList[i].name || employeesList[i];
-            molOptions += `<option value="${escapeHtml(empName)}">`;
-        }
-    }
-    const molInputId = 'editEquipmentMOLInput';
-    const molDatalistId = 'editMolDatalist';
-    $('#viewEquipmentMOL').html(`
-        <div class="input-group input-group-sm">
-            <input type="text" class="form-control" id="${molInputId}" 
-                   placeholder="Введите ФИО" list="${molDatalistId}" 
-                   value="${escapeHtml(eq.mol || '')}">
-            <datalist id="${molDatalistId}">${molOptions}</datalist>
-            <button class="btn btn-outline-success btn-sm" type="button" 
-                    onclick="quickAddEmployee('${molInputId}', '${molDatalistId}')" 
-                    title="Добавить сотрудника">
-                <i class="fas fa-plus"></i>
-            </button>
-        </div>
-    `);
-
-    // ----- Ответственный (input + datalist + кнопка +) -----
-    let respOptions = '';
-    if (employeesList && employeesList.length > 0) {
-        for (let i = 0; i < employeesList.length; i++) {
-            const empName = employeesList[i].name || employeesList[i];
-            respOptions += `<option value="${escapeHtml(empName)}">`;
-        }
-    }
-    const respInputId = 'editEquipmentResponsibleInput';
-    const respDatalistId = 'editResponsibleDatalist';
-    $('#viewEquipmentResponsible').html(`
-        <div class="input-group input-group-sm">
-            <input type="text" class="form-control" id="${respInputId}" 
-                   placeholder="Введите ФИО" list="${respDatalistId}" 
-                   value="${escapeHtml(eq.responsible || '')}">
-            <datalist id="${respDatalistId}">${respOptions}</datalist>
-            <button class="btn btn-outline-success btn-sm" type="button" 
-                    onclick="quickAddEmployee('${respInputId}', '${respDatalistId}')" 
-                    title="Добавить сотрудника">
-                <i class="fas fa-plus"></i>
-            </button>
-        </div>
-    `);
-
-    // Кабинет (с datalist и кнопкой добавления)
-    const roomHtml = `
-        <div class="input-group">
-            <input type="text" class="form-control form-control-sm" id="editEquipmentRoom" 
-                   placeholder="Номер кабинета" list="editEquipmentRoomsList" value="${escapeHtml(eq.room || '')}">
-            <datalist id="editEquipmentRoomsList"></datalist>
-            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="addNewRoomFromEdit()" title="Добавить новый кабинет">
-                <i class="fas fa-plus"></i>
-            </button>
-        </div>
-    `;
-    $('#viewEquipmentRoom').html(roomHtml);
-    loadRoomsForEditDatalist();
-
-    // Филиал
-    let orgOptions = '<option value="">Выберите филиал</option>';
-    if (window.organizationsList && window.organizationsList.length > 0) {
-        for (let i = 0; i < window.organizationsList.length; i++) {
-            const org = window.organizationsList[i];
-            const selected = (eq.organization_id == org.id) ? 'selected' : '';
-            orgOptions += `<option value="${org.id}" ${selected}>${escapeHtml(org.name)}</option>`;
-        }
-    }
-    $('#viewEquipmentOrganization').html(`<select class="form-select form-select-sm" id="editEquipmentOrganization">${orgOptions}</select>`);
-
-    // Статус
-    $('#viewEquipmentStatus').html(`
-        <select class="form-select form-select-sm" id="editEquipmentStatus">
-            <option value="В работе" ${eq.status === 'В работе' ? 'selected' : ''}>В работе</option>
-            <option value="Ремонт" ${eq.status === 'Ремонт' ? 'selected' : ''}>Ремонт</option>
-            <option value="На складе" ${eq.status === 'На складе' ? 'selected' : ''}>На складе</option>
-            <option value="Списано" ${eq.status === 'Списано' ? 'selected' : ''}>Списано</option>
-            <option value="Простаивает" ${eq.status === 'Простаивает' ? 'selected' : ''}>Простаивает</option>
-        </select>
-    `);
-    $('#viewEquipmentPurchaseDate').html(`<input type="date" class="form-control form-control-sm" id="editEquipmentPurchaseDate" value="${eq.purchase_date || ''}">`);
-    if ($('#viewEquipmentPrice').length) {
-        $('#viewEquipmentPrice').html(`<input type="number" class="form-control form-control-sm" id="editEquipmentPrice" value="${eq.price || 0}" step="0.01">`);
-    }
-
-    // ---------- СПЕЦИФИЧЕСКИЕ ПОЛЯ (по типам) ----------
-    let specsHtml = '';
-
-    // 1. СИСТЕМНЫЕ ХАРАКТЕРИСТИКИ (Компьютер, Ноутбук, Сервер, Моноблок, Другое)
-    if (isComputer) {
-        specsHtml = `
-            <div class="card mb-2">
-                <div class="card-header bg-light py-1">
-                    <small class="fw-bold"><i class="fas fa-microchip"></i> Системные характеристики</small>
-                </div>
-                <div class="card-body py-2">
-                    <div class="row">
-                        <div class="col-12 mb-1">
-                            <label class="form-label">Процессор</label>
-                            <input type="text" class="form-control form-control-sm" id="editEquipmentProcessor" placeholder="Процессор" value="${escapeHtml(eq.processor || '')}">
-                        </div>
-                        <div class="col-4 mb-1">
-                            <label class="form-label">Объем ОЗУ</label>
-                            <input type="number" class="form-control form-control-sm" id="editEquipmentRam" placeholder="ОЗУ (ГБ)" value="${eq.ram || ''}" min="1" step="1">
-                        </div>
-                        <div class="col-4 mb-1">
-                            <label class="form-label">Тип ОЗУ</label>
-                            <select class="form-select form-select-sm" id="editEquipmentRamType">
-                                <option value="">Тип ОЗУ</option>
-                                <option value="DDR2" ${eq.ram_type === 'DDR2' ? 'selected' : ''}>DDR2</option>
-                                <option value="DDR3" ${eq.ram_type === 'DDR3' ? 'selected' : ''}>DDR3</option>
-                                <option value="DDR4" ${eq.ram_type === 'DDR4' ? 'selected' : ''}>DDR4</option>
-                                <option value="DDR5" ${eq.ram_type === 'DDR5' ? 'selected' : ''}>DDR5</option>
-                            </select>
-                        </div>
-                        <div class="col-4 mb-1">
-                            <label class="form-label">Накопители (диски)</label>
-                            <div id="editStorageContainer"></div>
-                            <button type="button" class="btn btn-outline-secondary btn-sm mt-1" onclick="addStorageRow('edit')">
-                                <i class="fas fa-plus"></i> Добавить диск
-                            </button>
-                            <small class="text-muted d-block">Для указания нескольких дисков нажмите «Добавить диск»</small>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-6 mb-1">
-                            <label class="form-label">Операционная система</label>
-                            <input type="text" class="form-control form-control-sm" id="editEquipmentOs" placeholder="ОС" value="${escapeHtml(eq.os || '')}">
-                        </div>
-                        <div class="col-6 mb-1">
-                            <label class="form-label">Ключ ОС</label>
-                            <input type="text" class="form-control form-control-sm" id="editEquipmentOsKey" placeholder="Ключ ОС" value="${escapeHtml(eq.os_key || '')}">
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-        setTimeout(function() { populateStorageRows(eq.storage || '', 'edit'); }, 50);
-    }
-
-    // 2. ПАРАМЕТРЫ ДИСПЛЕЯ (Монитор И Моноблок) – теперь это ОТДЕЛЬНЫЙ if
-    if (isMonitor) {
-        specsHtml += `
-            <div class="card mb-2">
-                <div class="card-header bg-light py-1">
-                    <small class="fw-bold"><i class="fas fa-tv"></i> Параметры дисплея</small>
-                </div>
-                <div class="card-body py-2">
-                    <div class="row">
-                        <div class="col-4 mb-1">
-                            <label class="form-label">Диагональ</label>
-                            <input type="number" class="form-control form-control-sm" id="editEquipmentMonitorSize" placeholder="Диагональ (дюймы)" value="${eq.monitor_size || ''}">
-                        </div>
-                        <div class="col-4 mb-1">
-                            <label class="form-label">Разрешение</label>
-                            <select class="form-select form-select-sm" id="editEquipmentResolution">
-                                <option value="1920x1080" ${eq.resolution === '1920x1080' ? 'selected' : ''}>Full HD (1920x1080)</option>
-                                <option value="2560x1440" ${eq.resolution === '2560x1440' ? 'selected' : ''}>2K (2560x1440)</option>
-                                <option value="3840x2160" ${eq.resolution === '3840x2160' ? 'selected' : ''}>4K (3840x2160)</option>
-                                <option value="1366x768" ${eq.resolution === '1366x768' ? 'selected' : ''}>HD (1366x768)</option>
-                            </select>
-                        </div>
-                        <div class="col-4 mb-1">
-                            <label class="form-label">Частота обновления экрана</label>
-                            <input type="number" class="form-control form-control-sm" id="editEquipmentRefreshRate" placeholder="Частота (Гц)" value="${eq.refresh_rate || ''}">
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-4 mb-1">
-                            <label class="form-label">Тип матрицы</label>
-                            <select class="form-select form-select-sm" id="editEquipmentPanelType">
-                                <option value="IPS" ${eq.panel_type === 'IPS' ? 'selected' : ''}>IPS</option>
-                                <option value="VA" ${eq.panel_type === 'VA' ? 'selected' : ''}>VA</option>
-                                <option value="TN" ${eq.panel_type === 'TN' ? 'selected' : ''}>TN</option>
-                                <option value="OLED" ${eq.panel_type === 'OLED' ? 'selected' : ''}>OLED</option>
-                            </select>
-                        </div>
-                        <div class="col-4 mb-1">
-                            <label class="form-label">Время отклика</label>
-                            <input type="number" class="form-control form-control-sm" id="editEquipmentResponseTime" placeholder="Отклик (мс)" value="${eq.response_time || ''}">
-                        </div>
-                        <div class="col-4 mb-1">
-                            <label class="form-label">Угол обзора</label>
-                            <input type="text" class="form-control form-control-sm" id="editEquipmentViewingAngle" placeholder="178°" value="${eq.viewing_angle || ''}">
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-12 mb-1">
-                            <label class="form-label">Типы подключения</label>
-                            <div id="editConnectionContainer"></div>
-                            <button type="button" class="btn btn-outline-primary btn-sm mt-1" onclick="addConnectionRow('edit')">
-                                <i class="fas fa-plus"></i> Добавить подключение
-                            </button>
-                            <small class="text-muted d-block">Нажмите «Добавить подключение», чтобы указать несколько типов</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-        setTimeout(function() {
-            const connections = eq.connection_type ? eq.connection_type.split(',').map(s => s.trim()).filter(s => s) : [];
-            populateConnections('editConnectionContainer', connections);
-        }, 50);
-    }
-
-    // 3. СЕТЕВОЕ ОБОРУДОВАНИЕ
-    if (isNetwork) {
-        specsHtml += `
-            <div class="card mb-2">
-                <div class="card-header bg-light py-1">
-                    <small class="fw-bold"><i class="fas fa-network-wired"></i> Сетевые параметры</small>
-                </div>
-                <div class="card-body py-2">
-                    <div class="row">
-                        <div class="col-6 mb-1">
-                            <label class="form-label">Тип устройства</label>
-                            <input type="text" class="form-control form-control-sm" id="editEquipmentNetworkType" placeholder="Тип устройства" value="${escapeHtml(eq.network_type || '')}">
-                        </div>
-                        <div class="col-6 mb-1">
-                            <label class="form-label">Кол-во портов</label>
-                            <input type="number" class="form-control form-control-sm" id="editEquipmentPortCount" placeholder="Кол-во портов" value="${eq.port_count || ''}">
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-6 mb-1">
-                            <label class="form-label">Скорость</label>
-                            <select class="form-select form-select-sm" id="editEquipmentSpeed">
-                                <option value="100 Mbps" ${eq.speed === '100 Mbps' ? 'selected' : ''}>100 Mbps</option>
-                                <option value="1 Gbps" ${eq.speed === '1 Gbps' ? 'selected' : ''}>1 Gbps</option>
-                                <option value="10 Gbps" ${eq.speed === '10 Gbps' ? 'selected' : ''}>10 Gbps</option>
-                            </select>
-                        </div>
-                        <div class="col-6 mb-1">
-                            <label class="form-label">PoE</label>
-                            <select class="form-select form-select-sm" id="editEquipmentPoE">
-                                <option value="Нет" ${eq.poe === 'Нет' ? 'selected' : ''}>Нет</option>
-                                <option value="PoE" ${eq.poe === 'PoE' ? 'selected' : ''}>PoE</option>
-                                <option value="PoE+" ${eq.poe === 'PoE+' ? 'selected' : ''}>PoE+</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-6 mb-1">
-                            <label class="form-label">Управляемый</label>
-                            <select class="form-select form-select-sm" id="editEquipmentManaged">
-                                <option value="Нет" ${eq.managed === 'Нет' ? 'selected' : ''}>Неуправляемый</option>
-                                <option value="Да" ${eq.managed === 'Да' ? 'selected' : ''}>Управляемый</option>
-                            </select>
-                        </div>
-                        <div class="col-6 mb-1">
-                            <label class="form-label">IP адрес</label>
-                            <input type="text" class="form-control form-control-sm" id="editEquipmentIpAddress" placeholder="IP адрес" value="${escapeHtml(eq.ip_address || '')}">
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    // 4. ПРИНТЕР / МФУ
-    if (isPrinter) {
-        specsHtml += `
-            <div class="card mb-2">
-                <div class="card-header bg-light py-1">
-                    <small class="fw-bold"><i class="fas fa-print"></i> Параметры печати</small>
-                </div>
-                <div class="card-body py-2">
-                    <div class="row">
-                        <div class="col-4 mb-1">
-                            <label class="form-label">Тип печати</label>
-                            <select class="form-select form-select-sm" id="editEquipmentPrintType">
-                                <option value="Лазерный" ${eq.print_type === 'Лазерный' ? 'selected' : ''}>Лазерный</option>
-                                <option value="Струйный" ${eq.print_type === 'Струйный' ? 'selected' : ''}>Струйный</option>
-                            </select>
-                        </div>
-                        <div class="col-4 mb-1">
-                            <label class="form-label">Формат бумаги</label>
-                            <select class="form-select form-select-sm" id="editEquipmentPrintFormat">
-                                <option value="A4" ${eq.print_format === 'A4' ? 'selected' : ''}>A4</option>
-                                <option value="A3" ${eq.print_format === 'A3' ? 'selected' : ''}>A3</option>
-                                <option value="A3/A4" ${eq.print_format === 'A3/A4' ? 'selected' : ''}>A3/A4</option>
-                            </select>
-                        </div>
-                        <div class="col-4 mb-1">
-                            <label class="form-label">IP адрес</label>
-                            <input type="text" class="form-control form-control-sm" id="editEquipmentIpAddress" placeholder="IP адрес" value="${escapeHtml(eq.ip_address || '')}">
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-4 mb-1">
-                            <label class="form-label">Цвет печати</label>
-                            <select class="form-select form-select-sm" id="editEquipmentColorType">
-                                <option value="Черно-белый" ${eq.color_type === 'Черно-белый' ? 'selected' : ''}>Черно-белый</option>
-                                <option value="Цветной" ${eq.color_type === 'Цветной' ? 'selected' : ''}>Цветной</option>
-                            </select>
-                        </div>
-                        <div class="col-4 mb-1">
-                            <label class="form-label">Двусторонняя печать</label>
-                            <select class="form-select form-select-sm" id="editEquipmentDuplexAdd">
-                                <option value="Нет" ${eq.duplex === 'Нет' ? 'selected' : ''}>Нет</option>
-                                <option value="Да" ${eq.duplex === 'Да' ? 'selected' : ''}>Да</option>
-                            </select>
-                        </div>
-                    </div>
-                    ${eq.type === 'МФУ' ? `
-                    <div class="row mt-2">
-                        <div class="col-6 mb-1">
-                            <label class="form-label">Разрешение сканера</label>
-                            <select class="form-select form-select-sm" id="editEquipmentScannerResolution">
-                                <option value="A4" ${eq.scanner_resolution === 'A4' ? 'selected' : ''}>A4</option>
-                                <option value="A3" ${eq.scanner_resolution === 'A3' ? 'selected' : ''}>A3</option>
-                                <option value="A3/A4" ${eq.scanner_resolution === 'A3/A4' ? 'selected' : ''}>A3/A4</option>
-                            </select>
-                        </div>
-                        <div class="col-6 mb-1">
-                            <label class="form-label">Двусторонний скан</label>
-                            <select class="form-select form-select-sm" id="editEquipmentDuplexScanner">
-                                <option value="Нет" ${eq.duplex_scanner === 'Нет' ? 'selected' : ''}>Нет</option>
-                                <option value="Да" ${eq.duplex_scanner === 'Да' ? 'selected' : ''}>Да</option>
-                            </select>
-                        </div>
-                    </div>
-                    ` : ''}
-                </div>
-            </div>
-        `;
-    }
-
-    // 5. СКАНЕР
-    if (isScanner) {
-        specsHtml += `
-            <div class="card mb-2">
-                <div class="card-header bg-light py-1">
-                    <small class="fw-bold"><i class="fas fa-scanner"></i> Параметры сканера</small>
-                </div>
-                <div class="card-body py-2">
-                    <div class="row">
-                        <div class="col-6 mb-1">
-                            <label class="form-label">Двусторонний скан</label>
-                            <select class="form-select form-select-sm" id="editEquipmentDuplexScanner">
-                                <option value="Нет" ${eq.duplex_scanner === 'Нет' ? 'selected' : ''}>Нет</option>
-                                <option value="Да" ${eq.duplex_scanner === 'Да' ? 'selected' : ''}>Да</option>
-                            </select>
-                        </div>
-                        <div class="col-6 mb-1">
-                            <label class="form-label">Формат скана</label>
-                            <select class="form-select form-select-sm" id="editEquipmentScanFormat">
-                                <option value="A4" ${eq.scan_format === 'A4' ? 'selected' : ''}>A4</option>
-                                <option value="A3" ${eq.scan_format === 'A3' ? 'selected' : ''}>A3</option>
-                                <option value="A3/A4" ${eq.scan_format === 'A3/A4' ? 'selected' : ''}>A3/A4</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    // 6. ИБП
-    if (isUps) {
-        specsHtml += `
-            <div class="card mb-2">
-                <div class="card-header bg-light py-1">
-                    <small class="fw-bold"><i class="fas fa-battery-full"></i> Параметры ИБП</small>
-                </div>
-                <div class="card-body py-2">
-                    <div class="row">
-                        <div class="col-4 mb-1">
-                            <label class="form-label">Мощность (VA)</label>
-                            <input type="text" class="form-control form-control-sm" id="editEquipmentUpsPower" placeholder="Мощность (VA)" value="${escapeHtml(eq.ups_power || '')}">
-                        </div>
-                        <div class="col-4 mb-1">
-                            <label class="form-label">Тип ИБП</label>
-                            <select class="form-select form-select-sm" id="editEquipmentUpsType">
-                                <option value="Резервный" ${eq.ups_type === 'Резервный' ? 'selected' : ''}>Резервный</option>
-                                <option value="Линейно-интерактивный" ${eq.ups_type === 'Линейно-интерактивный' ? 'selected' : ''}>Линейно-интерактивный</option>
-                                <option value="On-line" ${eq.ups_type === 'On-line' ? 'selected' : ''}>On-line</option>
-                            </select>
-                        </div>
-                        <div class="col-4 mb-1">
-                            <label class="form-label">Розеток</label>
-                            <input type="number" class="form-control form-control-sm" id="editEquipmentUpsOutlets" placeholder="Розеток" value="${eq.ups_outlets || ''}">
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    // 7. ПЕРИФЕРИЯ (мышь/клавиатура, ВКС, колонки, диск и т.д.)
-    if (isPeripheral) {
-        specsHtml += `
-            <div class="card mb-2">
-                <div class="card-header bg-light py-1">
-                    <small class="fw-bold"><i class="fas fa-plug"></i> Параметры периферии</small>
-                </div>
-                <div class="card-body py-2">
-                    <div class="row">
-                        <div class="col-6 mb-1">
-                            <label class="form-label">Тип подключения</label>
-                            <select class="form-select form-select-sm" id="editEquipmentConnectionType">
-                                <option value="USB" ${eq.connection_type === 'USB' ? 'selected' : ''}>USB</option>
-                                <option value="Bluetooth" ${eq.connection_type === 'Bluetooth' ? 'selected' : ''}>Bluetooth</option>
-                                <option value="Wireless" ${eq.connection_type === 'Wireless' ? 'selected' : ''}>Беспроводной</option>
-                                <option value="PS/2" ${eq.connection_type === 'PS/2' ? 'selected' : ''}>PS/2</option>
-                            </select>
-                        </div>
-                        <div class="col-6 mb-1">
-                            <label class="form-label">Цвет</label>
-                            <input type="text" class="form-control form-control-sm" id="editEquipmentColor" placeholder="Цвет" value="${escapeHtml(eq.color || '')}">
-                        </div>
-                    </div>
-                    ${isMouseKeyboard ? `
-                    <div class="row mt-2">
-                        <div class="col-6 mb-1">
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="editEquipmentIsSet" style="width: 2.5rem; height: 1.3rem;" ${eq.is_set ? 'checked' : ''}>
-                                <label class="form-check-label small fw-bold" for="editEquipmentIsSet">
-                                    <i class="fas fa-box"></i> Комплект
-                                </label>
-                                <div class="form-text small">Отметьте, если это комплект клавиатура+мышь</div>
-                            </div>
-                        </div>
-                        <div class="col-6 mb-1">
-                            <label class="small">Комплектация:</label>
-                            <select class="form-select form-select-sm" id="editEquipmentSetType">
-                                <option value="Клавиатура" ${eq.set_type === 'Клавиатура' ? 'selected' : ''}>Только клавиатура</option>
-                                <option value="Мышь" ${eq.set_type === 'Мышь' ? 'selected' : ''}>Только мышь</option>
-                                <option value="Клавиатура+Мышь" ${eq.set_type === 'Клавиатура+Мышь' ? 'selected' : ''}>Клавиатура + Мышь</option>
-                            </select>
-                            <div class="form-text small">Выберите состав комплекта</div>
-                        </div>
-                    </div>
-                    ` : ''}
-                    ${isVKS ? `
-                    <div class="row mt-2">
-                        <div class="col-6 mb-1">
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="editEquipmentIsSet" style="width: 2.5rem; height: 1.3rem;" ${eq.is_set ? 'checked' : ''}>
-                                <label class="form-check-label small fw-bold" for="editEquipmentIsSet">
-                                    <i class="fas fa-box"></i> Комплект для ВКС
-                                </label>
-                                <div class="form-text small">Отметьте, если это комплект для ВКС</div>
-                            </div>
-                        </div>
-                        <div class="col-6 mb-1">
-                            <label class="small">Комплектация:</label>
-                            <select class="form-select form-select-sm" id="editEquipmentSetType">
-                                <option value="">-- Выберите состав --</option>
-                                <option value="Веб-камера" ${eq.set_type === 'Веб-камера' ? 'selected' : ''}>Только Веб-камера</option>
-                                <option value="Гарнитура" ${eq.set_type === 'Гарнитура' ? 'selected' : ''}>Только гарнитура</option>
-                                <option value="Микрофон" ${eq.set_type === 'Микрофон' ? 'selected' : ''}>Только микрофон</option>
-                                <option value="Веб-камера+Гарнитура" ${eq.set_type === 'Веб-камера+Гарнитура' ? 'selected' : ''}>Веб-камера + гарнитура</option>
-                                <option value="Веб-камера+Микрофон" ${eq.set_type === 'Веб-камера+Микрофон' ? 'selected' : ''}>Веб-камера + микрофон</option>
-                                <option value="Гарнитура+Микрофон" ${eq.set_type === 'Гарнитура+Микрофон' ? 'selected' : ''}>Гарнитура + микрофон</option>
-                                <option value="Веб-камера+Гарнитура+Микрофон" ${eq.set_type === 'Веб-камера+Гарнитура+Микрофон' ? 'selected' : ''}>Веб-камера + гарнитура + микрофон</option>
-                            </select>
-                            <div class="form-text small">Выберите состав комплекта</div>
-                        </div>
-                    </div>
-                    ` : ''}
-                </div>
-            </div>
-        `;
-    }
-
-    // Если никакой блок не подошёл – показываем упрощённый вариант (для "Другое")
-    if (!isComputer && !isMonitor && !isNetwork && !isPrinter && !isScanner && !isUps && !isPeripheral) {
-        specsHtml = `
-            <div class="card mb-2">
-                <div class="card-header bg-light py-1">
-                    <small class="fw-bold"><i class="fas fa-info-circle"></i> Дополнительная информация</small>
-                </div>
-                <div class="card-body py-2">
-                    <div class="row">
-                        <div class="col-12 mb-1">
-                            <input type="text" class="form-control form-control-sm" id="editEquipmentProcessor" placeholder="Процессор" value="${escapeHtml(eq.processor || '')}">
-                        </div>
-                        <div class="col-6 mb-1">
-                            <input type="number" class="form-control form-control-sm" id="editEquipmentRam" placeholder="ОЗУ (ГБ)" value="${eq.ram || ''}">
-                        </div>
-                        <div class="col-6 mb-1">
-                            <input type="text" class="form-control form-control-sm" id="editEquipmentStorage" placeholder="Диск" value="${escapeHtml(eq.storage || '')}">
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    // Вставляем сгенерированные спецполя
-    $('#viewEquipmentSpecs').html(specsHtml);
-
-    // ---------- ДОПОЛНИТЕЛЬНЫЕ ПОЛЯ ----------
-    $('#viewEquipmentDepartment').html(`<span class="badge bg-info">${escapeHtml(eq.department_name || '—')}</span>`);
-    $('#viewEquipmentNotes').html(`<textarea class="form-control form-control-sm" id="editEquipmentNotes" rows="2">${escapeHtml(eq.notes || '')}</textarea>`);
-
-    // ---------- ФУТЕР С КНОПКАМИ ----------
-    $('#viewEquipmentFooter').html(`
-        <button type="button" class="btn btn-success" id="saveEquipmentBtn">
-            <i class="fas fa-save"></i> Сохранить
-        </button>
-        <button type="button" class="btn btn-secondary" id="cancelEquipmentEditBtn">
-            <i class="fas fa-times"></i> Отмена
-        </button>
-    `);
-
-    // ---------- ПРИВЯЗКА СОБЫТИЙ ----------
-    $('#saveEquipmentBtn').off('click').on('click', saveEquipmentEdit);
-    $('#cancelEquipmentEditBtn').off('click').on('click', cancelEquipmentEdit);
-}
-
-function saveEquipmentEdit() {
-    const id = $('#viewEquipmentId').val();
-    if (!id) {
-        showMessage('Ошибка: ID оборудования не найден', 'danger');
-        return;
-    }
-
-    if (!currentEquipmentData) {
-        showMessage('Ошибка: данные оборудования не загружены', 'danger');
-        return;
-    }
-    const type = currentEquipmentData.type;
-    if (!type) {
-        showMessage('Ошибка: тип оборудования не определен', 'danger');
-        return;
-    }
-
-    let inventoryNumber = $('#editEquipmentInventory').val().trim();
-    if (inventoryNumber === '') {
-        inventoryNumber = null;
-    }
-
-    // Базовые данные – берём из input'ов
-    const data = {
-        type: type,
-        brand: $('#editEquipmentBrand').val() || '',
-        serial_number: $('#editEquipmentSerial').val() || '',
-        inventory_number: inventoryNumber,
-        responsible: $('#editEquipmentResponsibleInput').val() || '',
-        mol: $('#editEquipmentMOLInput').val() || '',
-        room: $('#editEquipmentRoom').val() || '',
-        organization_id: $('#editEquipmentOrganization').val() || null,
-        status: $('#editEquipmentStatus').val() || 'В работе',
-        purchase_date: $('#editEquipmentPurchaseDate').val() || null,
-        price: parseFloat($('#editEquipmentPrice').val()) || 0,
-        characteristics: $('#editEquipmentCharacteristics').val() || '',
-        notes: $('#editEquipmentNotes').val() || ''
-    };
-
-    // Специфические поля по типам
-    const computerTypes = ['Компьютер', 'Ноутбук', 'Сервер', 'Моноблок'];
-    const monitorTypes = ['Монитор', 'Моноблок'];   // <-- ДОБАВЛЕН МОНОБЛОК
-    const networkTypes = ['Сетевое оборудование', 'IP-телефон'];
-    const printerTypes = ['Принтер', 'МФУ'];
-    const scannerTypes = ['Сканер'];
-    const upsTypes = ['ИБП'];
-    const peripheralTypes = ['Мышь/Клавиатура', 'Веб-камера', 'Гарнитура', 'Колонки', 'Внешний диск', 'Док-станция', 'Мышь', 'Клавиатура'];
-
-    // Системные
-    if (computerTypes.includes(type)) {
-        data.processor = $('#editEquipmentProcessor').val() || '';
-        data.ram = parseInt($('#editEquipmentRam').val()) || null;
-        data.ram_type = $('#editEquipmentRamType').val() || '';
-        if (typeof getStorageRows === 'function') {
-            const disks = getStorageRows('edit');
-            data.storage = disks.join(' + ');
-        } else {
-            data.storage = $('#editEquipmentStorage').val() || '';
-        }
-        data.os = $('#editEquipmentOs').val() || '';
-        data.os_key = $('#editEquipmentOsKey').val() || '';
-    }
-
-    // Монитор и Моноблок (теперь оба типа попадают сюда)
-    if (monitorTypes.includes(type)) {
-        data.monitor_size = parseInt($('#editEquipmentMonitorSize').val()) || null;
-        data.resolution = $('#editEquipmentResolution').val() || '';
-        data.refresh_rate = parseInt($('#editEquipmentRefreshRate').val()) || null;
-        data.panel_type = $('#editEquipmentPanelType').val() || '';
-        data.response_time = parseInt($('#editEquipmentResponseTime').val()) || null;
-        data.viewing_angle = $('#editEquipmentViewingAngle').val().trim() || '';
-        data.ports = $('#editEquipmentPorts').val() || '';
-        const connections = getConnections('edit');
-        data.connection_type = connections.join(', ');
-    }
-
-    // Сетевое
-    if (networkTypes.includes(type)) {
-        data.port_count = parseInt($('#editEquipmentPortCount').val()) || null;
-        data.speed = $('#editEquipmentSpeed').val() || '';
-        data.ip_address = $('#editEquipmentIpAddress').val() || '';
-        data.network_type = $('#editEquipmentNetworkType').val() || '';
-        data.poe = $('#editEquipmentPoE').val() || '';
-        data.managed = $('#editEquipmentManaged').val() || '';
-    }
-
-    // Принтер / МФУ
-    if (printerTypes.includes(type)) {
-        data.print_type = $('#editEquipmentPrintType').val();
-        data.print_format = $('#editEquipmentPrintFormat').val();
-        data.print_speed = parseInt($('#editEquipmentPrintSpeed').val()) || null;
-        data.color_type = $('#editEquipmentColorType').val();
-        data.duplex = $('#editEquipmentDuplexAdd').val();   // <-- проверьте ID
-        data.printer_ports = ($('#editEquipmentPrinterPorts').val() || '').trim();
-        data.ip_address = ($('#editEquipmentIpAddress').val() || '').trim();
-        if (type === 'МФУ') {
-            data.duplex_scanner = $('#editEquipmentDuplexScanner').val();   // <-- проверьте ID
-            data.scan_format = $('#editEquipmentScanFormat').val();
-        }
-    }
-
-    // Сканер (дуплекс и формат)
-    if (scannerTypes.includes(type)) {
-        data.duplex_scanner = $('#editEquipmentDuplexScanner').val();
-        data.scanner_resolution = $('#editEquipmentScanFormat').val(); // fallback
-    }
-
-    // ИБП
-    if (upsTypes.includes(type)) {
-        data.ups_power = $('#editEquipmentUpsPower').val() || '';
-        data.ups_type = $('#editEquipmentUpsType').val() || '';
-        data.ups_outlets = parseInt($('#editEquipmentUpsOutlets').val()) || null;
-        data.ups_usb = $('#editEquipmentUpsUsb').val() || '';
-        data.ups_runtime = parseInt($('#editEquipmentUpsRuntime').val()) || null;
-    }
-
-    // Периферия
-    if (peripheralTypes.includes(type)) {
-        data.connection_type = $('#editEquipmentConnectionType').val() || '';
-        data.color = $('#editEquipmentColor').val() || '';
-        data.is_set = $('#editEquipmentIsSet').is(':checked') ? 1 : 0;
-        data.set_type = $('#editEquipmentSetType').val() || '';
-        if (type === 'Внешний диск') {
-            data.storage = $('#editEquipmentStorage').val() || '';
-        }
-    }
-
-    // Отправка
-    const saveBtn = $('#saveEquipmentBtn');
-    const originalText = saveBtn.html();
-    saveBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Сохранение...');
-
-    $.ajax({
-        url: `/api/equipment/${id}`,
-        method: 'PUT',
-        contentType: 'application/json',
-        data: JSON.stringify(data),
-        success: function(response) {
-            if (response.success) {
-                showMessage('✅ Оборудование обновлено', 'success');
-                loadEquipment();
-                $('#viewEquipmentModal').modal('hide');
-            } else {
-                showMessage(response.error || 'Ошибка при обновлении', 'danger');
-                saveBtn.prop('disabled', false).html(originalText);
-            }
-        },
-        error: function(xhr) {
-            const error = xhr.responseJSON;
-            if (error?.error && error.error.includes('инвентарным номером')) {
-                showMessage(error.error, 'danger');
-                $('#editEquipmentInventory').addClass('is-invalid');
-            } else {
-                showMessage(error?.error || '❌ Ошибка при обновлении', 'danger');
-            }
-            saveBtn.prop('disabled', false).html(originalText);
-        }
-    });
-}
-
-function cancelEquipmentEdit() {
-    if (currentEquipmentData) {
-        openEquipmentView(currentEquipmentData);
-    }
-}
-
-function deleteEquipment(id) {
-    if (confirm('🗑️ Удалить оборудование? Это действие нельзя отменить.')) {
-        $.ajax({
-            url: `/api/equipment/${id}`,
-            method: 'DELETE',
-            success: function(response) {
-                if (response.success) {
-                    showMessage('✅ Оборудование удалено', 'success');
-                    loadEquipment();
-                } else {
-                    showMessage(response.error, 'danger');
-                }
-            },
-            error: function(xhr) {
-                const error = xhr.responseJSON;
-                showMessage(error?.error || '❌ Ошибка при удалении', 'danger');
-            }
-        });
-    }
-}
-
-// ============================================================
-// ИМПОРТ ИЗ EXCEL – ИСПРАВЛЕННАЯ ВЕРСИЯ
-// ============================================================
-
-// Обработчик выбора файла
-$(document).on('change', '#equipmentExcelFile', function(e) {
-    const file = e.target.files[0];
-    if (!file) {
-        $('#sheetSelectionBlock').hide();
-        $('#importEquipmentBtn').hide();
-        return;
-    }
-
-    const ext = file.name.split('.').pop().toLowerCase();
-    if (!['xlsx', 'xls'].includes(ext)) {
-        showMessage('Пожалуйста, выберите файл Excel (.xlsx или .xls)', 'danger');
-        $(this).val('');
-        $('#sheetSelectionBlock').hide();
-        $('#importEquipmentBtn').hide();
-        return;
-    }
-
-    if (typeof XLSX === 'undefined') {
-        showMessage('Библиотека XLSX не загружена. Проверьте подключение к интернету.', 'danger');
-        $(this).val('');
-        return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        try {
-            const data = new Uint8Array(e.target.result);
-            const workbook = XLSX.read(data, { type: 'array' });
-            const sheetNames = workbook.SheetNames;
-
-            if (sheetNames.length === 0) {
-                showMessage('В файле нет листов', 'warning');
-                $('#sheetSelectionBlock').hide();
-                $('#importEquipmentBtn').hide();
-                return;
-            }
-
-            const container = $('#sheetCheckboxes');
-            container.empty();
-
-            let html = '';
-            for (let i = 0; i < sheetNames.length; i++) {
-                const name = sheetNames[i];
-                const checked = (name === 'Виленский' || name === 'Седова') ? 'checked' : '';
-                html += `
-                    <div class="form-check">
-                        <input class="form-check-input sheet-checkbox" type="checkbox" value="${escapeHtml(name)}" id="sheet_${i}" ${checked}>
-                        <label class="form-check-label" for="sheet_${i}">${escapeHtml(name)}</label>
-                    </div>
-                `;
-            }
-            container.html(html);
-
-            updateToggleButtonText();
-            $('#sheetSelectionBlock').show();
-            $('#importEquipmentBtn').show();
-
-            // При изменении любого чекбокса обновляем текст кнопки
-            $('.sheet-checkbox').on('change', updateToggleButtonText);
-
-        } catch (error) {
-            console.error('Ошибка чтения Excel:', error);
-            showMessage('Не удалось прочитать файл. Убедитесь, что это корректный Excel-файл.', 'danger');
-            $('#sheetSelectionBlock').hide();
-            $('#importEquipmentBtn').hide();
-            $('#equipmentExcelFile').val('');
-        }
-    };
-    reader.readAsArrayBuffer(file);
+$(document).ready(function() {
+    loadEquipment();
+    $('#movementDate').val(new Date().toISOString().slice(0, 10));
 });
-
-// Функция обновления текста кнопки "Выбрать все / Снять все"
-function updateToggleButtonText() {
-    const checkboxes = $('.sheet-checkbox');
-    const total = checkboxes.length;
-    const checked = checkboxes.filter(':checked').length;
-    const btn = $('#toggleSheetsBtn');
-
-    if (total === 0) {
-        btn.html('<i class="fas fa-check-double"></i> Выбрать все');
-        return;
-    }
-
-    if (checked === total) {
-        btn.html('<i class="fas fa-check-double"></i> Снять все');
-    } else {
-        btn.html('<i class="fas fa-check-double"></i> Выбрать все');
-    }
-}
-
-// Обработчик клика по кнопке "Выбрать все / Снять все"
-$(document).on('click', '#toggleSheetsBtn', function() {
-    const checkboxes = $('.sheet-checkbox');
-    const total = checkboxes.length;
-    const checked = checkboxes.filter(':checked').length;
-
-    if (checked === total) {
-        // Если все выбраны – снимаем все
-        checkboxes.prop('checked', false);
-    } else {
-        // Иначе выбираем все
-        checkboxes.prop('checked', true);
-    }
-    updateToggleButtonText();
-});
-
-// Функция получения выбранных листов
-function getSelectedSheets() {
-    const selected = [];
-    $('.sheet-checkbox:checked').each(function() {
-        selected.push($(this).val());
-    });
-    return selected;
-}
-
-// Основная функция импорта
-function importEquipmentExcel() {
-    const fileInput = document.getElementById('equipmentExcelFile');
-    const file = fileInput.files[0];
-
-    if (!file) {
-        showMessage('Выберите файл Excel', 'danger');
-        return;
-    }
-
-    const selectedSheets = getSelectedSheets();
-    if (selectedSheets.length === 0) {
-        showMessage('Выберите хотя бы один лист для импорта', 'warning');
-        return;
-    }
-
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('sheets', JSON.stringify(selectedSheets));
-
-    const btn = $('#importEquipmentBtn');
-    const originalHtml = btn.html();
-    btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Импорт...');
-
-    $.ajax({
-        url: '/api/equipment/import-excel',
-        method: 'POST',
-        data: formData,
-        processData: false,
-        contentType: false,
-        success: function(response) {
-            if (response.success) {
-                let msg = `✅ Импорт завершён: добавлено ${response.added}, обновлено ${response.updated}, пропущено ${response.skipped}`;
-                if (response.errors && response.errors.length > 0) {
-                    msg += `\n⚠️ Ошибки:\n${response.errors.join('\n')}`;
-                }
-                showMessage(msg, 'success');
-                $('#importEquipmentModal').modal('hide');
-                fileInput.value = '';
-                $('#sheetSelectionBlock').hide();
-                $('#importEquipmentBtn').hide();
-                $('#sheetCheckboxes').empty();
-                loadEquipment();
-            } else {
-                showMessage(response.error || 'Ошибка при импорте', 'danger');
-            }
-        },
-        error: function(xhr) {
-            const error = xhr.responseJSON;
-            showMessage(error?.error || 'Ошибка при импорте', 'danger');
-        },
-        complete: function() {
-            btn.prop('disabled', false).html(originalHtml);
-        }
-    });
-}
-
-// ============================================================
-// ОСТАЛЬНЫЕ ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
-// ============================================================
-
-function getTypeIcon(type) {
-    const icons = {
-        'Компьютер': '🖲️',
-        'Ноутбук': '💻',
-        'Монитор': '🖥️',
-        'Моноблок': '🖥️',  
-        'Сервер': '🗄️',
-        'Сетевое оборудование': '🌐',
-        'Мышь/Клавиатура': '🖱️⌨️',
-        'Принтер': '🖨️',
-        'МФУ': '🖨️',
-        'Сканер': '📠',
-        'ИБП': '🔋',
-        'Веб-камера/Гарнитура/Микрофон': '📷🎧🎤',
-        'Внешний диск': '💽',
-        'Колонки': '🔊',
-        'Другое': '📦'
-    };
-    return icons[type] || '📦';
-}
-
-function getStatusClass(status) {
-    const classes = {
-        'В работе': 'bg-success',
-        'Ремонт': 'bg-warning',
-        'На складе': 'bg-info',
-        'Списано': 'bg-secondary',
-        'Простаивает': 'bg-warning text-dark'
-    };
-    return classes[status] || 'bg-secondary';
-}
-
-function getStatusColorForPrint(status) {
-    const colors = {
-        'В работе': '#28a745',
-        'Ремонт': '#ffc107',
-        'На складе': '#17a2b8',
-        'Списано': '#6c757d',
-        'Простаивает': '#fd7e14'
-    };
-    return colors[status] || '#007bff';
-}
-
-function searchEquipment() {
-    const searchTerm = $('#searchInput').val().trim();
-    const searchField = $('#searchField').val();
-    if (!searchTerm) {
-        renderEquipment(allEquipmentData);
-        return;
-    }
-    $.ajax({
-        url: '/api/equipment/search',
-        method: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify({search: searchTerm, field: searchField}),
-        success: function(data) {
-            renderEquipment(data);
-            $('#equipmentStats').html(`<div class="alert alert-info">Найдено: ${data.length} из ${allEquipmentData.length}</div>`);
-        },
-        error: function() {
-            showMessage('Ошибка поиска', 'danger');
-        }
-    });
-}
-
-function filterByType() {
-    const type = $('#typeFilter').val();
-    if (!type) {
-        renderEquipment(allEquipmentData);
-        return;
-    }
-    const filtered = allEquipmentData.filter(item => item.type === type);
-    renderEquipment(filtered);
-    $('#equipmentStats').html(`<div class="alert alert-info">Тип: ${type} (${filtered.length} шт.)</div>`);
-}
-
-function resetSearch() {
-    $('#searchInput').val('');
-    $('#searchField').val('all');
-    $('#typeFilter').val('');
-    renderEquipment(allEquipmentData);
-    $('#equipmentStats').empty();
-}
-
-function showStatistics() {
-    $('#statisticsModal').modal('show');
-    $('#statisticsContent').html('<div class="text-center py-4"><i class="fas fa-spinner fa-spin fa-2x"></i> Загрузка...</div>');
-    $.ajax({
-        url: '/api/equipment/statistics',
-        method: 'GET',
-        success: function(data) {
-            let html = `
-                <div class="row mb-4">
-                    <div class="col-md-12">
-                        <div class="alert alert-success text-center">
-                            <h4><i class="fas fa-desktop"></i> Всего единиц оборудования: <strong>${data.total}</strong></h4>
-                        </div>
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <div class="card">
-                            <div class="card-header bg-primary text-white">
-                                <i class="fas fa-chart-pie"></i> По типам
-                            </div>
-                            <div class="card-body">
-                                <ul class="list-group">
-                                    ${data.by_type.map(t => `<li class="list-group-item d-flex justify-content-between align-items-center">
-                                        ${getTypeIcon(t.type)} ${t.type}
-                                        <span class="badge bg-primary rounded-pill">${t.count}</span>
-                                    </li>`).join('')}
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <div class="card">
-                            <div class="card-header bg-warning text-white">
-                                <i class="fas fa-chart-line"></i> По статусам
-                            </div>
-                            <div class="card-body">
-                                <ul class="list-group">
-                                    ${data.by_status.map(s => `<li class="list-group-item d-flex justify-content-between align-items-center">
-                                        <span class="badge ${getStatusClass(s.status)}">${s.status}</span>
-                                        <span class="badge bg-secondary rounded-pill">${s.count}</span>
-                                    </li>`).join('')}
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <div class="card">
-                            <div class="card-header bg-success text-white">
-                                <i class="fas fa-building"></i> По филиалам
-                            </div>
-                            <div class="card-body">
-                                <ul class="list-group">
-                                    ${data.by_organization.map(o => `<li class="list-group-item d-flex justify-content-between align-items-center">
-                                        ${escapeHtml(o.organization)}
-                                        <span class="badge bg-success rounded-pill">${o.count}</span>
-                                    </li>`).join('')}
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-            $('#statisticsContent').html(html);
-        },
-        error: function() {
-            $('#statisticsContent').html('<div class="alert alert-danger">Ошибка загрузки статистики</div>');
-        }
-    });
-}
-
-function showMovements(equipmentId, equipmentName) {
-    $('#movementEquipmentId').val(equipmentId);
-    $('#movementEquipmentName').text(equipmentName);
-    $('#movementsTableBody').html('<tr><td colspan="11" class="text-center"><i class="fas fa-spinner fa-spin"></i> Загрузка...</td></tr>');
-    $.ajax({
-        url: `/api/equipment/${equipmentId}/movements`,
-        method: 'GET',
-        success: function(data) {
-            const tbody = $('#movementsTableBody');
-            tbody.empty();
-            if (!data || data.length === 0) {
-                tbody.html('<tr><td colspan="11" class="text-center text-muted">📭 Нет истории перемещений</td></tr>');
-            } else {
-                for (let i = 0; i < data.length; i++) {
-                    const m = data[i];
-                    const movementDate = m.movement_date ? new Date(m.movement_date).toLocaleString('ru-RU') : '—';
-                    tbody.append(`
-                        <tr>
-                            <td><small>${movementDate}</small></td>
-                            <td>${escapeHtml(m.from_mol) || '—'}</td>
-                            <td><span class="badge bg-success">→</span> ${escapeHtml(m.to_mol) || '—'}</td>
-                            <td>${escapeHtml(m.from_employee) || '—'}</td>
-                            <td><span class="badge bg-success">→</span> ${escapeHtml(m.to_employee) || '—'}</td>
-                            <td>${escapeHtml(m.from_room) || '—'}</td>
-                            <td><span class="badge bg-success">→</span> ${escapeHtml(m.to_room) || '—'}</td>
-                            <td>${escapeHtml(m.from_organization) || '—'}</td>
-                            <td><span class="badge bg-success">→</span> ${escapeHtml(m.to_organization) || '—'}</td>
-                            <td><span class="badge bg-info">${escapeHtml(m.reason) || '—'}</span></td>
-                            <td><small>${escapeHtml(m.created_by) || '—'}</small></td>
-                        </tr>
-                    `);
-                }
-            }
-            $('#movementsModal').modal('show');
-        },
-        error: function(xhr) {
-            console.error("Ошибка загрузки истории:", xhr);
-            $('#movementsTableBody').html(`<tr><td colspan="11" class="text-center text-danger">❌ Ошибка загрузки истории</td></tr>`);
-        }
-    });
-}
-
-function onReasonChange() {
-    const reason = $('#movementReason').val();
-    const statusSelect = $('#movementNewStatus');
-    const statusHint = $('#statusHint');
-    if (reason === 'Ремонт') {
-        statusSelect.val('Ремонт');
-        statusSelect.prop('disabled', true);
-        statusHint.html('<i class="fas fa-info-circle"></i> Статус автоматически установлен в "Ремонт"');
-        statusHint.css('color', '#ffc107');
-    } else if (reason === 'Списание') {
-        statusSelect.val('Списано');
-        statusSelect.prop('disabled', true);
-        statusHint.html('<i class="fas fa-info-circle"></i> Статус автоматически установлен в "Списано"');
-        statusHint.css('color', '#dc3545');
-    } else {
-        statusSelect.val('');
-        statusSelect.prop('disabled', false);
-        statusHint.html('Выберите новый статус или оставьте без изменений');
-        statusHint.css('color', '#6c757d');
-    }
-}
-
-function addMovement() {
-    const id = $('#movementEquipmentId').val();
-    const newStatus = $('#movementNewStatus').val();
-    const reason = $('#movementReason').val();
-    const data = {
-        to_mol: $('#movementToMOL').val(),
-        to_employee: $('#movementToEmployee').val(),
-        to_room: $('#movementToRoom').val(),
-        to_organization: $('#movementToOrganization').val(),
-        reason: reason,
-        comment: $('#movementComment').val(),
-        movement_date: $('#movementDate').val(),
-        new_status: newStatus
-    };
-    if (!data.to_mol && !data.to_employee && !data.to_room && !data.to_organization && !newStatus) {
-        showMessage('Укажите хотя бы одно изменение (МОЛ, ответственный, кабинет, филиал или статус)', 'warning');
-        return;
-    }
-    const btn = $('.btn-success:contains("Записать перемещение")');
-    const originalText = btn.html();
-    btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Сохранение...');
-    $.ajax({
-        url: `/api/equipment/${id}/movements`,
-        method: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify(data),
-        success: function(response) {
-            if (response.success) {
-                let message = '✅ Перемещение записано';
-                if (newStatus === 'Ремонт' || reason === 'Ремонт') {
-                    message = '✅ Оборудование отправлено в ремонт. Статус изменен на "Ремонт"';
-                } else if (newStatus === 'Списано' || reason === 'Списание') {
-                    message = '✅ Оборудование списано. Статус изменен на "Списано"';
-                }
-                showMessage(message, 'success');
-                $('#movementModal').modal('hide');
-                $('#movementForm')[0].reset();
-                $('#movementNewStatus').prop('disabled', false);
-                loadEquipment();
-            } else {
-                showMessage(response.error, 'danger');
-            }
-        },
-        error: function(xhr) {
-            const error = xhr.responseJSON;
-            showMessage(error?.error || '❌ Ошибка при записи перемещения', 'danger');
-        },
-        complete: function() {
-            btn.prop('disabled', false).html(originalText);
-        }
-    });
-}
 
 function escapeHtml(text) {
-    if (!text) return '';
+    if (!text && text !== 0) return '';
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
 }
 
 function showMessage(message, type) {
-    const alertDiv = $(`
-        <div class="alert alert-${type} alert-dismissible fade show position-fixed top-0 end-0 m-3" 
-             style="z-index: 9999; min-width: 300px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);" role="alert">
-            <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'} me-2"></i>
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    `);
+    const alertDiv = $(`<div class="alert alert-${type} alert-dismissible fade show position-fixed top-0 end-0 m-3" style="z-index:9999;min-width:300px;" role="alert">${message}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>`);
     $('body').append(alertDiv);
-    setTimeout(() => alertDiv.alert('close'), 3000);
+    setTimeout(() => alertDiv.alert('close'), 3500);
 }
 
-// ============================================================
-// ФУНКЦИИ ДЛЯ РАБОТЫ С КАБИНЕТАМИ В РЕЖИМЕ РЕДАКТИРОВАНИЯ
-// ============================================================
+function photoUrl(photo) {
+    return photo ? `/static/uploads/equipment/${photo}` : '';
+}
 
-function loadRoomsForEditDatalist() {
+// ===================== СПИСОК =====================
+
+function loadEquipment() {
     $.ajax({
-        url: '/api/rooms/search',
-        method: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify({search: ''}),
-        success: function(rooms) {
-            const datalist = $('#editEquipmentRoomsList');
-            datalist.empty();
-            if (rooms && rooms.length > 0) {
-                for (let i = 0; i < rooms.length; i++) {
-                    datalist.append(`<option value="${escapeHtml(rooms[i].number)}">${escapeHtml(rooms[i].number)}</option>`);
-                }
-            }
+        url: '/api/equipment',
+        method: 'GET',
+        success: function(data) {
+            allEquipmentData = data;
+            renderEquipment(data);
         },
         error: function() {
-            console.error("Ошибка загрузки кабинетов для редактирования");
+            $('#equipmentTableBody').html('<tr><td colspan="11" class="text-center text-danger py-4">Ошибка загрузки данных</td></tr>');
         }
     });
 }
 
-function addNewRoomFromEdit() {
-    const currentRoom = $('#editEquipmentRoom').val().trim();
-    if (!currentRoom) {
-        showMessage('Введите номер кабинета', 'warning');
+function renderEquipment(data) {
+    const tbody = $('#equipmentTableBody');
+    if (!data.length) {
+        tbody.html('<tr><td colspan="11" class="text-center text-muted py-4">Нет данных</td></tr>');
+        $('#equipmentStats').html('');
         return;
     }
-    
-    const existingOptions = $('#editEquipmentRoomsList option');
-    let exists = false;
-    for (let i = 0; i < existingOptions.length; i++) {
-        if (existingOptions[i].value === currentRoom) {
-            exists = true;
-            break;
-        }
+    let html = '';
+    for (const item of data) {
+        const model = [item.brand, item.model].filter(Boolean).join(' ') || '—';
+        const nums = [item.serial_number, item.inventory_number ? `инв. ${item.inventory_number}` : ''].filter(Boolean).join(' / ') || '—';
+        const photo = item.photo ? `<img src="${photoUrl(item.photo)}" style="width:40px;height:40px;object-fit:cover;border-radius:4px;">` : '<i class="fas fa-image text-muted"></i>';
+        html += `<tr onclick="openEquipmentView(${item.id})" style="cursor:pointer;" data-type="${escapeHtml(item.type)}">
+            <td class="text-center">${photo}</td>
+            <td>${escapeHtml(item.type)}</td>
+            <td>${escapeHtml(item.mol) || '—'}</td>
+            <td>${escapeHtml(model)}</td>
+            <td><small>${escapeHtml(nums)}</small></td>
+            <td><small>${escapeHtml(item.characteristics) || '—'}</small></td>
+            <td>${statusBadge(item.status)}</td>
+            <td>${escapeHtml(item.room) || '—'}</td>
+            <td>${escapeHtml(item.parent_name) || '<span class="text-muted">—</span>'}</td>
+            <td>${escapeHtml(item.organization) || '—'}</td>
+            <td class="text-center" onclick="event.stopPropagation();">
+                <button class="btn btn-sm btn-outline-success" title="Переместить" onclick="openMovementModal(${item.id})"><i class="fas fa-exchange-alt"></i></button>
+                <button class="btn btn-sm btn-outline-info" title="История" onclick="showMovements(${item.id}, '${escapeHtml(model).replace(/'/g,"")}')"><i class="fas fa-history"></i></button>
+                <button class="btn btn-sm btn-outline-danger" title="Удалить" onclick="deleteEquipment(${item.id})"><i class="fas fa-trash"></i></button>
+            </td>
+        </tr>`;
     }
-    
-    if (exists) {
-        showMessage(`Кабинет "${currentRoom}" уже существует`, 'info');
-        return;
-    }
-    
+    tbody.html(html);
+    $('#equipmentStats').html(`<div class="text-muted small">Всего записей: ${data.length}</div>`);
+}
+
+function filterByType() {
+    const type = $('#typeFilter').val();
+    if (!type) { renderEquipment(allEquipmentData); return; }
+    renderEquipment(allEquipmentData.filter(i => i.type === type));
+}
+
+function searchEquipment() {
+    const search = $('#searchInput').val().trim();
+    const field = $('#searchField').val();
+    if (!search) { renderEquipment(allEquipmentData); return; }
     $.ajax({
-        url: '/api/rooms/search',
+        url: '/api/equipment/search',
         method: 'POST',
         contentType: 'application/json',
-        data: JSON.stringify({search: currentRoom}),
-        success: function(rooms) {
-            const found = rooms.some(r => r.number === currentRoom);
-            if (found) {
-                showMessage(`Кабинет "${currentRoom}" уже существует в базе данных`, 'info');
-                loadRoomsForEditDatalist();
-                return;
-            }
-            showMessage(`Кабинет "${currentRoom}" будет добавлен при сохранении`, 'success');
-            loadRoomsForEditDatalist();
-            $('#editEquipmentRoom').val(currentRoom);
-        },
-        error: function() {
-            showMessage('Ошибка проверки кабинета', 'danger');
-        }
+        data: JSON.stringify({ search, field }),
+        success: renderEquipment,
+        error: function() { showMessage('Ошибка поиска', 'danger'); }
     });
 }
 
-$('#viewEquipmentModal').on('show.bs.modal', function() {
-    loadRoomsForEditDatalist();
-});
+function resetSearch() {
+    $('#searchInput').val('');
+    $('#typeFilter').val('');
+    renderEquipment(allEquipmentData);
+}
 
-$(document).on('keypress', '#editEquipmentRoom', function(e) {
-    if (e.which === 13) {
-        e.preventDefault();
-        addNewRoomFromEdit();
-    }
-});
+// ===================== ПРОСМОТР / РЕДАКТИРОВАНИЕ =====================
 
-function openEditEquipmentModal(equipment) {
-    console.log("Открытие редактирования:", equipment);
-    if (!equipment) {
-        showMessage('Ошибка: данные оборудования не найдены', 'danger');
-        return;
-    }
-    $('#editEquipmentId').val(equipment.id);
-    $('#editEquipmentType').val(equipment.type);
-    $('#editEquipmentBrand').val(equipment.brand || '');
-    $('#editEquipmentSerial').val(equipment.serial_number || '');
-    $('#editEquipmentInventory').val(equipment.inventory_number || '');
-    $('#editEquipmentStatus').val(equipment.status || 'В работе');
-    $('#editEquipmentPurchaseDate').val(equipment.purchase_date || '');
-    $('#editEquipmentWarrantyUntil').val(equipment.warranty_until || '');
-    $('#editEquipmentPrice').val(equipment.price || '');
-    $('#editEquipmentSupplier').val(equipment.supplier || '');
-    $('#editEquipmentNotes').val(equipment.notes || '');
-    if (equipment.mol) $('#editEquipmentMOL').val(equipment.mol);
-    if (equipment.responsible) $('#editEquipmentResponsible').val(equipment.responsible);
-    if (equipment.room) $('#editEquipmentRoom').val(equipment.room);
-    if (equipment.organization_id) $('#editEquipmentOrganization').val(equipment.organization_id);
-    $('#editEquipmentProcessor').val(equipment.processor || '');
-    $('#editEquipmentRam').val(equipment.ram || '');
-    $('#editEquipmentRamType').val(equipment.ram_type || '');
-    $('#editEquipmentStorage').val(equipment.storage || '');
-    $('#editEquipmentOs').val(equipment.os || '');
-    $('#editEquipmentOsKey').val(equipment.os_key || '');
-    $('#editEquipmentMonitorSize').val(equipment.monitor_size || '');
-    $('#editEquipmentResolution').val(equipment.resolution || '');
-    $('#editEquipmentRefreshRate').val(equipment.refresh_rate || '');
-    $('#editEquipmentPanelType').val(equipment.panel_type || '');
-    $('#editEquipmentResponseTime').val(equipment.response_time || '');
-    $('#editEquipmentPorts').val(equipment.ports || '');
-    $('#editEquipmentPortCount').val(equipment.port_count || '');
-    $('#editEquipmentSpeed').val(equipment.speed || '');
-    $('#editEquipmentNetworkType').val(equipment.network_type || '');
-    $('#editEquipmentPoE').val(equipment.poe || '');
-    $('#editEquipmentManaged').val(equipment.managed || '');
-    $('#editEquipmentIpAddress').val(equipment.ip_address || '');
-    $('#editEquipmentPrintType').val(equipment.print_type || '');
-    $('#editEquipmentPrintFormat').val(equipment.print_format || '');
-    $('#editEquipmentPrintSpeed').val(equipment.print_speed || '');
-    $('#editEquipmentColorType').val(equipment.color_type || '');
-    $('#editEquipmentDuplex').val(equipment.duplex || '');
-    $('#editEquipmentPrinterPorts').val(equipment.printer_ports || '');
-    $('#editEquipmentScannerResolution').val(equipment.scanner_resolution || '');
-    $('#editEquipmentScannerSpeed').val(equipment.scanner_speed || '');
-    $('#editEquipmentPhoneNumber').val(equipment.phone_number || '');
-    $('#editEquipmentPhoneIp').val(equipment.phone_ip || '');
-    $('#editEquipmentSipAccount').val(equipment.sip_account || '');
-    $('#editEquipmentLines').val(equipment.lines || '');
-    $('#editEquipmentPhonePoE').val(equipment.phone_poe || '');
-    $('#editEquipmentUpsPower').val(equipment.ups_power || '');
-    $('#editEquipmentUpsType').val(equipment.ups_type || '');
-    $('#editEquipmentUpsOutlets').val(equipment.ups_outlets || '');
-    $('#editEquipmentUpsUsb').val(equipment.ups_usb || '');
-    $('#editEquipmentUpsRuntime').val(equipment.ups_runtime || '');
-    $('#editEquipmentConnectionType').val(equipment.connection_type || '');
-    $('#editEquipmentColor').val(equipment.color || '');
-    $('#editEquipmentViewingAngle').val(equipment.viewing_angle || '');
-    updateEditForm();
-    const peripheralTypes = ['Мышь/Клавиатура', 'Веб-камера', 'Гарнитура', 'Колонки', 'Внешний диск', 'Док-станция', 'Мышь', 'Клавиатура', 'ИБП'];
-    const isPeripheral = peripheralTypes.includes(equipment.type);
-    if (isPeripheral) {
-        $('#editInventoryLabel').html('Инвентарный номер <span class="text-muted">(необязательно)</span>');
-        $('#editInventoryHint').html('Необязательно для периферийных устройств');
-        $('#editEquipmentInventory').prop('required', false);
+function findEquipment(id) {
+    return allEquipmentData.find(i => i.id === id);
+}
+
+function openEquipmentView(id) {
+    const item = findEquipment(id);
+    if (!item) return;
+    currentEquipmentData = item;
+    disableEquipmentEditMode();
+    $('#viewEquipmentModal').modal('show');
+}
+
+function disableEquipmentEditMode() {
+    const item = currentEquipmentData;
+    if (!item) return;
+    $('#viewEquipmentId').val(item.id);
+    $('#viewEquipmentType').text(item.type || '—');
+    $('#viewEquipmentModel').text([item.brand, item.model].filter(Boolean).join(' ') || '—');
+    $('#viewEquipmentSerial').text(item.serial_number || '—');
+    $('#viewEquipmentInventory').text(item.inventory_number || '—');
+    $('#viewEquipmentStatus').html(statusBadge(item.status));
+    $('#viewEquipmentRoom').text(item.room || '—');
+    $('#viewEquipmentMOL').text(item.mol || '—');
+    $('#viewEquipmentResponsible').text(item.responsible || '—');
+    $('#viewEquipmentOrganization').text(item.organization || '—');
+    $('#viewEquipmentDepartment').text(item.department_name || '—');
+    $('#viewEquipmentParent').text(item.parent_name || '—');
+    $('#viewEquipmentNetworkName').text(item.network_name || '—');
+    $('#viewEquipmentManufactureYear').text(item.manufacture_year || '—');
+    $('#viewEquipmentPurchaseDate').text(formatDate(item.purchase_date) || '—');
+    $('#viewEquipmentWarranty').text(formatDate(item.warranty_until) || '—');
+    $('#viewEquipmentPrice').text(item.price ? `${item.price} ₽` : '—');
+    $('#viewEquipmentSupplier').text(item.supplier || '—');
+    $('#viewEquipmentCharacteristics').text(item.characteristics || '—');
+    $('#viewEquipmentNotes').text(item.notes || '—');
+    $('#viewEquipmentCreatedBy').text(item.created_by || '—');
+    $('#viewEquipmentCreatedAt').text(formatDate(item.created_at, true) || '—');
+
+    if (item.photo) {
+        $('#viewEquipmentPhotoImg').attr('src', photoUrl(item.photo)).show();
+        $('#viewEquipmentNoPhoto').hide();
+        $('#viewEquipmentPhotoDeleteBtn').show();
     } else {
-        $('#editInventoryLabel').html('Инвентарный номер <span class="text-danger">*</span>');
-        $('#editInventoryHint').html('Должен быть уникальным');
-        $('#editEquipmentInventory').prop('required', true);
+        $('#viewEquipmentPhotoImg').hide();
+        $('#viewEquipmentNoPhoto').show();
+        $('#viewEquipmentPhotoDeleteBtn').hide();
     }
-    $('#editEquipmentModal').modal('show');
+
+    $('#viewEquipmentFooter').html(`
+        <button type="button" class="btn btn-warning" id="editEquipmentBtn" onclick="enableEquipmentEditMode()"><i class="fas fa-edit"></i> Редактировать</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+    `);
 }
 
-function updateEditForm() {
-    const type = $('#editEquipmentType').val();
-    $('#editSystemFields').hide();
-    $('#editMonitorFields').hide();
-    $('#editNetworkFields').hide();
-    $('#editPeripheralFields').hide();
-    $('#editPrinterFields').hide();
-    $('#editPhoneFields').hide();
-    $('#editUpsFields').hide();
-    const systemTypes = ['Компьютер', 'Ноутбук', 'Сервер', 'Моноблок', 'Другое'];
-    const monitorTypes = ['Монитор'];
-    const networkTypes = ['Сетевое оборудование'];
-    const printerTypes = ['Принтер', 'МФУ'];
-    const phoneTypes = ['IP-телефон'];
-    const upsTypes = ['ИБП'];
-    const peripheralTypes = ['Мышь/Клавиатура', 'Веб-камера', 'Гарнитура', 'Колонки', 'Внешний диск', 'Док-станция', 'Мышь', 'Клавиатура'];
-    if (systemTypes.includes(type)) $('#editSystemFields').show();
-    if (monitorTypes.includes(type)) $('#editMonitorFields').show();
-    if (networkTypes.includes(type)) $('#editNetworkFields').show();
-    if (printerTypes.includes(type)) $('#editPrinterFields').show();
-    if (phoneTypes.includes(type)) $('#editPhoneFields').show();
-    if (upsTypes.includes(type)) $('#editUpsFields').show();
-    if (peripheralTypes.includes(type)) $('#editPeripheralFields').show();
+function formatDate(value, withTime) {
+    if (!value) return '';
+    const s = String(value).replace('T', ' ');
+    const datePart = s.slice(0, 10);
+    const parts = datePart.split('-');
+    if (parts.length !== 3) return s;
+    const out = `${parts[2]}.${parts[1]}.${parts[0]}`;
+    if (withTime && s.length > 10) return `${out} ${s.slice(11, 16)}`;
+    return out;
 }
 
-function updateEquipment() {
-    const id = $('#editEquipmentId').val();
-    if (!id) {
-        showMessage('Ошибка: ID оборудования не найден', 'danger');
-        return;
-    }
-    const equipmentType = $('#editEquipmentType').val();
-    const peripheralTypes = ['Мышь/Клавиатура', 'Веб-камера', 'Гарнитура', 'Колонки', 'Внешний диск', 'Док-станция'];
-    const isPeripheral = peripheralTypes.includes(equipmentType);
-    let inventoryNumber = $('#editEquipmentInventory').val().trim();
-    if (isPeripheral && !inventoryNumber) {
-        inventoryNumber = null;
-    } else if (!isPeripheral && !inventoryNumber) {
-        showMessage('Для выбранного типа оборудования инвентарный номер обязателен', 'danger');
-        $('#editEquipmentInventory').addClass('is-invalid');
-        return;
-    }
-    let purchaseDate = $('#editEquipmentPurchaseDate').val();
-    if (!purchaseDate || purchaseDate === '') purchaseDate = null;
-    let warrantyUntil = $('#editEquipmentWarrantyUntil').val();
-    if (!warrantyUntil || warrantyUntil === '') warrantyUntil = null;
+function enableEquipmentEditMode() {
+    const item = currentEquipmentData;
+    if (!item) return;
+
+    $('#viewEquipmentModel').html(`
+        <input class="form-control form-control-sm mb-1" id="editBrand" placeholder="Бренд" value="${escapeHtml(item.brand)}">
+        <input class="form-control form-control-sm" id="editModel" placeholder="Модель" value="${escapeHtml(item.model)}">
+    `);
+    $('#viewEquipmentSerial').html(`<input class="form-control form-control-sm" id="editSerial" value="${escapeHtml(item.serial_number)}">`);
+    $('#viewEquipmentInventory').html(`<input class="form-control form-control-sm" id="editInventory" value="${escapeHtml(item.inventory_number)}">`);
+    $('#viewEquipmentStatus').html(`<select class="form-select form-select-sm" id="editStatus">${EQUIPMENT_STATUSES.map(s => `<option value="${s}" ${s===item.status?'selected':''}>${s}</option>`).join('')}</select>`);
+    $('#viewEquipmentRoom').html(`<input class="form-control form-control-sm" id="editRoom" list="editRoomList" value="${escapeHtml(item.room)}">`);
+    $('#viewEquipmentMOL').html(`<input class="form-control form-control-sm" id="editMol" list="editMolList" value="${escapeHtml(item.mol)}">`);
+    $('#viewEquipmentResponsible').html(`<input class="form-control form-control-sm" id="editResponsible" list="editMolList" value="${escapeHtml(item.responsible)}">`);
+    $('#viewEquipmentNetworkName').html(`<input class="form-control form-control-sm" id="editNetworkName" value="${escapeHtml(item.network_name)}">`);
+    $('#viewEquipmentManufactureYear').html(`<input type="number" class="form-control form-control-sm" id="editManufactureYear" value="${escapeHtml(item.manufacture_year)}">`);
+    $('#viewEquipmentPurchaseDate').html(`<input type="date" class="form-control form-control-sm" id="editPurchaseDate" value="${toIsoDate(item.purchase_date)}">`);
+    $('#viewEquipmentWarranty').html(`<input type="date" class="form-control form-control-sm" id="editWarranty" value="${toIsoDate(item.warranty_until)}">`);
+    $('#viewEquipmentPrice').html(`<input type="number" step="0.01" class="form-control form-control-sm" id="editPrice" value="${escapeHtml(item.price)}">`);
+    $('#viewEquipmentSupplier').html(`<input class="form-control form-control-sm" id="editSupplier" value="${escapeHtml(item.supplier)}">`);
+    $('#viewEquipmentCharacteristics').html(`<textarea class="form-control form-control-sm" id="editCharacteristics" rows="2">${escapeHtml(item.characteristics)}</textarea>`);
+    $('#viewEquipmentNotes').html(`<textarea class="form-control form-control-sm" id="editNotes" rows="2">${escapeHtml(item.notes)}</textarea>`);
+
+    const parentOptions = ['<option value="">— на складе / не установлено —</option>']
+        .concat(EQUIPMENT_COMPUTERS.filter(c => c.id !== item.id).map(c => `<option value="${c.id}" ${item.parent_equipment_id==c.id?'selected':''}>${escapeHtml(c.label)}</option>`));
+    $('#viewEquipmentParent').html(`<select class="form-select form-select-sm" id="editParent">${parentOptions.join('')}</select>`);
+
+    $('#viewEquipmentFooter').html(`
+        <button type="button" class="btn btn-success" onclick="saveEquipmentEdit()"><i class="fas fa-save"></i> Сохранить</button>
+        <button type="button" class="btn btn-secondary" onclick="disableEquipmentEditMode()">Отмена</button>
+    `);
+}
+
+function toIsoDate(value) {
+    if (!value) return '';
+    const s = String(value);
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+    const parts = s.split('.');
+    if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    return '';
+}
+
+function saveEquipmentEdit() {
+    const item = currentEquipmentData;
     const data = {
-        type: equipmentType,
-        brand: $('#editEquipmentBrand').val(),
-        serial_number: $('#editEquipmentSerial').val(),
-        inventory_number: inventoryNumber,
-        processor: $('#editEquipmentProcessor').val(),
-        ram: $('#editEquipmentRam').val(),
-        storage: $('#editEquipmentStorage').val(),
-        os: $('#editEquipmentOs').val(),
-        os_key: $('#editEquipmentOsKey').val(),
-        monitor_size: $('#editEquipmentMonitorSize').val(),
-        resolution: $('#editEquipmentResolution').val(),
-        port_count: $('#editEquipmentPortCount').val(),
-        speed: $('#editEquipmentSpeed').val(),
-        responsible: $('#editEquipmentResponsible').val(),
-        mol: $('#editEquipmentMOL').val(),
-        room: $('#editEquipmentRoom').val(),
-        organization_id: $('#editEquipmentOrganization').val() || null,
-        status: $('#editEquipmentStatus').val(),
-        purchase_date: purchaseDate,
-        warranty_until: warrantyUntil,
-        price: parseFloat($('#editEquipmentPrice').val()) || 0,
-        supplier: $('#editEquipmentSupplier').val(),
-        notes: $('#editEquipmentNotes').val()
+        type: item.type,
+        brand: $('#editBrand').val(),
+        model: $('#editModel').val(),
+        serial_number: $('#editSerial').val(),
+        inventory_number: $('#editInventory').val(),
+        status: $('#editStatus').val(),
+        room: $('#editRoom').val(),
+        mol: $('#editMol').val(),
+        responsible: $('#editResponsible').val(),
+        network_name: $('#editNetworkName').val(),
+        manufacture_year: $('#editManufactureYear').val() || null,
+        purchase_date: $('#editPurchaseDate').val(),
+        warranty_until: $('#editWarranty').val(),
+        price: $('#editPrice').val() || null,
+        supplier: $('#editSupplier').val(),
+        characteristics: $('#editCharacteristics').val(),
+        notes: $('#editNotes').val(),
+        organization_id: item.organization_id,
+        parent_equipment_id: $('#editParent').val() || null
     };
-    console.log("Отправка данных обновления:", data);
+    // Поля, специфичные для типа (компьютер/монитор/сеть/печать/ИБП/периферия/комплектующие) —
+    // сохраняем как есть, если форма редактирования их не меняла.
+    for (const f of ['processor','ram','ram_type','storage','os','os_key','monitor_size','resolution',
+                      'refresh_rate','panel_type','response_time','viewing_angle','port_count','speed',
+                      'network_type','poe','managed','ip_address','print_type','print_format','print_speed',
+                      'color_type','duplex','scanner_resolution','scanner_speed','ups_power','ups_type',
+                      'ups_outlets','ups_usb','ups_runtime','connection_type','color','cable_type']) {
+        data[f] = item[f];
+    }
+
     $.ajax({
-        url: `/api/equipment/${id}`,
+        url: `/api/equipment/${item.id}`,
         method: 'PUT',
         contentType: 'application/json',
         data: JSON.stringify(data),
-        success: function(response) {
-            if (response.success) {
-                showMessage('✅ Оборудование обновлено', 'success');
-                $('#editEquipmentModal').modal('hide');
+        success: function(resp) {
+            if (resp.success) {
+                showMessage('Сохранено', 'success');
+                $('#viewEquipmentModal').modal('hide');
                 loadEquipment();
             } else {
-                showMessage(response.error, 'danger');
+                showMessage(resp.error || 'Ошибка сохранения', 'danger');
             }
         },
         error: function(xhr) {
-            const error = xhr.responseJSON;
-            if (error?.error && error.error.includes('инвентарным номером')) {
-                showMessage(error.error, 'danger');
-                $('#editEquipmentInventory').addClass('is-invalid');
-            } else {
-                showMessage(error?.error || '❌ Ошибка при обновлении', 'danger');
-            }
+            showMessage((xhr.responseJSON && xhr.responseJSON.error) || 'Ошибка сохранения', 'danger');
         }
     });
 }
 
-function loadOrganizationsForSelect() {
+function deleteEquipment(id) {
+    if (!confirm('Удалить запись?')) return;
     $.ajax({
-        url: '/api/organizations/list',
+        url: `/api/equipment/${id}`,
+        method: 'DELETE',
+        success: function(resp) {
+            if (resp.success) { showMessage('Удалено', 'success'); loadEquipment(); }
+            else showMessage(resp.error || 'Не удалось удалить', 'danger');
+        },
+        error: function(xhr) { showMessage((xhr.responseJSON && xhr.responseJSON.error) || 'Не удалось удалить', 'danger'); }
+    });
+}
+
+// ===================== ФОТО =====================
+
+function uploadEquipmentPhoto() {
+    const id = $('#viewEquipmentId').val();
+    const input = document.getElementById('viewEquipmentPhotoInput');
+    if (!input.files.length) { showMessage('Выберите файл', 'danger'); return; }
+    const fd = new FormData();
+    fd.append('photo', input.files[0]);
+    $.ajax({
+        url: `/api/equipment/${id}/photo`,
+        method: 'POST',
+        data: fd,
+        processData: false,
+        contentType: false,
+        success: function(resp) {
+            if (resp.success) { showMessage('Фото загружено', 'success'); loadEquipment(); $('#viewEquipmentModal').modal('hide'); }
+            else showMessage(resp.error || 'Ошибка загрузки', 'danger');
+        },
+        error: function(xhr) { showMessage((xhr.responseJSON && xhr.responseJSON.error) || 'Ошибка загрузки', 'danger'); }
+    });
+}
+
+function deleteEquipmentPhoto() {
+    const id = $('#viewEquipmentId').val();
+    $.ajax({
+        url: `/api/equipment/${id}/photo`,
+        method: 'DELETE',
+        success: function(resp) {
+            if (resp.success) { showMessage('Фото удалено', 'success'); loadEquipment(); $('#viewEquipmentModal').modal('hide'); }
+        }
+    });
+}
+
+// ===================== СТАТИСТИКА =====================
+
+function showStatistics() {
+    $('#statisticsModal').modal('show');
+    $.ajax({
+        url: '/api/equipment/statistics',
         method: 'GET',
         success: function(data) {
-            window.organizationsList = data;
+            let html = `<div class="row text-center mb-3"><div class="col-12"><h2>${data.total}</h2><p class="text-muted">Всего записей</p></div></div>`;
+            html += '<div class="row"><div class="col-md-6"><h6>По типу</h6><table class="table table-sm">';
+            for (const row of data.by_type) html += `<tr><td>${escapeHtml(row.type)}</td><td class="text-end">${row.count}</td></tr>`;
+            html += '</table></div><div class="col-md-6"><h6>По статусу</h6><table class="table table-sm">';
+            for (const row of data.by_status) html += `<tr><td>${statusBadge(row.status)}</td><td class="text-end">${row.count}</td></tr>`;
+            html += '</table></div></div>';
+            if (data.by_organization && data.by_organization.length) {
+                html += '<h6>По филиалам</h6><table class="table table-sm">';
+                for (const row of data.by_organization) html += `<tr><td>${escapeHtml(row.organization)}</td><td class="text-end">${row.count}</td></tr>`;
+                html += '</table>';
+            }
+            html += `<div class="row text-center mt-2"><div class="col-6"><span class="badge bg-success">На гарантии: ${data.under_warranty}</span></div><div class="col-6"><span class="badge bg-secondary">Гарантия истекла: ${data.expired_warranty}</span></div></div>`;
+            $('#statisticsContent').html(html);
+        },
+        error: function() { $('#statisticsContent').html('<div class="text-danger text-center">Ошибка загрузки статистики</div>'); }
+    });
+}
+
+// ===================== ПЕРЕМЕЩЕНИЯ =====================
+
+function openMovementModal(id) {
+    const item = findEquipment(id);
+    if (!item) return;
+    $('#movementEquipmentId').val(id);
+    $('#movementEquipmentName').text(`${item.type} ${[item.brand, item.model].filter(Boolean).join(' ')}`.trim());
+    $('#currentMOL').text(item.mol || '—');
+    $('#currentResponsible').text(item.responsible || '—');
+    $('#currentRoom').text(item.room || '—');
+    $('#currentOrganization').text(item.organization || '—');
+    $('#movementToMOL').val('');
+    $('#movementToEmployee').val('');
+    $('#movementToRoom').val('');
+    $('#movementToOrganization').val('');
+    $('#movementReason').val('Смена МОЛ');
+    $('#movementNewStatus').val('');
+    $('#movementComment').val('');
+    $('#movementModal').modal('show');
+}
+
+function onReasonChange() {
+    const reason = $('#movementReason').val();
+    if (reason === 'Ремонт') $('#movementNewStatus').val('Ремонтируется');
+    else if (reason === 'Списание') $('#movementNewStatus').val('Списано');
+}
+
+function addMovement() {
+    const id = $('#movementEquipmentId').val();
+    const data = {
+        to_mol: $('#movementToMOL').val(),
+        to_employee: $('#movementToEmployee').val(),
+        to_room: $('#movementToRoom').val(),
+        to_organization: $('#movementToOrganization').val() || null,
+        reason: $('#movementReason').val(),
+        new_status: $('#movementNewStatus').val(),
+        comment: $('#movementComment').val(),
+        movement_date: $('#movementDate').val()
+    };
+    $.ajax({
+        url: `/api/equipment/${id}/movements`,
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success: function(resp) {
+            if (resp.success) { showMessage('Перемещение записано', 'success'); $('#movementModal').modal('hide'); loadEquipment(); }
+            else showMessage(resp.error || 'Ошибка', 'danger');
+        },
+        error: function(xhr) { showMessage((xhr.responseJSON && xhr.responseJSON.error) || 'Ошибка', 'danger'); }
+    });
+}
+
+function showMovements(id, name) {
+    $('#movementsModal').modal('show');
+    $('#movementsTableBody').html('<tr><td colspan="11" class="text-center">Загрузка...</td></tr>');
+    $.ajax({
+        url: `/api/equipment/${id}/movements`,
+        method: 'GET',
+        success: function(data) {
+            if (!data.length) { $('#movementsTableBody').html('<tr><td colspan="11" class="text-center text-muted">Перемещений не было</td></tr>'); return; }
+            let html = '';
+            for (const m of data) {
+                html += `<tr>
+                    <td>${formatDate(m.movement_date, true)}</td>
+                    <td>${escapeHtml(m.from_mol)}</td><td>${escapeHtml(m.to_mol)}</td>
+                    <td>${escapeHtml(m.from_employee)}</td><td>${escapeHtml(m.to_employee)}</td>
+                    <td>${escapeHtml(m.from_room)}</td><td>${escapeHtml(m.to_room)}</td>
+                    <td>${escapeHtml(m.from_organization)}</td><td>${escapeHtml(m.to_organization)}</td>
+                    <td>${escapeHtml(m.reason)}</td><td>${escapeHtml(m.created_by)}</td>
+                </tr>`;
+            }
+            $('#movementsTableBody').html(html);
         }
     });
 }
 
-// ============================================================
-// ИНИЦИАЛИЗАЦИЯ
-// ============================================================
+// ===================== ПЕЧАТЬ ОТЧЁТА =====================
 
-$(document).ready(function() {
-    loadEquipment();
-    loadEmployeesList();
-    loadOrganizationsForSelect();
-    loadRoomsList();
+function toggleReportFields() {
+    const type = $('#reportType').val();
+    if (type === 'room') { $('#employeeSelectBlock').hide(); $('#roomSelectBlock').show(); }
+    else { $('#employeeSelectBlock').show(); $('#roomSelectBlock').hide(); }
+}
 
-    $('#viewEquipmentModal').on('show.bs.modal', function() {
-        updateAllDatalists();
+function generateAndPrintReport() {
+    const type = $('#reportType').val();
+    if (type === 'room') {
+        const room = $('#reportRoom').val();
+        if (!room) { showMessage('Выберите помещение', 'danger'); return; }
+        const items = allEquipmentData.filter(i => i.room === room);
+        openPrintWindow(items, `Помещение: ${room}`, 'Помещение');
+        return;
+    }
+    const employee = $('#reportEmployee').val();
+    if (!employee) { showMessage('Выберите сотрудника', 'danger'); return; }
+    $.ajax({
+        url: '/api/equipment/report',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ type, employee_name: employee }),
+        success: function(resp) {
+            openPrintWindow(resp.equipment, `${resp.report_type_name}: ${resp.employee_name}`, resp.report_type_name, resp.generated_by, resp.generated_at);
+        },
+        error: function() { showMessage('Ошибка формирования отчёта', 'danger'); }
     });
-    
-    $('#printReportModal').on('show.bs.modal', function() {
-        loadRoomsList().then(() => {
-            if ($('#reportType').val() === 'room') {
-                toggleReportFields();
-            }
-        });
-        loadEmployeesList();
-    });
-    
-    $('#printReportModal').on('hidden.bs.modal', function() {
-        $('#reportType').val('mol');
-        $('#reportRoom').val('');
-        $('#reportEmployee').val('');
-        $('#employeeSelectBlock').show();
-        $('#roomSelectBlock').hide();
-        $('#reportHint').text('Будет сформирован отчет со всем оборудованием, закрепленным за выбранным сотрудником.');
-    });
-    
-    $('#searchInput').on('keypress', function(e) {
-        if (e.which == 13 || e.keyCode == 13) {
-            searchEquipment();
-            return false;
-        }
-    });
-    
-    $('#viewEquipmentModal').on('show.bs.modal', function() {
-        loadRoomsForEditDatalist();
-    });
-    
-    $(document).on('keypress', '#editEquipmentRoom', function(e) {
-        if (e.which === 13) {
-            e.preventDefault();
-            const currentRoom = $(this).val().trim();
-            if (currentRoom) {
-                addNewRoomFromEdit();
-            }
-        }
-    });
-    
-    $(document).on('keypress', '#addEquipmentRoom', function(e) {
-        if (e.which === 13) {
-            e.preventDefault();
-            const currentRoom = $(this).val().trim();
-            if (currentRoom) {
-                addNewRoomFromEquipment('addEquipmentRoom', 'addEquipmentRoomsList');
-            }
-        }
-    });
+}
 
-    $(document).on('change', '#editEquipmentIsSet', function() {
-        if ($('#editEquipmentIsSet').closest('form').find('#editEquipmentSetType').length) {
-            const type = $('#editEquipmentType').val();
-            if (type === 'Мышь/Клавиатура' || type === 'Мышь' || type === 'Клавиатура') {
-                if ($(this).is(':checked')) {
-                    $('#editEquipmentSetType').val('Клавиатура+Мышь');
-                } else {
-                    $('#editEquipmentSetType').val('Клавиатура');
-                }
-            }
+function openPrintWindow(items, subtitle, personLabel, generatedBy, generatedAt) {
+    const rows = items.map((it, i) => `
+        <tr>
+            <td>${i+1}</td>
+            <td>${escapeHtml(it.type)}</td>
+            <td>${escapeHtml([it.brand, it.model].filter(Boolean).join(' '))}</td>
+            <td>${escapeHtml(it.serial_number)}</td>
+            <td>${escapeHtml(it.inventory_number)}</td>
+            <td>${escapeHtml(it.characteristics)}</td>
+            <td>${escapeHtml(it.room)}</td>
+            <td>${escapeHtml(it.status)}</td>
+        </tr>`).join('');
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Отчёт по оборудованию</title>
+    <style>
+        body{font-family:Arial,sans-serif;font-size:12px;margin:16px;}
+        h2{margin-bottom:0;} .subtitle{color:#555;margin-top:4px;}
+        table{width:100%;border-collapse:collapse;margin-top:12px;}
+        th,td{border:1px solid #999;padding:4px 6px;text-align:left;}
+        th{background:#eee;}
+        .no-print{margin-bottom:12px;}
+        .signature-block{display:inline-block;width:45%;margin-top:40px;}
+        .signature-line{border-bottom:1px solid #000;height:30px;}
+        @media print { .no-print{display:none;} @page{size:A4 landscape;margin:10mm;} }
+    </style></head><body>
+    <div class="no-print"><button onclick="window.print()">🖨️ Печатать</button> <button onclick="window.close()">✖️ Закрыть</button></div>
+    <h2>Отчёт по оборудованию</h2>
+    <div class="subtitle">${escapeHtml(subtitle)}</div>
+    <div class="subtitle">Дата: ${new Date().toLocaleString('ru-RU')}${generatedBy ? ' | Сформировал: ' + escapeHtml(generatedBy) : ''}</div>
+    <table><thead><tr><th>№</th><th>Тип</th><th>Модель</th><th>С/н</th><th>Инв. №</th><th>Характеристики</th><th>Помещение</th><th>Статус</th></tr></thead>
+    <tbody>${rows || '<tr><td colspan="8" style="text-align:center;">Нет данных</td></tr>'}</tbody></table>
+    <p><strong>Итого: ${items.length}</strong></p>
+    <div class="signature-block">${escapeHtml(personLabel || '')} ___________________ / ______________ /<div class="signature-line"></div></div>
+    <div class="signature-block" style="float:right;">Руководитель ___________________ / ______________ /<div class="signature-line"></div></div>
+    </body></html>`;
+    const w = window.open('', '_blank', 'width=1000,height=700');
+    w.document.write(html);
+    w.document.close();
+}
+
+// ===================== ИМПОРТ EXCEL =====================
+
+let selectedSheets = [];
+
+$('#equipmentExcelFile').on('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+        try {
+            const wb = XLSX.read(new Uint8Array(evt.target.result), { type: 'array' });
+            selectedSheets = [...wb.SheetNames];
+            const box = $('#sheetCheckboxes');
+            box.html(wb.SheetNames.map(name =>
+                `<div class="form-check"><input class="form-check-input sheet-check" type="checkbox" value="${escapeHtml(name)}" id="sheet_${escapeHtml(name)}" checked>
+                 <label class="form-check-label" for="sheet_${escapeHtml(name)}">${escapeHtml(name)}</label></div>`
+            ).join(''));
+            $('#sheetSelectionBlock').show();
+            $('.sheet-check').on('change', function() {
+                selectedSheets = $('.sheet-check:checked').map(function(){return this.value;}).get();
+            });
+        } catch (err) {
+            showMessage('Не удалось прочитать файл Excel', 'danger');
         }
-    });
-    
-    $(document).on('change', '#editEquipmentSetType', function() {
-        const type = $('#editEquipmentType').val();
-        if (type === 'Мышь/Клавиатура' || type === 'Мышь' || type === 'Клавиатура') {
-            if ($(this).val() === 'Клавиатура+Мышь') {
-                $('#editEquipmentIsSet').prop('checked', true);
-            } else {
-                $('#editEquipmentIsSet').prop('checked', false);
-            }
-        }
-    });
+    };
+    reader.readAsArrayBuffer(file);
 });
+
+function toggleAllSheets() {
+    const anyChecked = $('.sheet-check:checked').length > 0;
+    $('.sheet-check').prop('checked', !anyChecked);
+    selectedSheets = $('.sheet-check:checked').map(function(){return this.value;}).get();
+    $('#toggleSheetsBtn').text(anyChecked ? 'Выбрать все' : 'Снять все');
+}
+
+function importEquipmentExcel() {
+    const fileInput = document.getElementById('equipmentExcelFile');
+    if (!fileInput.files.length) { showMessage('Выберите файл', 'danger'); return; }
+    const fd = new FormData();
+    fd.append('file', fileInput.files[0]);
+    fd.append('sheets', JSON.stringify(selectedSheets));
+    $.ajax({
+        url: '/api/equipment/import-excel',
+        method: 'POST',
+        data: fd,
+        processData: false,
+        contentType: false,
+        success: function(resp) {
+            showMessage(resp.message || 'Импорт завершён', resp.success ? 'success' : 'danger');
+            $('#importEquipmentModal').modal('hide');
+            loadEquipment();
+        },
+        error: function(xhr) { showMessage((xhr.responseJSON && xhr.responseJSON.error) || 'Ошибка импорта', 'danger'); }
+    });
+}
 </script>
 {% endblock %}

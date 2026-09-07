@@ -102,6 +102,38 @@ def _migrate_analytics_pk(cursor):
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_analytics_organization ON Analytics(organization_id)")
     print("✅ Analytics переведена на составной ключ (Cartridge, organization_id)")
 
+def _migrate_equipment_status_vocabulary(cursor):
+    """Перевести Equipment.status со старого словаря на новый единый.
+
+    Раньше статусы были: В работе/Ремонт/На складе/Списано/Простаивает.
+    Новый единый словарь для всего оборудования (компьютеры, мониторы, МФУ,
+    периферия, комплектующие): Резерв/Установлено/Сломано/Ремонтируется/
+    Списание/Списано/Нераспределено (на складе).
+
+    Безопасно перезапускать на каждом старте: после первого прогона ни одна
+    строка не содержит старых значений (единственное пересечение словарей —
+    'Списано', которое в переносе не участвует, так как совпадает само с собой).
+    """
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='Equipment'")
+    if not cursor.fetchone():
+        return
+
+    remap = {
+        'В работе': 'Установлено',
+        'Ремонт': 'Ремонтируется',
+        'На складе': 'Нераспределено (на складе)',
+        'Простаивает': 'Резерв',
+    }
+
+    placeholders = ','.join('?' * len(remap))
+    cursor.execute(f"SELECT COUNT(*) FROM Equipment WHERE status IN ({placeholders})", list(remap.keys()))
+    if cursor.fetchone()[0] == 0:
+        return
+
+    for old_status, new_status in remap.items():
+        cursor.execute("UPDATE Equipment SET status = ? WHERE status = ?", (new_status, old_status))
+    print("✅ Статусы оборудования перенесены на новый единый словарь")
+
 def init_db():
     db_path = get_db_path()
     print(f"Создание базы данных: {db_path}")
@@ -309,6 +341,11 @@ def init_db():
                 price DECIMAL(10,2),
                 supplier TEXT,
                 notes TEXT,
+                parent_equipment_id INTEGER,   -- на каком компьютере установлено (Мониторы/Периферия/Комплектующие)
+                network_name TEXT,             -- Сетевое имя
+                manufacture_year INTEGER,      -- Год производства
+                photo TEXT,                    -- путь к файлу фото под static/uploads/equipment/
+                cable_type TEXT,               -- тип разъёма (только для type='Кабель')
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 created_by INTEGER,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -573,6 +610,28 @@ def init_db():
             except Exception as e:
                 print(f"⚠️ Ошибка добавления {col_name}: {e}")
 
+    # Разделение "Учёт оборудования" на Компьютеры/Мониторы/МФУ/Периферию/Комплектующие:
+    # привязка к компьютеру, новые поля компьютеров и фото.
+    cursor.execute("PRAGMA table_info(Equipment)")
+    equipment_columns = [col[1] for col in cursor.fetchall()]
+    category_split_columns = {
+        'parent_equipment_id': 'INTEGER',
+        'network_name': 'TEXT',
+        'manufacture_year': 'INTEGER',
+        'photo': 'TEXT',
+        'cable_type': 'TEXT',
+    }
+    for col_name, col_type in category_split_columns.items():
+        if col_name not in equipment_columns:
+            try:
+                cursor.execute(f"ALTER TABLE Equipment ADD COLUMN {col_name} {col_type}")
+                print(f"✅ Добавлена колонка {col_name} в таблицу Equipment")
+            except Exception as e:
+                print(f"⚠️ Ошибка добавления {col_name}: {e}")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_equipment_parent ON Equipment(parent_equipment_id)")
+
+    _migrate_equipment_status_vocabulary(cursor)
+
     cursor.execute("PRAGMA table_info(Catrigs)")
     columns = [col[1] for col in cursor.fetchall()]
     if 'equipment_id' not in columns:
@@ -698,6 +757,31 @@ def upgrade_db():
                 print(f"✅ Добавлена колонка {col_name} в таблицу Equipment")
             except Exception as e:
                 print(f"⚠️ Ошибка добавления {col_name}: {e}")
+
+    # Разделение "Учёт оборудования" на Компьютеры/Мониторы/МФУ/Периферию/Комплектующие:
+    # привязка к компьютеру, новые поля компьютеров и фото.
+    cursor.execute("PRAGMA table_info(Equipment)")
+    equipment_columns = [col[1] for col in cursor.fetchall()]
+    category_split_columns = {
+        'parent_equipment_id': 'INTEGER',
+        'network_name': 'TEXT',
+        'manufacture_year': 'INTEGER',
+        'photo': 'TEXT',
+        'cable_type': 'TEXT',
+    }
+    for col_name, col_type in category_split_columns.items():
+        if col_name not in equipment_columns:
+            try:
+                cursor.execute(f"ALTER TABLE Equipment ADD COLUMN {col_name} {col_type}")
+                print(f"✅ Добавлена колонка {col_name} в таблицу Equipment")
+            except Exception as e:
+                print(f"⚠️ Ошибка добавления {col_name}: {e}")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_equipment_parent ON Equipment(parent_equipment_id)")
+
+    try:
+        _migrate_equipment_status_vocabulary(cursor)
+    except Exception as e:
+        print(f"⚠️ Ошибка миграции статусов Equipment: {e}")
 
     cursor.execute("PRAGMA table_info(Licenses)")
     licenses_cols = [col[1] for col in cursor.fetchall()]

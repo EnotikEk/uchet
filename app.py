@@ -8,6 +8,8 @@ from auth import (login_required, admin_required, hash_password, verify_password
 import sqlite3
 import os
 import sys
+import uuid
+from werkzeug.utils import secure_filename
 
 # На Windows консоль может использовать кодировку cp1251; принудительно
 # переключаем потоки на utf-8, чтобы print() со спецсимволами не ронял запуск.
@@ -44,9 +46,24 @@ except Exception as e:
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here')
 app.config['JSON_AS_ASCII'] = False
+app.config['MAX_CONTENT_LENGTH'] = 8 * 1024 * 1024  # 8MB — с запасом для фото оборудования
 
 STATUS_CART = ["Заправлен", "Пустой", "Заправка", "На складе", "Под списание"]
 STATUS_MFU = ["Работает", "Ремонт"]
+
+# ========== ОБОРУДОВАНИЕ: общие константы ==========
+# Единый список статусов для всего оборудования.
+EQUIPMENT_STATUSES = [
+    'Установлено', 'Резерв', 'Нераспределено (на складе)',
+    'Ремонтируется', 'Сломано', 'Списание', 'Списано',
+]
+
+# Типы, которые считаются "компьютером" — для привязки мониторов/периферии/
+# комплектующих ("установлено на компьютере").
+COMPUTER_TYPES = ['Компьютер', 'Ноутбук', 'Моноблок', 'Сервер', 'Планшет']
+
+EQUIPMENT_PHOTO_DIR = os.path.join(app.root_path, 'static', 'uploads', 'equipment')
+EQUIPMENT_PHOTO_EXTENSIONS = {'jpg', 'jpeg', 'png', 'webp'}
 
 # ========== СТРАНИЦА ВХОДА ==========
 @app.route('/login')
@@ -1221,7 +1238,7 @@ def inject_organizations():
         conn.close()
     except Exception as e:
         print(f"Ошибка загрузки организаций: {e}")
-    
+
     return {'organizations': organizations}
 
 @app.route('/api/analytics', methods=['POST'])
@@ -2920,10 +2937,10 @@ def change_own_password():
 def equipment_page():
     conn = get_db()
     cursor = conn.cursor()
-    
+
     org_id = get_user_organization_id()
     is_admin = session.get('role') == 'admin'
-    
+
     if org_id:
         filter_condition = "AND Organization_id = ?"
         filter_params = [org_id]
@@ -2933,23 +2950,41 @@ def equipment_page():
     else:
         filter_condition = "AND Organization_id IS NULL"
         filter_params = []
-    
+
     cursor.execute(f"""
-        SELECT Department_Fullname FROM Employees 
+        SELECT Department_Fullname FROM Employees
         WHERE 1=1 {filter_condition}
         ORDER BY Department_Fullname
     """, filter_params)
     employees = [row[0] for row in cursor.fetchall()]
-    
+
     cursor.execute("SELECT Number, id FROM Rooms ORDER BY Number")
     rooms = [{'number': row[0], 'id': row[1]} for row in cursor.fetchall()]
-    
+
     cursor.execute("SELECT id, name FROM Organizations ORDER BY name")
     organizations = [{'id': row[0], 'name': row[1]} for row in cursor.fetchall()]
-    
+
+    # Список компьютеров для выбора "Установлено на компьютере" (мониторы/периферия/комплектующие)
+    computer_placeholders = ','.join('?' * len(COMPUTER_TYPES))
+    computer_org_filter = filter_condition.replace('Organization_id', 'e.organization_id')
+    cursor.execute(f"""
+        SELECT e.id, e.network_name, e.brand, e.model, e.inventory_number
+        FROM Equipment e
+        WHERE e.type IN ({computer_placeholders}) {computer_org_filter}
+        ORDER BY e.network_name, e.brand, e.model
+    """, COMPUTER_TYPES + filter_params)
+    computers = []
+    for row in cursor.fetchall():
+        label = row[1] or (' '.join(filter(None, [row[2], row[3]])) or f'Компьютер #{row[0]}')
+        if row[4]:
+            label += f' (инв. {row[4]})'
+        computers.append({'id': row[0], 'label': label})
+
     conn.close()
-    
-    return render_template('equipment.html', 
+
+    return render_template('equipment.html',
+                         statuses=EQUIPMENT_STATUSES,
+                         computers=computers,
                          employees=employees,
                          rooms=rooms,
                          organizations=organizations)
@@ -3044,7 +3079,10 @@ def add_equipment():
         elif org_id:
             save_org_id = org_id
         
-        # ===== ВСТАВКА – 61 колонка, 61 значение =====
+        # Привязка к компьютеру (Мониторы/Периферия/Комплектующие) — просто id существующей записи Equipment
+        parent_equipment_id = data.get('parent_equipment_id') or None
+
+        # ===== ВСТАВКА – 65 колонок, 65 значений =====
         cursor.execute("""
         INSERT INTO Equipment (
             type, brand, model, serial_number, inventory_number,
@@ -3057,12 +3095,13 @@ def add_equipment():
             phone_number, phone_ip, sip_account, lines, phone_poe,
             ups_power, ups_type, ups_outlets, ups_usb, ups_runtime,
             connection_type, color,
-            is_set, set_type, 
+            is_set, set_type,
             responsible_employee, mol_employee, room_id, organization_id, status,
             purchase_date, warranty_until, price, supplier,
             characteristics, notes,
+            parent_equipment_id, network_name, manufacture_year, cable_type,
             created_by, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
     """, (
         data.get('type'), data.get('brand'), data.get('model'),
         data.get('serial_number'), inventory_number,
@@ -3081,12 +3120,13 @@ def add_equipment():
         data.get('ups_power'), data.get('ups_type'), data.get('ups_outlets'),
         data.get('ups_usb'), data.get('ups_runtime'),
         data.get('connection_type'), data.get('color'),
-        data.get('is_set', 0), data.get('set_type'),  
+        data.get('is_set', 0), data.get('set_type'),
         responsible_id, mol_id, room_id, save_org_id,
-        data.get('status', 'В работе'),
+        data.get('status', 'Установлено'),
         purchase_date, warranty_until, data.get('price'),
         data.get('supplier'),
         data.get('characteristics'), data.get('notes'),
+        parent_equipment_id, data.get('network_name'), data.get('manufacture_year'), data.get('cable_type'),
         current_user_id
     ))
         
@@ -3159,6 +3199,9 @@ def update_equipment(id):
         
         organization_id = data.get('organization_id') if data.get('organization_id') else org_id
         current_user_id = session.get('user_id')
+        parent_equipment_id = data.get('parent_equipment_id') or None
+        if parent_equipment_id and int(parent_equipment_id) == id:
+            parent_equipment_id = None  # оборудование не может ссылаться само на себя
         
         purchase_date = data.get('purchase_date')
         if purchase_date and purchase_date != '' and purchase_date != 'null' and purchase_date != 'None':
@@ -3187,7 +3230,7 @@ def update_equipment(id):
             port_count=?, speed=?, network_type=?, poe=?, managed=?, ip_address=?,
             print_type=?, print_format=?, print_speed=?, color_type=?, duplex=?, printer_ports=?,
             scanner_resolution=?, scanner_speed=?,
-            duplex_scanner=?, scan_format=?,  
+            duplex_scanner=?, scan_format=?,
             phone_number=?, phone_ip=?, sip_account=?, lines=?, phone_poe=?,
             ups_power=?, ups_type=?, ups_outlets=?, ups_usb=?, ups_runtime=?,
             connection_type=?, color=?,
@@ -3195,6 +3238,7 @@ def update_equipment(id):
             responsible_employee=?, mol_employee=?, room_id=?, organization_id=?, status=?,
             purchase_date=?, warranty_until=?, price=?, supplier=?,
             characteristics=?, notes=?,
+            parent_equipment_id=?, network_name=?, manufacture_year=?, cable_type=?,
             updated_by=?, updated_at=datetime('now')
         WHERE id=?
     """, (
@@ -3215,12 +3259,13 @@ def update_equipment(id):
         data.get('ups_power'), data.get('ups_type'), data.get('ups_outlets'),
         data.get('ups_usb'), data.get('ups_runtime'),
         data.get('connection_type'), data.get('color'),
-        data.get('is_set', 0), data.get('set_type'), 
+        data.get('is_set', 0), data.get('set_type'),
         responsible_id, mol_id, room_id, organization_id,
-        data.get('status', 'В работе'),
+        data.get('status', 'Установлено'),
         purchase_date, warranty_until, data.get('price'),
         data.get('supplier'),
         data.get('characteristics'), data.get('notes'),
+        parent_equipment_id, data.get('network_name'), data.get('manufacture_year'), data.get('cable_type'),
         current_user_id, id
     ))
         
@@ -3555,11 +3600,11 @@ def import_equipment_excel():
                 status_raw = ''
                 if col_status and pd.notna(row[col_status]):
                     status_raw = str(row[col_status]).strip()
-                status = 'В работе' if not status_raw else (
-                    'Простаивает' if 'простаивает' in status_raw.lower() else
-                    'Ремонт' if 'ремонт' in status_raw.lower() else
+                status = 'Установлено' if not status_raw else (
+                    'Резерв' if 'простаивает' in status_raw.lower() else
+                    'Ремонтируется' if 'ремонт' in status_raw.lower() else
                     'Списано' if 'списано' in status_raw.lower() else
-                    'На складе' if 'резерв' in status_raw.lower() else 'В работе'
+                    'Нераспределено (на складе)' if 'резерв' in status_raw.lower() else 'Установлено'
                 )
 
                 notes = ''
@@ -3694,8 +3739,96 @@ def delete_equipment(id):
         
         if movements_count > 0:
             return jsonify({'success': False, 'error': 'Нельзя удалить оборудование с историей перемещений.'}), 400
-        
+
+        # Внешние ключи в SQLite здесь не включены, поэтому "дети" (мониторы/периферия/
+        # комплектующие, установленные на этом компьютере) не отвяжутся сами — обнуляем явно.
+        cursor.execute("UPDATE Equipment SET parent_equipment_id = NULL WHERE parent_equipment_id = ?", (id,))
+
+        cursor.execute("SELECT photo FROM Equipment WHERE id = ?", (id,))
+        photo_row = cursor.fetchone()
+
         cursor.execute("DELETE FROM Equipment WHERE id = ?", (id,))
+        conn.commit()
+
+        if photo_row and photo_row[0]:
+            try:
+                os.remove(os.path.join(EQUIPMENT_PHOTO_DIR, photo_row[0]))
+            except OSError:
+                pass
+
+        return jsonify({'success': True})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 400
+    finally:
+        conn.close()
+
+
+@app.route('/api/equipment/<int:id>/photo', methods=['POST'])
+@login_required
+def upload_equipment_photo(id):
+    conn = get_db()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("SELECT photo FROM Equipment WHERE id = ?", (id,))
+        row = cursor.fetchone()
+        if not row:
+            return jsonify({'success': False, 'error': 'Оборудование не найдено'}), 404
+        old_photo = row[0]
+
+        if 'photo' not in request.files:
+            return jsonify({'success': False, 'error': 'Файл не выбран'}), 400
+        file = request.files['photo']
+        if not file or file.filename == '':
+            return jsonify({'success': False, 'error': 'Файл не выбран'}), 400
+
+        ext = secure_filename(file.filename).rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
+        if ext not in EQUIPMENT_PHOTO_EXTENSIONS:
+            return jsonify({'success': False, 'error': 'Допустимые форматы: jpg, jpeg, png, webp'}), 400
+
+        os.makedirs(EQUIPMENT_PHOTO_DIR, exist_ok=True)
+        filename = f"{id}_{uuid.uuid4().hex}.{ext}"
+        file.save(os.path.join(EQUIPMENT_PHOTO_DIR, filename))
+
+        cursor.execute("UPDATE Equipment SET photo = ?, updated_by = ?, updated_at = datetime('now') WHERE id = ?",
+                       (filename, session.get('user_id'), id))
+        conn.commit()
+
+        if old_photo:
+            try:
+                os.remove(os.path.join(EQUIPMENT_PHOTO_DIR, old_photo))
+            except OSError:
+                pass
+
+        return jsonify({'success': True, 'photo': filename,
+                         'url': url_for('static', filename=f'uploads/equipment/{filename}')})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 400
+    finally:
+        conn.close()
+
+
+@app.route('/api/equipment/<int:id>/photo', methods=['DELETE'])
+@login_required
+def delete_equipment_photo(id):
+    conn = get_db()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("SELECT photo FROM Equipment WHERE id = ?", (id,))
+        row = cursor.fetchone()
+        if not row:
+            return jsonify({'success': False, 'error': 'Оборудование не найдено'}), 404
+
+        if row[0]:
+            try:
+                os.remove(os.path.join(EQUIPMENT_PHOTO_DIR, row[0]))
+            except OSError:
+                pass
+
+        cursor.execute("UPDATE Equipment SET photo = NULL WHERE id = ?", (id,))
         conn.commit()
         return jsonify({'success': True})
     except Exception as e:
@@ -3703,6 +3836,7 @@ def delete_equipment(id):
         return jsonify({'success': False, 'error': str(e)}), 400
     finally:
         conn.close()
+
 
 @app.route('/about')
 def about():
@@ -3815,7 +3949,7 @@ def add_equipment_movement(id):
         reason = data.get('reason', '')
         
         if reason == 'Ремонт' and (not new_status or new_status == ''):
-            new_status = 'Ремонт'
+            new_status = 'Ремонтируется'
         elif reason == 'Списание' and (not new_status or new_status == ''):
             new_status = 'Списано'
         elif not new_status or new_status == '':
@@ -4338,21 +4472,21 @@ def get_equipment():
     
     org_id = get_user_organization_id()
     is_admin = session.get('role') == 'admin'
-    
+
     filter_condition = ""
     filter_params = []
-    
+
     if org_id:
         filter_condition = "AND e.organization_id = ?"
         filter_params = [org_id]
     elif not is_admin:
         filter_condition = "AND e.organization_id IS NULL"
-    
+
     cursor.execute(f"""
-        SELECT 
+        SELECT
             e.id, e.type, e.brand, e.model, e.serial_number, e.inventory_number,
             e.processor, e.ram, e.ram_type, e.storage, e.os, e.os_key,
-            e.monitor_size, e.resolution, e.refresh_rate, e.panel_type, e.response_time, 
+            e.monitor_size, e.resolution, e.refresh_rate, e.panel_type, e.response_time,
             e.viewing_angle, e.ports,
             e.port_count, e.speed, e.network_type, e.poe, e.managed, e.ip_address,
             e.print_type, e.print_format, e.print_speed, e.color_type, e.duplex, e.printer_ports,
@@ -4372,7 +4506,9 @@ def get_equipment():
             e.organization_id, e.status, e.purchase_date, e.warranty_until,
             e.price, e.supplier,
             e.created_at,
-            u.username as created_by_username, u.full_name as created_by_fullname
+            u.username as created_by_username, u.full_name as created_by_fullname,
+            e.parent_equipment_id, e.network_name, e.manufacture_year, e.photo, e.cable_type,
+            COALESCE(parent_eq.network_name, TRIM(COALESCE(parent_eq.brand,'') || ' ' || COALESCE(parent_eq.model,''))) as parent_name
         FROM Equipment e
         LEFT JOIN Employees resp_emp ON e.responsible_employee = resp_emp.id
         LEFT JOIN Employees mol_emp ON e.mol_employee = mol_emp.id
@@ -4380,6 +4516,7 @@ def get_equipment():
         LEFT JOIN Departments d ON rm.department_id = d.id
         LEFT JOIN Organizations org ON e.organization_id = org.id
         LEFT JOIN Users u ON e.created_by = u.id
+        LEFT JOIN Equipment parent_eq ON e.parent_equipment_id = parent_eq.id
         WHERE 1=1 {filter_condition}
         ORDER BY e.created_at DESC, e.id DESC
     """, filter_params)
@@ -4444,13 +4581,19 @@ def get_equipment():
             'department_name': row[54] if len(row) > 54 else '',
             'organization': row[55] if len(row) > 55 else '',
             'organization_id': row[56] if len(row) > 56 else None,
-            'status': row[57] if len(row) > 57 else 'В работе',
+            'status': row[57] if len(row) > 57 else 'Установлено',
             'purchase_date': row[58] if len(row) > 58 and row[58] else '',
             'warranty_until': row[59] if len(row) > 59 and row[59] else '',
             'price': float(row[60]) if len(row) > 60 and row[60] else 0,
             'supplier': row[61] if len(row) > 61 else '',
             'created_at': row[62] if len(row) > 62 else None,
-            'created_by': row[63] if len(row) > 63 else row[64] if len(row) > 64 else ''
+            'created_by': row[63] if len(row) > 63 else row[64] if len(row) > 64 else '',
+            'parent_equipment_id': row[65] if len(row) > 65 else None,
+            'network_name': row[66] if len(row) > 66 else '',
+            'manufacture_year': row[67] if len(row) > 67 else '',
+            'photo': row[68] if len(row) > 68 else '',
+            'cable_type': row[69] if len(row) > 69 else '',
+            'parent_name': row[70] if len(row) > 70 else ''
         })
     
     conn.close()
@@ -4464,137 +4607,59 @@ def get_equipment():
 def get_equipment_statistics():
     conn = get_db()
     cursor = conn.cursor()
-    
+
     org_id = get_user_organization_id()
     is_admin = session.get('role') == 'admin'
-    
-    # Для каждого запроса используем алиас e для таблицы Equipment
+
+    filter_condition = ""
+    filter_params = []
     if org_id:
-        # Свой филиал
-        cursor.execute("SELECT COUNT(*) FROM Equipment e WHERE e.organization_id = ?", (org_id,))
-        total = cursor.fetchone()[0]
-        
-        cursor.execute("""
-            SELECT e.type, COUNT(*) FROM Equipment e
-            WHERE e.organization_id = ?
-            GROUP BY e.type ORDER BY COUNT(*) DESC
-        """, (org_id,))
-        by_type = [{'type': row[0] or 'Не указан', 'count': row[1]} for row in cursor.fetchall()]
-        
-        cursor.execute("""
-            SELECT e.status, COUNT(*) FROM Equipment e
-            WHERE e.organization_id = ?
-            GROUP BY e.status
-        """, (org_id,))
-        by_status = [{'status': row[0] or 'Не указан', 'count': row[1]} for row in cursor.fetchall()]
-        
-        cursor.execute("""
-            SELECT org.name, COUNT(*) 
-            FROM Equipment e
-            LEFT JOIN Organizations org ON e.organization_id = org.id
-            WHERE e.organization_id = ?
-            GROUP BY org.name
-            ORDER BY COUNT(*) DESC
-        """, (org_id,))
-        by_organization = [{'organization': row[0] or 'Не указана', 'count': row[1]} for row in cursor.fetchall()]
-        
-        cursor.execute("""
-            SELECT COUNT(*) FROM Equipment e
-            WHERE e.warranty_until IS NOT NULL AND e.warranty_until >= date('now')
-            AND e.organization_id = ?
-        """, (org_id,))
-        under_warranty = cursor.fetchone()[0]
-        
-        cursor.execute("""
-            SELECT COUNT(*) FROM Equipment e
-            WHERE e.warranty_until IS NOT NULL AND e.warranty_until < date('now')
-            AND e.organization_id = ?
-        """, (org_id,))
-        expired_warranty = cursor.fetchone()[0]
-        
+        filter_condition = "AND e.organization_id = ?"
+        filter_params = [org_id]
     elif not is_admin:
-        # Обычный пользователь без филиала - только записи с NULL
-        cursor.execute("SELECT COUNT(*) FROM Equipment e WHERE e.organization_id IS NULL")
-        total = cursor.fetchone()[0]
-        
-        cursor.execute("""
-            SELECT e.type, COUNT(*) FROM Equipment e
-            WHERE e.organization_id IS NULL
-            GROUP BY e.type ORDER BY COUNT(*) DESC
-        """)
-        by_type = [{'type': row[0] or 'Не указан', 'count': row[1]} for row in cursor.fetchall()]
-        
-        cursor.execute("""
-            SELECT e.status, COUNT(*) FROM Equipment e
-            WHERE e.organization_id IS NULL
-            GROUP BY e.status
-        """)
-        by_status = [{'status': row[0] or 'Не указан', 'count': row[1]} for row in cursor.fetchall()]
-        
-        cursor.execute("""
-            SELECT org.name, COUNT(*) 
-            FROM Equipment e
-            LEFT JOIN Organizations org ON e.organization_id = org.id
-            WHERE e.organization_id IS NULL
-            GROUP BY org.name
-            ORDER BY COUNT(*) DESC
-        """)
-        by_organization = [{'organization': row[0] or 'Не указана', 'count': row[1]} for row in cursor.fetchall()]
-        
-        cursor.execute("""
-            SELECT COUNT(*) FROM Equipment e
-            WHERE e.warranty_until IS NOT NULL AND e.warranty_until >= date('now')
-            AND e.organization_id IS NULL
-        """)
-        under_warranty = cursor.fetchone()[0]
-        
-        cursor.execute("""
-            SELECT COUNT(*) FROM Equipment e
-            WHERE e.warranty_until IS NOT NULL AND e.warranty_until < date('now')
-            AND e.organization_id IS NULL
-        """)
-        expired_warranty = cursor.fetchone()[0]
-        
-    else:
-        # Администратор без филиала - видит всё
-        cursor.execute("SELECT COUNT(*) FROM Equipment e")
-        total = cursor.fetchone()[0]
-        
-        cursor.execute("""
-            SELECT e.type, COUNT(*) FROM Equipment e
-            GROUP BY e.type ORDER BY COUNT(*) DESC
-        """)
-        by_type = [{'type': row[0] or 'Не указан', 'count': row[1]} for row in cursor.fetchall()]
-        
-        cursor.execute("""
-            SELECT e.status, COUNT(*) FROM Equipment e
-            GROUP BY e.status
-        """)
-        by_status = [{'status': row[0] or 'Не указан', 'count': row[1]} for row in cursor.fetchall()]
-        
-        cursor.execute("""
-            SELECT org.name, COUNT(*) 
-            FROM Equipment e
-            LEFT JOIN Organizations org ON e.organization_id = org.id
-            GROUP BY org.name
-            ORDER BY COUNT(*) DESC
-        """)
-        by_organization = [{'organization': row[0] or 'Не указана', 'count': row[1]} for row in cursor.fetchall()]
-        
-        cursor.execute("""
-            SELECT COUNT(*) FROM Equipment e
-            WHERE e.warranty_until IS NOT NULL AND e.warranty_until >= date('now')
-        """)
-        under_warranty = cursor.fetchone()[0]
-        
-        cursor.execute("""
-            SELECT COUNT(*) FROM Equipment e
-            WHERE e.warranty_until IS NOT NULL AND e.warranty_until < date('now')
-        """)
-        expired_warranty = cursor.fetchone()[0]
-    
+        filter_condition = "AND e.organization_id IS NULL"
+
+    cursor.execute(f"SELECT COUNT(*) FROM Equipment e WHERE 1=1 {filter_condition}", filter_params)
+    total = cursor.fetchone()[0]
+
+    cursor.execute(f"""
+        SELECT e.type, COUNT(*) FROM Equipment e
+        WHERE 1=1 {filter_condition}
+        GROUP BY e.type ORDER BY COUNT(*) DESC
+    """, filter_params)
+    by_type = [{'type': row[0] or 'Не указан', 'count': row[1]} for row in cursor.fetchall()]
+
+    cursor.execute(f"""
+        SELECT e.status, COUNT(*) FROM Equipment e
+        WHERE 1=1 {filter_condition}
+        GROUP BY e.status
+    """, filter_params)
+    by_status = [{'status': row[0] or 'Не указан', 'count': row[1]} for row in cursor.fetchall()]
+
+    cursor.execute(f"""
+        SELECT org.name, COUNT(*)
+        FROM Equipment e
+        LEFT JOIN Organizations org ON e.organization_id = org.id
+        WHERE 1=1 {filter_condition}
+        GROUP BY org.name
+        ORDER BY COUNT(*) DESC
+    """, filter_params)
+    by_organization = [{'organization': row[0] or 'Не указана', 'count': row[1]} for row in cursor.fetchall()]
+
+    cursor.execute(f"""
+        SELECT COUNT(*) FROM Equipment e
+        WHERE e.warranty_until IS NOT NULL AND e.warranty_until >= date('now') {filter_condition}
+    """, filter_params)
+    under_warranty = cursor.fetchone()[0]
+
+    cursor.execute(f"""
+        SELECT COUNT(*) FROM Equipment e
+        WHERE e.warranty_until IS NOT NULL AND e.warranty_until < date('now') {filter_condition}
+    """, filter_params)
+    expired_warranty = cursor.fetchone()[0]
+
     conn.close()
-    
+
     return jsonify({
         'total': total,
         'by_type': by_type,
@@ -4630,22 +4695,24 @@ def search_equipment():
     elif not is_admin:
         filter_condition = "AND e.organization_id IS NULL"
 
+
     # Базовый запрос с исправленным JOIN
     query = f"""
-        SELECT 
+        SELECT
             e.id, e.type, e.brand, e.model, e.serial_number, e.inventory_number,
             e.processor, e.ram, e.storage, e.os, e.status,
             COALESCE(resp_emp.Department_Fullname, '—') as responsible,
             COALESCE(mol_emp.Department_Fullname, '—') as mol,
-            r.Number as room, 
+            r.Number as room,
             org.name as organization,
             d.name as department_name,
-            e.created_at, 
+            e.created_at,
             u.username as created_by,
             e.monitor_size, e.resolution, e.port_count, e.speed,
             e.os_key, e.purchase_date, e.warranty_until, e.price, e.supplier,
             e.notes,
-            e.characteristics
+            e.characteristics,
+            e.parent_equipment_id, e.network_name, e.manufacture_year, e.photo, e.cable_type
         FROM Equipment e
         LEFT JOIN Employees resp_emp ON e.responsible_employee = resp_emp.id
         LEFT JOIN Employees mol_emp ON e.mol_employee = mol_emp.id
@@ -4721,7 +4788,7 @@ def search_equipment():
             'ram': row[7] or '',
             'storage': row[8] or '',
             'os': row[9] or '',
-            'status': row[10] or 'В работе',
+            'status': row[10] or 'Установлено',
             'responsible': row[11] or '',
             'mol': row[12] or '',
             'room': row[13] or '',
@@ -4739,7 +4806,12 @@ def search_equipment():
             'price': row[25] if len(row) > 25 else 0,
             'supplier': row[26] if len(row) > 26 else '',
             'notes': row[27] if len(row) > 27 else '',
-            'characteristics': row[28] if len(row) > 28 else ''
+            'characteristics': row[28] if len(row) > 28 else '',
+            'parent_equipment_id': row[29] if len(row) > 29 else None,
+            'network_name': row[30] if len(row) > 30 else '',
+            'manufacture_year': row[31] if len(row) > 31 else '',
+            'photo': row[32] if len(row) > 32 else '',
+            'cable_type': row[33] if len(row) > 33 else ''
         })
 
     conn.close()
@@ -4784,7 +4856,8 @@ def get_equipment_report():
         filter_params = [org_id]
     elif not is_admin:
         filter_condition = "AND e.organization_id IS NULL"
-    
+
+
     # Формируем запрос в зависимости от типа отчета
     if report_type == 'mol':
         query = f"""
@@ -4839,7 +4912,7 @@ def get_equipment_report():
             'resolution': row[12] or '',
             'port_count': row[13] or '',
             'speed': row[14] or '',
-            'status': row[15] or 'В работе',
+            'status': row[15] or 'Установлено',
             'purchase_date': row[16] if row[16] else '',
             'warranty_until': row[17] if row[17] else '',
             'price': float(row[18]) if row[18] else 0,
@@ -4907,11 +4980,11 @@ def get_equipment_mfu():
         mfu_list.append({
             'id': row[0],
             'name': name,
-            'status': row[4] or 'В работе',
+            'status': row[4] or 'Установлено',
             'inventory_number': row[5] or '',
             'organization_id': row[6] if len(row) > 6 else None
         })
-    
+
     conn.close()
     return jsonify(mfu_list)
 
