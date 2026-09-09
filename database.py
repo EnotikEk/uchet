@@ -42,8 +42,21 @@ def get_db():
         print(f"[database] БД не найдена, создаем новую: {db_path}")
         init_db()
     
-    conn = sqlite3.connect(db_path)
+    # timeout — сколько секунд ждать снятия блокировки перед "database is locked"
+    # (по умолчанию в sqlite3 всего 5 сек — мало для gunicorn с несколькими воркерами,
+    # где несколько процессов одновременно открывают соединения с одним файлом БД).
+    conn = sqlite3.connect(db_path, timeout=30)
     conn.row_factory = sqlite3.Row
+    try:
+        # WAL вместо журнала по умолчанию: читатели не блокируют писателя и наоборот,
+        # что и было причиной постепенно нарастающих "database is locked"/500 при
+        # нескольких gunicorn-воркерах под нагрузкой. Настройка хранится в самом файле
+        # БД, но выставляем её на каждом соединении на случай подмены/восстановления файла.
+        conn.execute("PRAGMA journal_mode = WAL")
+        conn.execute("PRAGMA synchronous = NORMAL")
+        conn.execute("PRAGMA busy_timeout = 30000")
+    except sqlite3.Error as e:
+        print(f"[database] Не удалось применить PRAGMA для {db_path}: {e}")
     return conn
 
 def hash_password(password):

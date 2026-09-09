@@ -5052,6 +5052,28 @@ def debug_compatibility_check():
         'equipment_mfu': [{'id': e[0], 'type': e[1], 'brand': e[2], 'model': e[3], 'inventory': e[4]} for e in equipment_mfu]
     })
 
+
+# ========== ОБРАБОТКА НЕПРЕДВИДЕННЫХ ОШИБОК ==========
+# Большинство GET-эндпоинтов в этом файле не оборачивают работу с БД в try/finally,
+# поэтому любая ошибка (например 'database is locked' при нескольких gunicorn-воркерах,
+# спорящих за один файл SQLite) раньше долетала до пользователя как голая страница
+# "Internal Server Error" без каких-либо следов в логе. Теперь она логируется полностью
+# (видно в логах gunicorn) и для /api/* отдаётся аккуратным JSON, который фронтенд уже
+# умеет показывать через showMessage()/error-колбэки.
+@app.errorhandler(Exception)
+def handle_unexpected_error(e):
+    from werkzeug.exceptions import HTTPException
+    if isinstance(e, HTTPException):
+        return e
+
+    import traceback
+    app.logger.error("Необработанная ошибка на %s: %s\n%s", request.path, e, traceback.format_exc())
+
+    if request.path.startswith('/api/'):
+        return jsonify({'success': False, 'error': 'Внутренняя ошибка сервера. Попробуйте ещё раз через несколько секунд.'}), 500
+    return "Внутренняя ошибка сервера. Попробуйте обновить страницу.", 500
+
+
 # ========== ЗАПУСК ==========
 if __name__ == '__main__':
     import sys
