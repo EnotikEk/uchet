@@ -249,6 +249,7 @@
                     <div class="col-md-6 mb-2"><label class="fw-bold">Гарантия до:</label><p id="viewEquipmentWarranty" class="mb-2">—</p></div>
                     <div class="col-md-6 mb-2"><label class="fw-bold">Цена:</label><p id="viewEquipmentPrice" class="mb-2">—</p></div>
                     <div class="col-md-6 mb-2"><label class="fw-bold">Поставщик:</label><p id="viewEquipmentSupplier" class="mb-2">—</p></div>
+                    <div class="col-md-12" id="viewEquipmentTypeSpecific" style="display:none;"></div>
                     <div class="col-md-12 mb-2"><label class="fw-bold">Характеристики:</label><p id="viewEquipmentCharacteristics" class="mb-2">—</p></div>
                     <div class="col-md-12 mb-2"><label class="fw-bold">Примечание:</label><p id="viewEquipmentNotes" class="mb-2">—</p></div>
                     <div class="col-md-6 mb-2"><label class="fw-bold">Кто добавил:</label><p id="viewEquipmentCreatedBy" class="mb-2">—</p></div>
@@ -457,6 +458,115 @@ function statusBadge(status) {
     return `<span class="badge ${cls}">${escapeHtml(status || '—')}</span>`;
 }
 
+// Поля-характеристики по блокам формы (formComputer/formMonitor/... — те же id,
+// что и в форме добавления, см. modals/equipment_modals.html). Используется, чтобы
+// показывать и редактировать характеристики оборудования в карточке просмотра —
+// раньше эти поля можно было заполнить только при добавлении и потом нигде не
+// показывались и не редактировались.
+const FORM_FIELD_DEFS = {
+    formComputer: [
+        {id: 'processor', label: 'Процессор'},
+        {id: 'ram', label: 'ОЗУ (ГБ)', type: 'number'},
+        {id: 'ram_type', label: 'Тип ОЗУ', options: ['', 'DDR2', 'DDR3', 'DDR4', 'DDR5']},
+        {id: 'storage', label: 'Накопитель'},
+        {id: 'os', label: 'ОС'},
+        {id: 'os_key', label: 'Ключ ОС'},
+        {id: 'ip_address', label: 'IP-адрес'}
+    ],
+    formMonitor: [
+        {id: 'monitor_size', label: 'Диагональ (")', type: 'number'},
+        {id: 'resolution', label: 'Разрешение', options: ['', '1920x1080', '2560x1440', '3840x2160']},
+        {id: 'refresh_rate', label: 'Частота, Гц', type: 'number'},
+        {id: 'panel_type', label: 'Тип матрицы', options: ['', 'IPS', 'VA', 'TN', 'OLED']},
+        {id: 'response_time', label: 'Время отклика, мс', type: 'number'},
+        {id: 'viewing_angle', label: 'Угол обзора'},
+        {id: 'connection_type', label: 'Тип подключения'}
+    ],
+    formNetwork: [
+        {id: 'port_count', label: 'Кол-во портов', type: 'number'},
+        {id: 'speed', label: 'Скорость портов', options: ['', '100Mbps', '1Gbps', '10Gbps']},
+        {id: 'poe', label: 'PoE', options: ['', 'Нет', 'Да']},
+        {id: 'managed', label: 'Управляемый', options: ['', 'Нет', 'Да']},
+        {id: 'ip_address', label: 'IP-адрес'}
+    ],
+    formPrint: [
+        {id: 'print_type', label: 'Тип печати', options: ['', 'Лазерный', 'Струйный']},
+        {id: 'print_format', label: 'Формат', options: ['', 'A4', 'A3', 'A3-A4']},
+        {id: 'print_speed', label: 'Скорость печати', type: 'number'},
+        {id: 'color_type', label: 'Цветность', options: ['', 'Ч/Б', 'Цветной']},
+        {id: 'duplex', label: 'Двусторонняя печать', options: ['Нет', 'Да']},
+        {id: 'ip_address', label: 'IP-адрес'},
+        {id: 'scanner_resolution', label: 'Разрешение сканера'},
+        {id: 'scanner_speed', label: 'Скорость сканера'}
+    ],
+    formUps: [
+        {id: 'ups_power', label: 'Мощность (VA)'},
+        {id: 'ups_type', label: 'Тип', options: ['', 'Резервный', 'Линейно-интерактивный', 'On-line']},
+        {id: 'ups_outlets', label: 'Розеток', type: 'number'},
+        {id: 'ups_runtime', label: 'Время работы, мин', type: 'number'}
+    ],
+    formConnection: [
+        {id: 'connection_type', label: 'Тип подключения'},
+        {id: 'color', label: 'Цвет'},
+        {id: 'storage', label: 'Объём (внешний диск)'}
+    ],
+    formComponent: [
+        {id: 'ram', label: 'Объём (ГБ)', type: 'number'},
+        {id: 'ram_type', label: 'Тип ОЗУ', options: ['', 'DDR2', 'DDR3', 'DDR4', 'DDR5']},
+        {id: 'storage', label: 'Накопитель/ёмкость'},
+        {id: 'ports', label: 'Порты'},
+        {id: 'speed', label: 'Скорость/сеть'},
+        {id: 'connection_type', label: 'Тип подключения'},
+        {id: 'cable_type', label: 'Тип разъёма (кабель)', options: ['', 'DVI', 'HDMI', 'RJ45', 'USB-C', 'VGA', 'DisplayPort', 'Jack 3.5mm', 'Питание', 'Другое'], onlyFor: 'Кабель'}
+    ]
+};
+
+function typeSpecificFieldDefs(type) {
+    const groups = (typeof TYPE_FORM_MAP !== 'undefined' ? TYPE_FORM_MAP[type] : null) || [];
+    const defs = [];
+    const seen = new Set();
+    for (const g of groups) {
+        for (const def of (FORM_FIELD_DEFS[g] || [])) {
+            if (def.onlyFor && def.onlyFor !== type) continue;
+            if (seen.has(def.id)) continue;
+            seen.add(def.id);
+            defs.push(def);
+        }
+    }
+    return defs;
+}
+
+function renderTypeSpecificView(item) {
+    const defs = typeSpecificFieldDefs(item.type).filter(def => item[def.id]);
+    const box = $('#viewEquipmentTypeSpecific');
+    if (!defs.length) { box.hide().html(''); return; }
+    let html = '<label class="fw-bold d-block mb-1">Характеристики по типу:</label><div class="row">';
+    for (const def of defs) {
+        html += `<div class="col-md-4 mb-2"><small class="text-muted d-block">${def.label}</small>${escapeHtml(item[def.id])}</div>`;
+    }
+    html += '</div>';
+    box.html(html).show();
+}
+
+function renderTypeSpecificEdit(item) {
+    const defs = typeSpecificFieldDefs(item.type);
+    const box = $('#viewEquipmentTypeSpecific');
+    if (!defs.length) { box.hide().html(''); return; }
+    let html = '<label class="fw-bold d-block mb-1">Характеристики по типу:</label><div class="row">';
+    for (const def of defs) {
+        const val = item[def.id];
+        const id = 'edit_' + def.id;
+        if (def.options) {
+            const opts = def.options.map(o => `<option value="${escapeHtml(o)}" ${String(val == null ? '' : val) === o ? 'selected' : ''}>${o || '—'}</option>`).join('');
+            html += `<div class="col-md-4 mb-2"><label class="form-label small mb-0">${def.label}</label><select class="form-select form-select-sm" id="${id}">${opts}</select></div>`;
+        } else {
+            html += `<div class="col-md-4 mb-2"><label class="form-label small mb-0">${def.label}</label><input type="${def.type === 'number' ? 'number' : 'text'}" class="form-control form-control-sm" id="${id}" value="${escapeHtml(val)}"></div>`;
+        }
+    }
+    html += '</div>';
+    box.html(html).show();
+}
+
 let allEquipmentData = [];
 let currentEquipmentData = null;
 
@@ -593,6 +703,7 @@ function disableEquipmentEditMode() {
     $('#viewEquipmentWarranty').text(formatDate(item.warranty_until) || '—');
     $('#viewEquipmentPrice').text(item.price ? `${item.price} ₽` : '—');
     $('#viewEquipmentSupplier').text(item.supplier || '—');
+    renderTypeSpecificView(item);
     $('#viewEquipmentCharacteristics').text(item.characteristics || '—');
     $('#viewEquipmentNotes').text(item.notes || '—');
     $('#viewEquipmentCreatedBy').text(item.created_by || '—');
@@ -645,6 +756,7 @@ function enableEquipmentEditMode() {
     $('#viewEquipmentWarranty').html(`<input type="date" class="form-control form-control-sm" id="editWarranty" value="${toIsoDate(item.warranty_until)}">`);
     $('#viewEquipmentPrice').html(`<input type="number" step="0.01" class="form-control form-control-sm" id="editPrice" value="${escapeHtml(item.price)}">`);
     $('#viewEquipmentSupplier').html(`<input class="form-control form-control-sm" id="editSupplier" value="${escapeHtml(item.supplier)}">`);
+    renderTypeSpecificEdit(item);
     $('#viewEquipmentCharacteristics').html(`<textarea class="form-control form-control-sm" id="editCharacteristics" rows="2">${escapeHtml(item.characteristics)}</textarea>`);
     $('#viewEquipmentNotes').html(`<textarea class="form-control form-control-sm" id="editNotes" rows="2">${escapeHtml(item.notes)}</textarea>`);
 
@@ -691,13 +803,15 @@ function saveEquipmentEdit() {
         parent_equipment_id: $('#editParent').val() || null
     };
     // Поля, специфичные для типа (компьютер/монитор/сеть/печать/ИБП/периферия/комплектующие) —
-    // сохраняем как есть, если форма редактирования их не меняла.
+    // те, что показаны как поля ввода в блоке "Характеристики по типу", берём из формы,
+    // остальные (не относящиеся к текущему типу) просто сохраняем как есть.
     for (const f of ['processor','ram','ram_type','storage','os','os_key','monitor_size','resolution',
                       'refresh_rate','panel_type','response_time','viewing_angle','port_count','speed',
                       'network_type','poe','managed','ip_address','print_type','print_format','print_speed',
                       'color_type','duplex','scanner_resolution','scanner_speed','ups_power','ups_type',
                       'ups_outlets','ups_usb','ups_runtime','connection_type','color','cable_type']) {
-        data[f] = item[f];
+        const el = document.getElementById('edit_' + f);
+        data[f] = el ? el.value : item[f];
     }
 
     $.ajax({

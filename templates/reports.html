@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+
+{% block title %}Отчеты{% endblock %}
+
+{% block content %}
+<div class="card mb-3">
+    <div class="card-header">
+        <h4><i class="fas fa-chart-bar"></i> Отчеты</h4>
+    </div>
+    <div class="card-body">
+        {% if session.get('role') == 'admin' %}
+        <div class="row">
+            <div class="col-md-4 mb-2">
+                <label class="form-label small text-muted">Филиал для отчётов</label>
+                <select class="form-select" id="reportsOrgSelect">
+                    <option value="">Текущий выбранный в шапке</option>
+                    <option value="__ALL__">🌍 Все филиалы</option>
+                    <option value="__NONE__">Без филиала</option>
+                    {% for org in organizations %}
+                    <option value="{{ org.id }}">🏢 {{ org.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <p class="text-muted small mb-0">Применяется ко всем отчётам ниже. Если не выбрано — используется филиал, выбранный в шапке сайта.</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row g-3">
+    <!-- Отчёт по сотруднику -->
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header"><i class="fas fa-user-tie"></i> Оборудование по сотруднику</div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">Тип отчёта</label>
+                    <select class="form-select" id="empReportType">
+                        <option value="mol">По материально-ответственному лицу (МОЛ)</option>
+                        <option value="responsible">По ответственному сотруднику</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Сотрудник</label>
+                    <select class="form-select" id="empReportEmployee">
+                        <option value="">-- Выберите сотрудника --</option>
+                        {% for emp in employees %}
+                        <option value="{{ emp }}">{{ emp }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-success" onclick="downloadEmployeeReport()"><i class="fas fa-file-excel"></i> Скачать Excel</button>
+                    <button class="btn btn-outline-secondary" onclick="printEmployeeReport()"><i class="fas fa-print"></i> Печать</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Отчёт по картриджам -->
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header"><i class="fas fa-tint"></i> Картриджи</div>
+            <div class="card-body">
+                <p class="text-muted">Полный список картриджей: модель, серийный номер, статус, ответственный, помещение, привязанный МФУ, филиал.</p>
+                <button class="btn btn-success" onclick="downloadCartridgesExport()"><i class="fas fa-file-excel"></i> Скачать Excel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Аналитика (остатки) -->
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header"><i class="fas fa-boxes"></i> Аналитика картриджей (остатки)</div>
+            <div class="card-body">
+                <p class="text-muted">Сводка по моделям картриджей: под списание, в наличии, на балансе, закупить.</p>
+                <div class="d-flex gap-2 flex-wrap">
+                    <button class="btn btn-success" onclick="downloadAnalytics('excel')"><i class="fas fa-file-excel"></i> Excel</button>
+                    <button class="btn btn-info" style="color:white;" onclick="downloadAnalytics('csv')"><i class="fas fa-file-csv"></i> CSV</button>
+                    <button class="btn btn-secondary" onclick="downloadAnalytics('txt')"><i class="fas fa-file-alt"></i> TXT (список моделей)</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function selectedReportsOrg() {
+    const el = document.getElementById('reportsOrgSelect');
+    return el ? el.value : '';
+}
+
+function withOrgParam(url) {
+    const org = selectedReportsOrg();
+    if (!org) return url;
+    const sep = url.includes('?') ? '&' : '?';
+    return `${url}${sep}organization_id=${encodeURIComponent(org)}`;
+}
+
+function downloadFile(url) {
+    // Артефакт песочницы не мешает обычному браузеру — скачивание через скрытую ссылку.
+    const a = document.createElement('a');
+    a.href = url;
+    a.target = '_blank';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+}
+
+function downloadCartridgesExport() {
+    downloadFile(withOrgParam('/api/cartridges/export'));
+}
+
+function downloadAnalytics(fmt) {
+    downloadFile(withOrgParam(`/api/analytics/export/${fmt}`));
+}
+
+function downloadEmployeeReport() {
+    const employee = $('#empReportEmployee').val();
+    if (!employee) { showMessage('Выберите сотрудника', 'danger'); return; }
+    const payload = { type: $('#empReportType').val(), employee_name: employee };
+    const org = selectedReportsOrg();
+    if (org) payload.organization_id = org;
+
+    fetch('/api/equipment/report/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    }).then(async resp => {
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({}));
+            showMessage(err.error || 'Ошибка формирования отчёта', 'danger');
+            return;
+        }
+        const blob = await resp.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'equipment_report.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+    }).catch(() => showMessage('Ошибка формирования отчёта', 'danger'));
+}
+
+function printEmployeeReport() {
+    const employee = $('#empReportEmployee').val();
+    if (!employee) { showMessage('Выберите сотрудника', 'danger'); return; }
+    const type = $('#empReportType').val();
+    const payload = { type, employee_name: employee };
+    const org = selectedReportsOrg();
+    if (org) payload.organization_id = org;
+
+    $.ajax({
+        url: '/api/equipment/report',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(payload),
+        success: function(resp) {
+            const rows = resp.equipment.map((it, i) => `
+                <tr>
+                    <td>${i+1}</td>
+                    <td>${escapeHtml(it.type)}</td>
+                    <td>${escapeHtml([it.brand, it.model].filter(Boolean).join(' '))}</td>
+                    <td>${escapeHtml(it.serial_number)}</td>
+                    <td>${escapeHtml(it.inventory_number)}</td>
+                    <td>${escapeHtml(it.room)}</td>
+                    <td>${escapeHtml(it.status)}</td>
+                </tr>`).join('');
+            const html = `<!doctype html><html><head><meta charset="utf-8"><title>Отчёт</title>
+            <style>
+                body{font-family:Arial,sans-serif;font-size:12px;margin:16px;}
+                table{width:100%;border-collapse:collapse;margin-top:12px;}
+                th,td{border:1px solid #999;padding:4px 6px;text-align:left;}
+                th{background:#eee;}
+                .no-print{margin-bottom:12px;}
+                .signature-block{display:inline-block;width:45%;margin-top:40px;}
+                .signature-line{border-bottom:1px solid #000;height:30px;}
+                @media print { .no-print{display:none;} @page{size:A4 landscape;margin:10mm;} }
+            </style></head><body>
+            <div class="no-print"><button onclick="window.print()">🖨️ Печатать</button> <button onclick="window.close()">✖️ Закрыть</button></div>
+            <h2>Отчёт по оборудованию</h2>
+            <div>${escapeHtml(resp.report_type_name)}: ${escapeHtml(resp.employee_name)}</div>
+            <div>Дата: ${escapeHtml(resp.generated_at)} | Сформировал: ${escapeHtml(resp.generated_by)}</div>
+            <table><thead><tr><th>№</th><th>Тип</th><th>Модель</th><th>С/н</th><th>Инв. №</th><th>Помещение</th><th>Статус</th></tr></thead>
+            <tbody>${rows || '<tr><td colspan="7" style="text-align:center;">Нет данных</td></tr>'}</tbody></table>
+            <p><strong>Итого: ${resp.count}</strong></p>
+            <div class="signature-block">___________________ / ______________ /<div class="signature-line"></div></div>
+            <div class="signature-block" style="float:right;">Руководитель ___________________ / ______________ /<div class="signature-line"></div></div>
+            </body></html>`;
+            const w = window.open('', '_blank', 'width=1000,height=700');
+            w.document.write(html);
+            w.document.close();
+        },
+        error: function(xhr) {
+            showMessage((xhr.responseJSON && xhr.responseJSON.error) || 'Ошибка формирования отчёта', 'danger');
+        }
+    });
+}
+
+function escapeHtml(text) {
+    if (!text && text !== 0) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function showMessage(message, type) {
+    const alertDiv = $(`<div class="alert alert-${type} alert-dismissible fade show position-fixed top-0 end-0 m-3" style="z-index:9999;min-width:300px;" role="alert">${message}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>`);
+    $('body').append(alertDiv);
+    setTimeout(() => alertDiv.alert('close'), 3500);
+}
+</script>
+{% endblock %}

@@ -59,11 +59,35 @@ EQUIPMENT_STATUSES = [
 ]
 
 # Типы, которые считаются "компьютером" — для привязки мониторов/периферии/
-# комплектующих ("установлено на компьютере").
+# комплектующих ("установлено на компьютере") и для статистики на дашборде.
 COMPUTER_TYPES = ['Компьютер', 'Ноутбук', 'Моноблок', 'Сервер', 'Планшет']
+MFU_TYPES = ['МФУ', 'Принтер']
 
 EQUIPMENT_PHOTO_DIR = os.path.join(app.root_path, 'static', 'uploads', 'equipment')
 EQUIPMENT_PHOTO_EXTENSIONS = {'jpg', 'jpeg', 'png', 'webp'}
+
+
+def _report_org_filter(alias, explicit_org_id, org_id, is_admin):
+    """SQL-условие по филиалу для отчётов/экспорта (раздел "Отчеты").
+
+    explicit_org_id — необязательный явный выбор филиала на странице отчётов
+    (доступен только администратору): '' / None — использовать текущий
+    филиал как и везде в приложении; '__ALL__' — без фильтра (все филиалы);
+    '__NONE__' — только записи без филиала; число — конкретный филиал.
+    Возвращает (sql_condition, params), готовое для подстановки в "WHERE 1=1 {cond}".
+    """
+    prefix = f"{alias}." if alias else ""
+    if is_admin and explicit_org_id:
+        if explicit_org_id == '__ALL__':
+            return "", []
+        if explicit_org_id == '__NONE__':
+            return f"AND {prefix}organization_id IS NULL", []
+        return f"AND {prefix}organization_id = ?", [explicit_org_id]
+    if org_id:
+        return f"AND {prefix}organization_id = ?", [org_id]
+    if is_admin:
+        return "", []
+    return f"AND {prefix}organization_id IS NULL", []
 
 # ========== СТРАНИЦА ВХОДА ==========
 @app.route('/login')
@@ -265,6 +289,40 @@ def index():
     """, filter_params_equipment)
     equipment_count = cursor.fetchone()[0]
     
+    # ===== ДАШБОРД: КОМПЬЮТЕРЫ / МФУ / ЛИЦЕНЗИИ ПО СТАТУСАМ =====
+    if org_id:
+        org_and = "AND organization_id = ?"
+        org_and_params = [org_id]
+    elif is_admin:
+        org_and = ""
+        org_and_params = []
+    else:
+        org_and = "AND organization_id IS NULL"
+        org_and_params = []
+
+    def _equipment_status_breakdown(types):
+        placeholders = ','.join('?' * len(types))
+        cursor.execute(f"""
+            SELECT status, COUNT(*) FROM Equipment
+            WHERE type IN ({placeholders}) {org_and}
+            GROUP BY status ORDER BY COUNT(*) DESC
+        """, types + org_and_params)
+        rows = cursor.fetchall()
+        return {
+            'total': sum(r[1] for r in rows),
+            'by_status': [{'status': r[0] or 'Не указан', 'count': r[1]} for r in rows]
+        }
+
+    computers_stats = _equipment_status_breakdown(COMPUTER_TYPES)
+    mfu_stats = _equipment_status_breakdown(MFU_TYPES)
+
+    cursor.execute(f"""
+        SELECT status, COUNT(*) FROM Licenses
+        WHERE 1=1 {org_and}
+        GROUP BY status ORDER BY COUNT(*) DESC
+    """, org_and_params)
+    licenses_by_status = [{'status': r[0] or 'Активна', 'count': r[1]} for r in cursor.fetchall()]
+
     # ===== ПРОСРОЧЕННЫЕ ЛИЦЕНЗИИ (ТОЛЬКО СВОЕГО ФИЛИАЛА) =====
     if org_id:
         cursor.execute("""
@@ -390,7 +448,10 @@ def index():
                          organizations_count=organizations_count,
                          equipment_count=equipment_count,
                          expired_licenses=expired_licenses,
-                         recent_activity=recent_activity)
+                         recent_activity=recent_activity,
+                         computers_stats=computers_stats,
+                         mfu_stats=mfu_stats,
+                         licenses_by_status=licenses_by_status)
 
 # ========== КАРТРИДЖИ ==========
 @app.route('/cartridges')
@@ -1448,53 +1509,25 @@ def export_analytics_excel():
         
         org_id = get_user_organization_id()
         is_admin = session.get('role') == 'admin'
-        
-        if org_id:
-            query = """
-                SELECT 
-                    Cartridge as 'Модель картриджа',
-                    ToWriteOff as 'Под списание',
-                    InStock as 'В наличии',
-                    OnBalance as 'На балансе',
-                    ToBuy as 'Закупить'
-                FROM Analytics 
-                WHERE organization_id = ?
-                ORDER BY Cartridge
-            """
-            params = [org_id]
-        elif is_admin:
-            query = """
-                SELECT 
-                    Cartridge as 'Модель картриджа',
-                    ToWriteOff as 'Под списание',
-                    InStock as 'В наличии',
-                    OnBalance as 'На балансе',
-                    ToBuy as 'Закупить'
-                FROM Analytics 
-                ORDER BY Cartridge
-            """
-            params = []
-        else:
-            query = """
-                SELECT 
-                    Cartridge as 'Модель картриджа',
-                    ToWriteOff as 'Под списание',
-                    InStock as 'В наличии',
-                    OnBalance as 'На балансе',
-                    ToBuy as 'Закупить'
-                FROM Analytics 
-                WHERE organization_id IS NULL
-                ORDER BY Cartridge
-            """
-            params = []
-        
-        cursor.execute(query, params)
+        org_filter, org_params = _report_org_filter('', request.args.get('organization_id'), org_id, is_admin)
+
+        cursor.execute(f"""
+            SELECT
+                Cartridge as 'Модель картриджа',
+                ToWriteOff as 'Под списание',
+                InStock as 'В наличии',
+                OnBalance as 'На балансе',
+                ToBuy as 'Закупить'
+            FROM Analytics
+            WHERE 1=1 {org_filter}
+            ORDER BY Cartridge
+        """, org_params)
         data = cursor.fetchall()
         conn.close()
-        
+
         if not data:
             return jsonify({'error': 'Нет данных для экспорта'}), 404
-        
+
         df = pd.DataFrame(data, columns=['Модель картриджа', 'Под списание', 'В наличии', 'На балансе', 'Закупить'])
         
         output = BytesIO()
@@ -1544,38 +1577,20 @@ def export_analytics_csv():
         
         org_id = get_user_organization_id()
         is_admin = session.get('role') == 'admin'
-        
-        if org_id:
-            query = """
-                SELECT Cartridge, ToWriteOff, InStock, OnBalance, ToBuy
-                FROM Analytics 
-                WHERE organization_id = ?
-                ORDER BY Cartridge
-            """
-            params = [org_id]
-        elif is_admin:
-            query = """
-                SELECT Cartridge, ToWriteOff, InStock, OnBalance, ToBuy
-                FROM Analytics 
-                ORDER BY Cartridge
-            """
-            params = []
-        else:
-            query = """
-                SELECT Cartridge, ToWriteOff, InStock, OnBalance, ToBuy
-                FROM Analytics 
-                WHERE organization_id IS NULL
-                ORDER BY Cartridge
-            """
-            params = []
-        
-        cursor.execute(query, params)
+        org_filter, org_params = _report_org_filter('', request.args.get('organization_id'), org_id, is_admin)
+
+        cursor.execute(f"""
+            SELECT Cartridge, ToWriteOff, InStock, OnBalance, ToBuy
+            FROM Analytics
+            WHERE 1=1 {org_filter}
+            ORDER BY Cartridge
+        """, org_params)
         data = cursor.fetchall()
         conn.close()
-        
+
         if not data:
             return jsonify({'error': 'Нет данных для экспорта'}), 404
-        
+
         output = StringIO()
         writer = csv.writer(output, delimiter=';')
         writer.writerow(['Модель картриджа', 'Под списание', 'В наличии', 'На балансе', 'Закупить'])
@@ -1609,26 +1624,17 @@ def export_analytics_txt():
         
         org_id = get_user_organization_id()
         is_admin = session.get('role') == 'admin'
-        
-        if org_id:
-            query = "SELECT Cartridge FROM Analytics WHERE organization_id = ? ORDER BY Cartridge"
-            params = [org_id]
-        elif is_admin:
-            query = "SELECT Cartridge FROM Analytics ORDER BY Cartridge"
-            params = []
-        else:
-            query = "SELECT Cartridge FROM Analytics WHERE organization_id IS NULL ORDER BY Cartridge"
-            params = []
-        
-        cursor.execute(query, params)
+        org_filter, org_params = _report_org_filter('', request.args.get('organization_id'), org_id, is_admin)
+
+        cursor.execute(f"SELECT Cartridge FROM Analytics WHERE 1=1 {org_filter} ORDER BY Cartridge", org_params)
         data = cursor.fetchall()
         conn.close()
-        
+
         if not data:
             return jsonify({'error': 'Нет данных для экспорта'}), 404
-        
+
         output = StringIO()
-        
+
         output.write("СПИСОК МОДЕЛЕЙ КАРТРИДЖЕЙ\n")
         output.write("=" * 50 + "\n")
         output.write(f"Дата экспорта: {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}\n")
@@ -1659,20 +1665,14 @@ def export_analytics_txt():
         return jsonify({'error': str(e)}), 500
 
 # ========== СОВМЕСТИМОСТЬ ==========
+# Отдельная страница /compatibility никогда не была закончена (её шаблон
+# compatibility.html не существует — запрос падал с 500). Управление совместимостью
+# картриджей и МФУ уже полностью реализовано вкладкой "Совместимость" на странице
+# картриджей (те же самые /api/compatibility/* эндпоинты), так что просто ведём туда.
 @app.route('/compatibility')
 @login_required
 def compatibility_page():
-    conn = get_db()
-    cursor = conn.cursor()
-    
-    cursor.execute("SELECT ModelName FROM CartridgeModels ORDER BY ModelName")
-    cartridges = [row[0] for row in cursor.fetchall()]
-    
-    cursor.execute("SELECT Name_MFU FROM MFU ORDER BY Name_MFU")
-    mfu_list = [row[0] for row in cursor.fetchall()]
-    
-    conn.close()
-    return render_template('compatibility.html', cartridges=cartridges, mfu_list=mfu_list)
+    return redirect(url_for('cartridges'))
 
 @app.route('/api/compatibility', methods=['GET'])
 @login_required
@@ -1937,6 +1937,37 @@ def get_compatible_mfus():
 @login_required
 def licenses():
     return render_template('licenses.html')
+
+@app.route('/reports')
+@login_required
+def reports_page():
+    conn = get_db()
+    cursor = conn.cursor()
+
+    org_id = get_user_organization_id()
+    is_admin = session.get('role') == 'admin'
+    if org_id:
+        filter_condition = "AND Organization_id = ?"
+        filter_params = [org_id]
+    elif is_admin:
+        filter_condition = ""
+        filter_params = []
+    else:
+        filter_condition = "AND Organization_id IS NULL"
+        filter_params = []
+
+    cursor.execute(f"""
+        SELECT Department_Fullname FROM Employees
+        WHERE 1=1 {filter_condition}
+        ORDER BY Department_Fullname
+    """, filter_params)
+    employees = [row[0] for row in cursor.fetchall()]
+
+    cursor.execute("SELECT id, name FROM Organizations ORDER BY name")
+    organizations = [{'id': row[0], 'name': row[1]} for row in cursor.fetchall()]
+
+    conn.close()
+    return render_template('reports.html', employees=employees, organizations=organizations)
 
 @app.route('/api/licenses', methods=['GET'])
 @login_required
@@ -4337,6 +4368,58 @@ def get_cartridges():
     return jsonify(cartridges)
 
 
+@app.route('/api/cartridges/export', methods=['GET'])
+@login_required
+def export_cartridges():
+    """Полный список картриджей файлом Excel — раздел "Отчеты"."""
+    conn = get_db()
+    cursor = conn.cursor()
+
+    org_id = get_user_organization_id()
+    is_admin = session.get('role') == 'admin'
+    org_filter, org_params = _report_org_filter('C', request.args.get('organization_id'), org_id, is_admin)
+
+    cursor.execute(f"""
+        SELECT
+            C.Model as 'Модель',
+            COALESCE(C.Serial_number, '') as 'Серийный номер',
+            COALESCE(C.Status, '') as 'Статус',
+            COALESCE(E.Department_Fullname, '') as 'Ответственный',
+            COALESCE(R.Number, '') as 'Помещение',
+            COALESCE(EQ.brand || ' ' || EQ.model, '') as 'МФУ',
+            COALESCE(C.Ip, '') as 'IP',
+            COALESCE(org.name, '') as 'Филиал',
+            C.created_at as 'Дата добавления'
+        FROM Catrigs C
+        LEFT JOIN Employees E ON C.Responsible = E.id
+        LEFT JOIN Rooms R ON C.Room_id = R.id
+        LEFT JOIN Equipment EQ ON C.equipment_id = EQ.id
+        LEFT JOIN Organizations org ON C.organization_id = org.id
+        WHERE 1=1 {org_filter}
+        ORDER BY C.id DESC
+    """, org_params)
+    rows = cursor.fetchall()
+    columns = [d[0] for d in cursor.description]
+    conn.close()
+
+    if not rows:
+        return jsonify({'error': 'Нет данных для экспорта'}), 404
+
+    df = pd.DataFrame(rows, columns=columns)
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, sheet_name='Картриджи', index=False)
+        worksheet = writer.sheets['Картриджи']
+        for column in worksheet.columns:
+            max_length = max((len(str(c.value)) for c in column if c.value is not None), default=10)
+            worksheet.column_dimensions[column[0].column_letter].width = min(max_length + 2, 50)
+    output.seek(0)
+
+    filename = f"cartridges_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                      as_attachment=True, download_name=filename)
+
+
 # ========== ПОИСК КАРТРИДЖЕЙ ПО IP ==========
 
 @app.route('/api/cartridges/search/by-ip', methods=['POST'])
@@ -4819,81 +4902,48 @@ def search_equipment():
 
 # ========== ОТЧЕТ ПО ОБОРУДОВАНИЮ ==========
 
-@app.route('/api/equipment/report', methods=['POST'])
-@login_required
-def get_equipment_report():
-    data = request.json
-    report_type = data.get('type', 'mol')
-    employee_name = data.get('employee_name', '').strip()
-    
+def _fetch_equipment_report(report_type, employee_name, explicit_org_id=None):
+    """Общая выборка для отчёта по МОЛ/ответственному сотруднику — переиспользуется
+    и обычным JSON-эндпоинтом (печать), и экспортом в Excel на странице "Отчеты".
+    Возвращает (equipment_list, error_message, http_code); error_message is None при успехе.
+    """
     conn = get_db()
     cursor = conn.cursor()
-    
+
     org_id = get_user_organization_id()
     is_admin = session.get('role') == 'admin'
-    
-    # Проверяем, что сотрудник выбран
+
     if not employee_name:
         conn.close()
-        return jsonify({'error': 'Выберите сотрудника'}), 400
-    
-    # Ищем сотрудника
+        return [], 'Выберите сотрудника', 400
+
     cursor.execute("SELECT id FROM Employees WHERE Department_Fullname = ?", (employee_name,))
     employee = cursor.fetchone()
-    
     if not employee:
         conn.close()
-        return jsonify({'error': 'Сотрудник не найден'}), 404
-    
+        return [], 'Сотрудник не найден', 404
     employee_id = employee[0]
-    
-    # Формируем фильтр по филиалу с алиасом e
-    filter_condition = ""
-    filter_params = []
-    
-    if org_id:
-        filter_condition = "AND e.organization_id = ?"
-        filter_params = [org_id]
-    elif not is_admin:
-        filter_condition = "AND e.organization_id IS NULL"
 
+    filter_condition, filter_params = _report_org_filter('e', explicit_org_id, org_id, is_admin)
+    employee_field = 'e.mol_employee' if report_type == 'mol' else 'e.responsible_employee'
 
-    # Формируем запрос в зависимости от типа отчета
-    if report_type == 'mol':
-        query = f"""
-            SELECT 
-                e.id, e.type, e.brand, e.model, e.serial_number, e.inventory_number,
-                e.processor, e.ram, e.storage, e.os, e.os_key,
-                e.monitor_size, e.resolution, e.port_count, e.speed,
-                e.status, e.purchase_date, e.warranty_until, e.price, e.supplier, e.notes,
-                r.Number as room, org.name as organization,
-                e.created_at, u.username as created_by
-            FROM Equipment e
-            LEFT JOIN Rooms r ON e.room_id = r.id
-            LEFT JOIN Organizations org ON e.organization_id = org.id
-            LEFT JOIN Users u ON e.created_by = u.id
-            WHERE e.mol_employee = ? {filter_condition}
-            ORDER BY e.type, e.brand, e.model
-        """
-        cursor.execute(query, (employee_id, *filter_params))
-    else:
-        query = f"""
-            SELECT 
-                e.id, e.type, e.brand, e.model, e.serial_number, e.inventory_number,
-                e.processor, e.ram, e.storage, e.os, e.os_key,
-                e.monitor_size, e.resolution, e.port_count, e.speed,
-                e.status, e.purchase_date, e.warranty_until, e.price, e.supplier, e.notes,
-                r.Number as room, org.name as organization,
-                e.created_at, u.username as created_by
-            FROM Equipment e
-            LEFT JOIN Rooms r ON e.room_id = r.id
-            LEFT JOIN Organizations org ON e.organization_id = org.id
-            LEFT JOIN Users u ON e.created_by = u.id
-            WHERE e.responsible_employee = ? {filter_condition}
-            ORDER BY e.type, e.brand, e.model
-        """
-        cursor.execute(query, (employee_id, *filter_params))
-    
+    query = f"""
+        SELECT
+            e.id, e.type, e.brand, e.model, e.serial_number, e.inventory_number,
+            e.processor, e.ram, e.storage, e.os, e.os_key,
+            e.monitor_size, e.resolution, e.port_count, e.speed,
+            e.status, e.purchase_date, e.warranty_until, e.price, e.supplier, e.notes,
+            r.Number as room, org.name as organization,
+            e.created_at, u.username as created_by
+        FROM Equipment e
+        LEFT JOIN Rooms r ON e.room_id = r.id
+        LEFT JOIN Organizations org ON e.organization_id = org.id
+        LEFT JOIN Users u ON e.created_by = u.id
+        WHERE {employee_field} = ? {filter_condition}
+        ORDER BY e.type, e.brand, e.model
+    """
+    cursor.execute(query, (employee_id, *filter_params))
+
     equipment = []
     for row in cursor.fetchall():
         equipment.append({
@@ -4923,11 +4973,25 @@ def get_equipment_report():
             'created_at': row[23],
             'created_by': row[24] or ''
         })
-    
+
     conn.close()
-    
+    return equipment, None, 200
+
+
+@app.route('/api/equipment/report', methods=['POST'])
+@login_required
+def get_equipment_report():
+    data = request.json
+    report_type = data.get('type', 'mol')
+    employee_name = data.get('employee_name', '').strip()
+    explicit_org_id = data.get('organization_id')
+
+    equipment, error, code = _fetch_equipment_report(report_type, employee_name, explicit_org_id)
+    if error:
+        return jsonify({'error': error}), code
+
     current_user = session.get('full_name', session.get('username', 'Пользователь'))
-    
+
     return jsonify({
         'employee_name': employee_name,
         'report_type': report_type,
@@ -4937,6 +5001,44 @@ def get_equipment_report():
         'generated_at': datetime.now().strftime('%d.%m.%Y %H:%M:%S'),
         'generated_by': current_user
     })
+
+
+@app.route('/api/equipment/report/export', methods=['POST'])
+@login_required
+def export_equipment_report():
+    """Тот же отчёт по МОЛ/ответственному сотруднику, но файлом Excel — для раздела "Отчеты"."""
+    data = request.json
+    report_type = data.get('type', 'mol')
+    employee_name = data.get('employee_name', '').strip()
+    explicit_org_id = data.get('organization_id')
+
+    equipment, error, code = _fetch_equipment_report(report_type, employee_name, explicit_org_id)
+    if error:
+        return jsonify({'error': error}), code
+    if not equipment:
+        return jsonify({'error': 'Нет данных для экспорта'}), 404
+
+    columns = ['type', 'brand', 'model', 'serial_number', 'inventory_number', 'processor', 'ram',
+               'storage', 'os', 'status', 'room', 'organization', 'purchase_date', 'warranty_until',
+               'price', 'supplier', 'notes']
+    headers = ['Тип', 'Бренд', 'Модель', 'Серийный номер', 'Инв. номер', 'Процессор', 'ОЗУ',
+               'Накопитель', 'ОС', 'Статус', 'Помещение', 'Филиал', 'Дата принятия', 'Гарантия до',
+               'Цена', 'Поставщик', 'Примечание']
+    df = pd.DataFrame([[row[c] for c in columns] for row in equipment], columns=headers)
+
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, sheet_name='Отчет', index=False)
+        worksheet = writer.sheets['Отчет']
+        for column in worksheet.columns:
+            max_length = max((len(str(c.value)) for c in column if c.value is not None), default=10)
+            worksheet.column_dimensions[column[0].column_letter].width = min(max_length + 2, 50)
+    output.seek(0)
+
+    label = 'МОЛ' if report_type == 'mol' else 'otvetstvennyi'
+    filename = f"equipment_report_{label}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                      as_attachment=True, download_name=filename)
 
 
 # ========== МФУ ИЗ ОБОРУДОВАНИЯ ==========

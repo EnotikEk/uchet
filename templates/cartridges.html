@@ -124,12 +124,9 @@
                             <button class="btn btn-secondary" onclick="loadAnalytics()">
                                 <i class="fas fa-sync"></i> Обновить
                             </button>
-                            <button class="btn btn-success" onclick="exportAnalyticsExcel()">
-                                <i class="fas fa-file-excel"></i> Экспорт Excel
-                            </button>
-                            <button class="btn btn-info" style="color: white;" onclick="exportAnalyticsCSV()">
-                                <i class="fas fa-file-csv"></i> Экспорт CSV
-                            </button>
+                            <a class="btn btn-outline-secondary" href="{{ url_for('reports_page') }}">
+                                <i class="fas fa-file-export"></i> Экспорт — раздел «Отчеты»
+                            </a>
                         </div>
                     </div>
                 </div>
