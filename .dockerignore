@@ -1,0 +1,13 @@
+.git
+.venv
+venv
+env
+__pycache__
+*.pyc
+.vscode
+.idea
+*.log
+db.db
+db.db-wal
+db.db-shm
+db.db-journal

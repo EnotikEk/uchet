@@ -1,0 +1,38 @@
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: uchet
+      POSTGRES_PASSWORD: uchet
+      POSTGRES_DB: uchet
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # Порт наружу (на хост) не публикуем — сервису app он не нужен, он ходит
+    # к db:5432 через внутреннюю docker-сеть. Если нужен доступ снаружи
+    # (psql/pgAdmin с хоста), раскомментируйте и при необходимости смените
+    # порт хоста, если 5432 уже занят другим Postgres на этой машине:
+    # ports:
+    #   - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U uchet"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://uchet:uchet@db:5432/uchet
+      SECRET_KEY: dev-secret-key
+    ports:
+      - "5000:5000"
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

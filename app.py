@@ -5,7 +5,8 @@ from auth import (login_required, admin_required, hash_password, verify_password
                   get_organization_for_new_record, get_organization_filter,
                   apply_organization_filter, get_view_organization_id,
                   get_organization_filter_for_view)
-import sqlite3
+import psycopg2
+import psycopg2.errors
 import os
 import sys
 import uuid
@@ -26,14 +27,13 @@ except ImportError:
     openpyxl = None
 from io import BytesIO, StringIO
 
-from database import get_db, init_db, upgrade_db
+from database import get_db, init_db, upgrade_db, _column_exists, _table_exists
 
 # Автоматическая инициализация и обновление БД при первом запуске
 try:
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='Users'")
-    if not cursor.fetchone():
+    if not _table_exists(cursor, 'Users'):
         init_db()
     else:
         # Обновляем схему для существующей БД
@@ -328,7 +328,7 @@ def index():
         cursor.execute("""
             SELECT COUNT(*) 
             FROM Licenses 
-            WHERE expiry_date < date('now') 
+            WHERE expiry_date < CURRENT_DATE 
             AND expiry_date IS NOT NULL 
             AND organization_id = ?
             AND (status IS NULL OR status != 'Не используется')
@@ -337,7 +337,7 @@ def index():
         cursor.execute("""
             SELECT COUNT(*) 
             FROM Licenses 
-            WHERE expiry_date < date('now') 
+            WHERE expiry_date < CURRENT_DATE 
             AND expiry_date IS NOT NULL 
             AND (status IS NULL OR status != 'Не используется')
         """)
@@ -345,7 +345,7 @@ def index():
         cursor.execute("""
             SELECT COUNT(*) 
             FROM Licenses 
-            WHERE expiry_date < date('now') 
+            WHERE expiry_date < CURRENT_DATE 
             AND expiry_date IS NOT NULL 
             AND organization_id IS NULL
             AND (status IS NULL OR status != 'Не используется')
@@ -673,10 +673,7 @@ def add_cartridge():
         serial_number = f"{model}_{time.time_ns()}"
         
         # Проверяем наличие колонки organization_id
-        cursor.execute("PRAGMA table_info(Catrigs)")
-        columns = [col[1] for col in cursor.fetchall()]
-        
-        if 'organization_id' not in columns:
+        if not _column_exists(cursor, 'Catrigs', 'organization_id'):
             cursor.execute("ALTER TABLE Catrigs ADD COLUMN organization_id INTEGER")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_catrigs_organization ON Catrigs(organization_id)")
         
@@ -691,7 +688,7 @@ def add_cartridge():
             INSERT INTO Catrigs (
                 Serial_number, Model, Responsible, Room_id, Status, 
                 Purchase, Issued, equipment_id, Ip, created_at, created_by, organization_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?)
         """, (serial_number, model, responsible_id, room_id, status, 
               purchase_id, issued, equipment_id, ip, current_user_id, save_org_id))
         
@@ -909,10 +906,7 @@ def update_cartridge(id):
                         WHERE Cartridge = ? AND organization_id IS NULL
                     """, (to_write_off, in_stock, to_buy, model))
         
-        cursor.execute("PRAGMA table_info(Catrigs)")
-        columns = [col[1] for col in cursor.fetchall()]
-        
-        if 'equipment_id' in columns:
+        if _column_exists(cursor, 'Catrigs', 'equipment_id'):
             cursor.execute("""
                 UPDATE Catrigs 
                 SET Responsible=?, Room_id=?, Status=?, Issued=?, equipment_id=?, Ip=?
@@ -1061,7 +1055,8 @@ def add_mfu():
         
         conn.commit()
         return jsonify({'success': True, 'id': cursor.lastrowid})
-    except sqlite3.IntegrityError:
+    except psycopg2.errors.UniqueViolation:
+        conn.rollback()
         return jsonify({'success': False, 'error': 'МФУ уже существует'}), 400
     finally:
         conn.close()
@@ -1122,7 +1117,7 @@ def add_cartridge_model():
             save_org_id = org_id
         
         # Добавляем модель в CartridgeModels (если её нет)
-        cursor.execute("INSERT OR IGNORE INTO CartridgeModels (ModelName) VALUES (?)", (model_name,))
+        cursor.execute("INSERT INTO CartridgeModels (ModelName) VALUES (?) ON CONFLICT (ModelName) DO NOTHING", (model_name,))
         
         # Проверяем, есть ли уже аналитика для этой модели в этом филиале
         if save_org_id:
@@ -1167,7 +1162,8 @@ def add_cartridge_model():
             'in_stock': quantity
         })
         
-    except sqlite3.IntegrityError:
+    except psycopg2.errors.UniqueViolation:
+        conn.rollback()
         return jsonify({'success': False, 'error': 'Модель уже существует'}), 400
     except Exception as e:
         conn.rollback()
@@ -1513,11 +1509,11 @@ def export_analytics_excel():
 
         cursor.execute(f"""
             SELECT
-                Cartridge as 'Модель картриджа',
-                ToWriteOff as 'Под списание',
-                InStock as 'В наличии',
-                OnBalance as 'На балансе',
-                ToBuy as 'Закупить'
+                Cartridge as "Модель картриджа",
+                ToWriteOff as "Под списание",
+                InStock as "В наличии",
+                OnBalance as "На балансе",
+                ToBuy as "Закупить"
             FROM Analytics
             WHERE 1=1 {org_filter}
             ORDER BY Cartridge
@@ -1716,7 +1712,8 @@ def add_compatibility():
         """, (data.get('cartridge'), data.get('mfu'), org_id))
         conn.commit()
         return jsonify({'success': True, 'id': cursor.lastrowid})
-    except sqlite3.IntegrityError:
+    except psycopg2.errors.UniqueViolation:
+        conn.rollback()
         return jsonify({'success': False, 'error': 'Такая запись уже существует'}), 400
     finally:
         conn.close()
@@ -1752,7 +1749,7 @@ def update_compatibility(id):
         """, (data.get('cartridge'), data.get('mfu'), id))
         conn.commit()
         return jsonify({'success': True})
-    except sqlite3.IntegrityError:
+    except psycopg2.errors.UniqueViolation:
         conn.rollback()
         return jsonify({'success': False, 'error': 'Такая запись уже существует'}), 400
     except Exception as e:
@@ -1830,7 +1827,8 @@ def import_compatibility_excel():
                         VALUES (?, ?, ?)
                     """, (cartridge, mfu, org_id))
                     added += 1
-                except sqlite3.IntegrityError:
+                except psycopg2.errors.UniqueViolation:
+                    conn.rollback()
                     skipped += 1
 
         conn.commit()
@@ -2027,7 +2025,7 @@ def add_license():
         save_org_id = get_organization_for_new_record()
         cursor.execute("""
             INSERT INTO Licenses (product_name, product_key, expiry_date, company, quantity, used, organization_id, status, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
         """, (
             data.get('product_name'),
             data.get('product_key'),
@@ -2040,7 +2038,8 @@ def add_license():
         ))
         conn.commit()
         return jsonify({'success': True, 'id': cursor.lastrowid})
-    except sqlite3.IntegrityError:
+    except psycopg2.errors.UniqueViolation:
+        conn.rollback()
         return jsonify({'success': False, 'error': 'Лицензия с таким ключом уже существует'}), 400
     finally:
         conn.close()
@@ -2056,7 +2055,7 @@ def update_license(id):
         cursor.execute("""
             UPDATE Licenses
             SET product_name=?, product_key=?, expiry_date=?, company=?, quantity=?, used=?, status=?,
-                updated_at=datetime('now')
+                updated_at=NOW()
             WHERE id=?
         """, (
             data.get('product_name'),
@@ -2183,9 +2182,10 @@ def import_licenses_excel():
                 added += 1
                 
             except Exception as e:
+                conn.rollback()
                 errors.append(f'Строка {idx+2}: {str(e)}')
                 skipped += 1
-        
+
         conn.commit()
         conn.close()
         
@@ -2505,7 +2505,8 @@ def api_add_employee():
         
         conn.commit()
         return jsonify({'success': True, 'id': cursor.lastrowid})
-    except sqlite3.IntegrityError:
+    except psycopg2.errors.UniqueViolation:
+        conn.rollback()
         return jsonify({'success': False, 'error': 'Сотрудник уже существует'}), 400
     except Exception as e:
         conn.rollback()
@@ -2560,7 +2561,8 @@ def api_quick_add_employee():
                       (name, organization_id))
         conn.commit()
         return jsonify({'success': True, 'id': cursor.lastrowid, 'name': name})
-    except sqlite3.IntegrityError:
+    except psycopg2.errors.UniqueViolation:
+        conn.rollback()
         return jsonify({'success': False, 'error': 'Сотрудник уже существует'}), 400
     except Exception as e:
         conn.rollback()
@@ -2869,7 +2871,8 @@ def add_user():
         """, (username, hash_password(password), full_name, role, organization_id if organization_id else None))
         conn.commit()
         return jsonify({'success': True, 'id': cursor.lastrowid})
-    except sqlite3.IntegrityError:
+    except psycopg2.errors.UniqueViolation:
+        conn.rollback()
         return jsonify({'error': 'Пользователь с таким логином уже существует'}), 400
     finally:
         conn.close()
@@ -3132,7 +3135,7 @@ def add_equipment():
             characteristics, notes,
             parent_equipment_id, network_name, manufacture_year, cable_type,
             created_by, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
     """, (
         data.get('type'), data.get('brand'), data.get('model'),
         data.get('serial_number'), inventory_number,
@@ -3270,7 +3273,7 @@ def update_equipment(id):
             purchase_date=?, warranty_until=?, price=?, supplier=?,
             characteristics=?, notes=?,
             parent_equipment_id=?, network_name=?, manufacture_year=?, cable_type=?,
-            updated_by=?, updated_at=datetime('now')
+            updated_by=?, updated_at=NOW()
         WHERE id=?
     """, (
         data.get('type'), data.get('brand'), data.get('model'),
@@ -3651,7 +3654,7 @@ def import_equipment_excel():
                             room_id, responsible_employee, mol_employee,
                             status, notes, characteristics,
                             organization_id, created_at, created_by
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)
                     """, (equipment_type, brand_value, '', serial, None,
                           room_id, responsible_id, mol_id, status, notes, characteristics,
                           org_id, session.get('user_id'))
@@ -3679,7 +3682,7 @@ def import_equipment_excel():
                                 serial_number = ?, room_id = ?,
                                 responsible_employee = ?, mol_employee = ?,
                                 status = ?, notes = ?, characteristics = ?,
-                                organization_id = ?, updated_at = datetime('now'), updated_by = ?
+                                organization_id = ?, updated_at = NOW(), updated_by = ?
                             WHERE id = ?
                         """, (equipment_type, brand_value, serial, room_id,
                               responsible_id, mol_id, status, notes, characteristics,
@@ -3694,7 +3697,7 @@ def import_equipment_excel():
                                 room_id, responsible_employee, mol_employee,
                                 status, notes, characteristics,
                                 organization_id, created_at, created_by
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)
                         """, (equipment_type, brand_value, '', serial, inventory,
                               room_id, responsible_id, mol_id, status, notes, characteristics,
                               org_id, session.get('user_id'))
@@ -3706,6 +3709,7 @@ def import_equipment_excel():
                 processed += 1
 
             except Exception as e:
+                conn.rollback()
                 errors.append(f"Строка {idx+2} (лист {sheet_name}): {str(e)}")
                 skipped += 1
                 print(f"[ИМПОРТ] ОШИБКА в строке {idx+2}: {str(e)}")
@@ -3822,7 +3826,7 @@ def upload_equipment_photo(id):
         filename = f"{id}_{uuid.uuid4().hex}.{ext}"
         file.save(os.path.join(EQUIPMENT_PHOTO_DIR, filename))
 
-        cursor.execute("UPDATE Equipment SET photo = ?, updated_by = ?, updated_at = datetime('now') WHERE id = ?",
+        cursor.execute("UPDATE Equipment SET photo = ?, updated_by = ?, updated_at = NOW() WHERE id = ?",
                        (filename, session.get('user_id'), id))
         conn.commit()
 
@@ -4003,7 +4007,7 @@ def add_equipment_movement(id):
         cursor.execute("""
             UPDATE Equipment 
             SET responsible_employee=?, room_id=?, organization_id=?, status=?,
-                mol_employee=?, updated_at=datetime('now'), updated_by=?
+                mol_employee=?, updated_at=NOW(), updated_by=?
             WHERE id=?
         """, (to_employee if to_employee is not None else from_employee, 
               to_room if to_room is not None else from_room, 
@@ -4212,8 +4216,7 @@ def get_view_organization_id():
 def get_cartridges():
     conn = get_db()
     cursor = conn.cursor()
-    conn.row_factory = sqlite3.Row
-    
+
     # Получаем филиал для просмотра
     view_org_id = get_view_organization_id()
     is_admin = session.get('role') == 'admin'
@@ -4246,10 +4249,8 @@ def get_cartridges():
         print(f"DEBUG: Показываем записи без филиала")
     
     # Проверяем наличие колонки equipment_id
-    cursor.execute("PRAGMA table_info(Catrigs)")
-    columns = [col[1] for col in cursor.fetchall()]
-    has_equipment_id = 'equipment_id' in columns
-    has_organization_id = 'organization_id' in columns
+    has_equipment_id = _column_exists(cursor, 'Catrigs', 'equipment_id')
+    has_organization_id = _column_exists(cursor, 'Catrigs', 'organization_id')
     
     if has_equipment_id:
         cursor.execute(f"""
@@ -4381,15 +4382,15 @@ def export_cartridges():
 
     cursor.execute(f"""
         SELECT
-            C.Model as 'Модель',
-            COALESCE(C.Serial_number, '') as 'Серийный номер',
-            COALESCE(C.Status, '') as 'Статус',
-            COALESCE(E.Department_Fullname, '') as 'Ответственный',
-            COALESCE(R.Number, '') as 'Помещение',
-            COALESCE(EQ.brand || ' ' || EQ.model, '') as 'МФУ',
-            COALESCE(C.Ip, '') as 'IP',
-            COALESCE(org.name, '') as 'Филиал',
-            C.created_at as 'Дата добавления'
+            C.Model as "Модель",
+            COALESCE(C.Serial_number, '') as "Серийный номер",
+            COALESCE(C.Status, '') as "Статус",
+            COALESCE(E.Department_Fullname, '') as "Ответственный",
+            COALESCE(R.Number, '') as "Помещение",
+            COALESCE(EQ.brand || ' ' || EQ.model, '') as "МФУ",
+            COALESCE(C.Ip, '') as "IP",
+            COALESCE(org.name, '') as "Филиал",
+            C.created_at as "Дата добавления"
         FROM Catrigs C
         LEFT JOIN Employees E ON C.Responsible = E.id
         LEFT JOIN Rooms R ON C.Room_id = R.id
@@ -4430,8 +4431,7 @@ def search_cartridges_by_ip():
     
     conn = get_db()
     cursor = conn.cursor()
-    conn.row_factory = sqlite3.Row
-    
+
     org_id = get_user_organization_id()
     is_admin = session.get('role') == 'admin'
     
@@ -4444,10 +4444,8 @@ def search_cartridges_by_ip():
     elif not is_admin:
         filter_condition = "AND C.organization_id IS NULL"
     
-    cursor.execute("PRAGMA table_info(Catrigs)")
-    columns = [col[1] for col in cursor.fetchall()]
-    has_equipment_id = 'equipment_id' in columns
-    
+    has_equipment_id = _column_exists(cursor, 'Catrigs', 'equipment_id')
+
     if has_equipment_id:
         cursor.execute(f"""
             SELECT 
@@ -4731,13 +4729,13 @@ def get_equipment_statistics():
 
     cursor.execute(f"""
         SELECT COUNT(*) FROM Equipment e
-        WHERE e.warranty_until IS NOT NULL AND e.warranty_until >= date('now') {filter_condition}
+        WHERE e.warranty_until IS NOT NULL AND e.warranty_until >= CURRENT_DATE {filter_condition}
     """, filter_params)
     under_warranty = cursor.fetchone()[0]
 
     cursor.execute(f"""
         SELECT COUNT(*) FROM Equipment e
-        WHERE e.warranty_until IS NOT NULL AND e.warranty_until < date('now') {filter_condition}
+        WHERE e.warranty_until IS NOT NULL AND e.warranty_until < CURRENT_DATE {filter_condition}
     """, filter_params)
     expired_warranty = cursor.fetchone()[0]
 

@@ -1,8 +1,9 @@
-import sqlite3
 import os
 import sys
-from datetime import datetime
 import hashlib
+import psycopg2
+import psycopg2.extras
+import psycopg2.errors
 
 # На Windows консоль может использовать кодировку cp1251, из-за чего print()
 # со спецсимволами (✅, ⚠️) роняет инициализацию БД с UnicodeEncodeError.
@@ -12,108 +13,182 @@ for _stream in (sys.stdout, sys.stderr):
     except Exception:
         pass
 
-def get_db_path():
-    """Получение пути к базе данных в зависимости от способа запуска"""
-    env_db_path = os.environ.get('DATABASE_PATH')
-    if env_db_path:
-        db_dir = os.path.dirname(env_db_path)
-        if db_dir and not os.path.exists(db_dir):
-            os.makedirs(db_dir, exist_ok=True)
-        return env_db_path
-    
-    if getattr(sys, 'frozen', False):
-        appdata = os.environ.get('APPDATA', os.path.expanduser('~'))
-        db_dir = os.path.join(appdata, 'VolgoBaltAccounting')
-        os.makedirs(db_dir, exist_ok=True)
-        print(f"[database] Используем APPDATA: {db_dir}")
-        return os.path.join(db_dir, 'db.db')
-    else:
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        return os.path.join(script_dir, 'db.db')
+
+def get_db_config():
+    """Параметры подключения к PostgreSQL.
+
+    DATABASE_URL (напр. postgresql://user:pass@host:5432/dbname) имеет приоритет —
+    его использует и gunicorn в проде, и Docker-тест. Если не задан, собираем
+    из отдельных PG*-переменных (те же имена, что понимает сам psql/libpq),
+    с локальными значениями по умолчанию для разработки на этой машине.
+    """
+    database_url = os.environ.get('DATABASE_URL')
+    if database_url:
+        return database_url
+    return {
+        'host': os.environ.get('PGHOST', 'localhost'),
+        'port': os.environ.get('PGPORT', '5432'),
+        'dbname': os.environ.get('PGDATABASE', 'uchet'),
+        'user': os.environ.get('PGUSER', 'uchet'),
+        'password': os.environ.get('PGPASSWORD', 'uchet'),
+    }
+
+
+def _translate_placeholders(sql):
+    """'?'-плейсхолдеры (стиль sqlite3, используется по всему app.py) → '%s'
+    (стиль psycopg2). Один проход по строке, '?' внутри 'строковых литералов'
+    не трогаем — так безопаснее простой замены .replace('?', '%s'), хотя в этом
+    проекте '?' в текстах самих запросов и так никогда не встречается (значения
+    всегда параметризуются, а не подставляются в текст запроса)."""
+    out = []
+    in_string = False
+    i, n = 0, len(sql)
+    while i < n:
+        ch = sql[i]
+        if in_string:
+            out.append(ch)
+            if ch == "'":
+                if i + 1 < n and sql[i + 1] == "'":  # экранированная '' внутри литерала
+                    out.append(sql[i + 1])
+                    i += 2
+                    continue
+                in_string = False
+            i += 1
+            continue
+        if ch == "'":
+            in_string = True
+            out.append(ch)
+        elif ch == '?':
+            out.append('%s')
+        else:
+            out.append(ch)
+        i += 1
+    return ''.join(out)
+
+
+# Таблицы без суррогатного числового id (составной первичный ключ) — для них
+# нельзя автоматически дописывать "RETURNING id" (см. CompatCursor.execute).
+_NO_ID_TABLES = {'analytics'}
+
+
+def _insert_table_name(sql):
+    import re
+    m = re.match(r'\s*INSERT\s+INTO\s+"?(\w+)"?', sql, re.IGNORECASE)
+    return m.group(1).lower() if m else None
+
+
+class CompatCursor(psycopg2.extras.DictCursor):
+    """Курсор с поведением, привычным по sqlite3, — чтобы при переходе на
+    PostgreSQL не переписывать вручную все ~270 SQL-запросов в app.py:
+
+    - принимает те же '?'-плейсхолдеры, что и раньше (см. _translate_placeholders);
+    - после INSERT даёт `cursor.lastrowid`, как в sqlite3 (в psycopg2 такого
+      атрибута нет в принципе — эмулируем через автоматический 'RETURNING id');
+    - строки результата поддерживают и row['column'], и row[0] одновременно
+      (это уже делает сам DictRow из psycopg2.extras, ничего сверх делать не нужно).
+    """
+
+    @property
+    def lastrowid(self):
+        # Базовый курсор psycopg2 сам объявляет `lastrowid` как read-only
+        # атрибут (для совместимости с DBAPI, всегда None) — просто
+        # присвоить self.lastrowid нельзя, поэтому переопределяем его
+        # здесь обычным свойством поверх приватного атрибута.
+        return getattr(self, '_lastrowid', None)
+
+    @lastrowid.setter
+    def lastrowid(self, value):
+        self._lastrowid = value
+
+    def execute(self, sql, params=None):
+        translated = _translate_placeholders(sql)
+        stripped = translated.lstrip().upper()
+
+        wants_lastrowid = False
+        if stripped.startswith('INSERT'):
+            table = _insert_table_name(translated)
+            if table not in _NO_ID_TABLES and 'RETURNING' not in translated.upper():
+                translated = translated.rstrip().rstrip(';') + ' RETURNING id'
+                wants_lastrowid = True
+
+        if params is None:
+            result = super().execute(translated)
+        else:
+            result = super().execute(translated, params)
+
+        if wants_lastrowid:
+            row = self.fetchone()
+            self.lastrowid = row[0] if row else None
+        else:
+            self.lastrowid = None
+        return result
+
 
 def get_db():
-    db_path = get_db_path()
-    db_dir = os.path.dirname(db_path)
-    if db_dir and not os.path.exists(db_dir):
-        os.makedirs(db_dir, exist_ok=True)
-        print(f"[database] Создана директория: {db_dir}")
-    
-    if not os.path.exists(db_path):
-        print(f"[database] БД не найдена, создаем новую: {db_path}")
-        init_db()
-    
-    # timeout — сколько секунд ждать снятия блокировки перед "database is locked"
-    # (по умолчанию в sqlite3 всего 5 сек — мало для gunicorn с несколькими воркерами,
-    # где несколько процессов одновременно открывают соединения с одним файлом БД).
-    conn = sqlite3.connect(db_path, timeout=30)
-    conn.row_factory = sqlite3.Row
-    try:
-        # WAL вместо журнала по умолчанию: читатели не блокируют писателя и наоборот,
-        # что и было причиной постепенно нарастающих "database is locked"/500 при
-        # нескольких gunicorn-воркерах под нагрузкой. Настройка хранится в самом файле
-        # БД, но выставляем её на каждом соединении на случай подмены/восстановления файла.
-        conn.execute("PRAGMA journal_mode = WAL")
-        conn.execute("PRAGMA synchronous = NORMAL")
-        conn.execute("PRAGMA busy_timeout = 30000")
-    except sqlite3.Error as e:
-        print(f"[database] Не удалось применить PRAGMA для {db_path}: {e}")
-    return conn
+    """Открыть соединение с PostgreSQL. Каждый запрос — новое соединение
+    (как и раньше с sqlite3): при небольшой нагрузке этого инструмента пул
+    не требуется, а PostgreSQL, в отличие от файлового SQLite, спокойно
+    выдерживает много параллельных соединений от разных воркеров gunicorn —
+    именно ради снятия этого ограничения и делалась миграция с SQLite."""
+    config = get_db_config()
+    if isinstance(config, str):
+        return psycopg2.connect(config, cursor_factory=CompatCursor)
+    return psycopg2.connect(cursor_factory=CompatCursor, **config)
+
 
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
-def _migrate_analytics_pk(cursor):
-    """Перевести таблицу Analytics на составной первичный ключ
-    (Cartridge, organization_id).
 
-    Изначально первичным ключом был только Cartridge, поэтому одна и та же
-    модель картриджа не могла существовать сразу в нескольких филиалах:
-    списание/добавление картриджа в филиале, где строки аналитики ещё нет,
-    падало с ошибкой 'UNIQUE constraint failed: Analytics.Cartridge'.
+def _column_exists(cursor, table, column):
+    cursor.execute(
+        "SELECT 1 FROM information_schema.columns WHERE table_name = %s AND column_name = %s",
+        (table.lower(), column.lower())
+    )
+    return cursor.fetchone() is not None
+
+
+def _pk_columns(cursor, table):
+    cursor.execute("""
+        SELECT a.attname
+        FROM pg_index i
+        JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey)
+        WHERE i.indrelid = %s::regclass AND i.indisprimary
+    """, (table,))
+    return [row[0] for row in cursor.fetchall()]
+
+
+def _table_exists(cursor, table):
+    cursor.execute("SELECT 1 FROM information_schema.tables WHERE table_name = %s", (table.lower(),))
+    return cursor.fetchone() is not None
+
+
+def _migrate_analytics_pk(cursor):
+    """Убедиться, что уникальность в Analytics обеспечена обычным
+    UNIQUE-индексом по (Cartridge, organization_id), а не PRIMARY KEY.
+
+    В SQLite-версии это был составной PRIMARY KEY, и SQLite не требует
+    NOT NULL на колонках составного PRIMARY KEY — там спокойно жили
+    картриджи "без филиала" (organization_id IS NULL). PostgreSQL же,
+    в соответствии со стандартом SQL, требует NOT NULL на каждой колонке
+    PRIMARY KEY — с ним такие картриджи сохранить нельзя. Поэтому здесь
+    используется обычный UNIQUE-индекс, который такую уникальность даёт,
+    но не требует NOT NULL (и, как и обычный unique-индекс в SQLite,
+    несколько NULL в organization_id уникальности не нарушают).
     """
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='Analytics'")
-    if not cursor.fetchone():
+    if not _table_exists(cursor, 'Analytics'):
         return
 
-    cursor.execute("PRAGMA table_info(Analytics)")
-    info = cursor.fetchall()  # (cid, name, type, notnull, dflt_value, pk)
-    existing = [row[1] for row in info]
-    pk_cols = [row[1] for row in info if row[5]]
+    if _pk_columns(cursor, 'analytics'):
+        cursor.execute("ALTER TABLE Analytics DROP CONSTRAINT analytics_pkey")
 
-    if 'organization_id' in pk_cols:
-        return  # уже мигрировано
-
-    if 'organization_id' not in existing:
+    if not _column_exists(cursor, 'Analytics', 'organization_id'):
         cursor.execute("ALTER TABLE Analytics ADD COLUMN organization_id INTEGER")
-        existing.append('organization_id')
 
-    has_address = 'address_id' in existing
+    cursor.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_analytics_unique ON Analytics(Cartridge, organization_id)"
+    )
 
-    cursor.execute("ALTER TABLE Analytics RENAME TO Analytics_old")
-    cursor.execute("""
-        CREATE TABLE Analytics (
-            Cartridge TEXT NOT NULL,
-            ToWriteOff INTEGER DEFAULT 0,
-            InStock INTEGER DEFAULT 0,
-            OnBalance INTEGER DEFAULT 0,
-            ToBuy INTEGER DEFAULT 0,
-            organization_id INTEGER,
-            address_id INTEGER,
-            PRIMARY KEY (Cartridge, organization_id)
-        )
-    """)
-    addr_src = "address_id" if has_address else "NULL"
-    cursor.execute(f"""
-        INSERT INTO Analytics (Cartridge, ToWriteOff, InStock, OnBalance, ToBuy, organization_id, address_id)
-        SELECT Cartridge,
-               COALESCE(ToWriteOff, 0), COALESCE(InStock, 0),
-               COALESCE(OnBalance, 0), COALESCE(ToBuy, 0),
-               organization_id, {addr_src}
-        FROM Analytics_old
-    """)
-    cursor.execute("DROP TABLE Analytics_old")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_analytics_organization ON Analytics(organization_id)")
-    print("✅ Analytics переведена на составной ключ (Cartridge, organization_id)")
 
 def _migrate_equipment_status_vocabulary(cursor):
     """Перевести Equipment.status со старого словаря на новый единый.
@@ -127,8 +202,7 @@ def _migrate_equipment_status_vocabulary(cursor):
     строка не содержит старых значений (единственное пересечение словарей —
     'Списано', которое в переносе не участвует, так как совпадает само с собой).
     """
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='Equipment'")
-    if not cursor.fetchone():
+    if not _table_exists(cursor, 'Equipment'):
         return
 
     remap = {
@@ -138,73 +212,118 @@ def _migrate_equipment_status_vocabulary(cursor):
         'Простаивает': 'Резерв',
     }
 
-    placeholders = ','.join('?' * len(remap))
+    placeholders = ','.join(['%s'] * len(remap))
     cursor.execute(f"SELECT COUNT(*) FROM Equipment WHERE status IN ({placeholders})", list(remap.keys()))
     if cursor.fetchone()[0] == 0:
         return
 
     for old_status, new_status in remap.items():
-        cursor.execute("UPDATE Equipment SET status = ? WHERE status = ?", (new_status, old_status))
+        cursor.execute("UPDATE Equipment SET status = %s WHERE status = %s", (new_status, old_status))
     print("✅ Статусы оборудования перенесены на новый единый словарь")
 
+
 def init_db():
-    db_path = get_db_path()
-    print(f"Создание базы данных: {db_path}")
-    conn = sqlite3.connect(db_path)
+    """Создать схему БД с нуля (для только что созданной, пустой PostgreSQL-базы)."""
+    print("Создание схемы базы данных в PostgreSQL")
+    config = get_db_config()
+    conn = psycopg2.connect(config) if isinstance(config, str) else psycopg2.connect(**config)
     cursor = conn.cursor()
-    
-    # ========== ТАБЛИЦЫ ДЛЯ УЧЕТА КАРТРИДЖЕЙ ==========
+
+    # ========== ОРГАНИЗАЦИИ (создаём раньше остальных — на неё много ссылок) ==========
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS Employees (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, 
-            Department_Fullname TEXT UNIQUE,
-            Organization_id INTEGER,
-            FOREIGN KEY(Organization_id) REFERENCES Organizations(id)
+        CREATE TABLE IF NOT EXISTS Organizations (
+            id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            name TEXT NOT NULL,
+            address TEXT
         )
     """)
-    
-    cursor.execute("PRAGMA table_info(Employees)")
-    columns = [col[1] for col in cursor.fetchall()]
-    if 'department_id' not in columns:
-        cursor.execute("ALTER TABLE Employees ADD COLUMN department_id INTEGER")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_employees_department ON Employees(department_id)")
-        print("✅ Добавлено поле department_id в таблицу Employees")
-    
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS OrganizationAddresses (
+            id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            organization_id INTEGER NOT NULL,
+            address TEXT NOT NULL
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_org_addresses_org ON OrganizationAddresses(organization_id)")
+
+    # ========== ПОЛЬЗОВАТЕЛИ ==========
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS Users (
+            id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            username TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            full_name TEXT,
+            role TEXT DEFAULT 'user',
+            organization_id INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_login TIMESTAMP,
+            is_active INTEGER DEFAULT 1,
+            can_delete_history INTEGER DEFAULT 0
+        )
+    """)
+
+    # ========== ОТДЕЛЫ / КАБИНЕТЫ / СОТРУДНИКИ ==========
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS Departments (
+            id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            name TEXT NOT NULL,
+            office TEXT,
+            organization_id INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            address_id INTEGER
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS DepartmentOffices (
+            id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            department_id INTEGER NOT NULL,
+            office TEXT NOT NULL
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_department_offices_dept ON DepartmentOffices(department_id)")
+
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS Rooms (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
             Number TEXT UNIQUE,
-            department_id INTEGER,
-            FOREIGN KEY(department_id) REFERENCES Departments(id) ON DELETE SET NULL
+            department_id INTEGER
         )
     """)
-        
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS Employees (
+            id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            Department_Fullname TEXT UNIQUE,
+            Organization_id INTEGER,
+            department_id INTEGER
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_employees_department ON Employees(department_id)")
+
+    # ========== КАРТРИДЖИ ==========
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS Postavki (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, 
+            id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
             Date_of_purchase DATE
         )
     """)
-    
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS MFU (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
             Name_MFU TEXT UNIQUE,
             Status TEXT
         )
     """)
-    
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS CartridgeModels (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
             ModelName TEXT UNIQUE,
             Ip TEXT UNIQUE
         )
     """)
-    
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS Catrigs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
             Serial_number TEXT,
             Model TEXT,
             Responsible INTEGER,
@@ -216,30 +335,18 @@ def init_db():
             Ip TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             created_by INTEGER,
-            FOREIGN KEY(Responsible) REFERENCES Employees(id),
-            FOREIGN KEY(Room_id) REFERENCES Rooms(id),
-            FOREIGN KEY(Purchase) REFERENCES Postavki(id),
-            FOREIGN KEY(equipment_id) REFERENCES Equipment(id),
-            FOREIGN KEY(created_by) REFERENCES Users(id)
+            organization_id INTEGER,
+            address_id INTEGER
         )
     """)
-    
-    cursor.execute("PRAGMA table_info(Catrigs)")
-    columns = [col[1] for col in cursor.fetchall()]
-    if 'equipment_id' not in columns:
-        cursor.execute("ALTER TABLE Catrigs ADD COLUMN equipment_id INTEGER")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_catrigs_equipment ON Catrigs(equipment_id)")
-        print("✅ Добавлено поле equipment_id в таблицу Catrigs")
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_catrigs_serial ON Catrigs(Serial_number)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_catrigs_status ON Catrigs(Status)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_catrigs_ip ON Catrigs(Ip)')
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_catrigs_created ON Catrigs(created_at)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_catrigs_created_by ON Catrigs(created_by)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_catrigs_equipment ON Catrigs(equipment_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_catrigs_organization ON Catrigs(organization_id)")
 
-    cursor.execute("PRAGMA table_info(Catrigs)")
-    columns = [col[1] for col in cursor.fetchall()]
-    if 'Ip' not in columns:
-        cursor.execute("ALTER TABLE Catrigs ADD COLUMN Ip TEXT")
-    if 'created_at' not in columns:
-        cursor.execute("ALTER TABLE Catrigs ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
-    if 'created_by' not in columns:
-        cursor.execute("ALTER TABLE Catrigs ADD COLUMN created_by INTEGER")
-    
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS Analytics (
             Cartridge TEXT NOT NULL,
@@ -248,264 +355,99 @@ def init_db():
             OnBalance INTEGER DEFAULT 0,
             ToBuy INTEGER DEFAULT 0,
             organization_id INTEGER,
-            PRIMARY KEY (Cartridge, organization_id)
+            address_id INTEGER
         )
     """)
-    
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_analytics_organization ON Analytics(organization_id)")
+    cursor.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_analytics_unique ON Analytics(Cartridge, organization_id)"
+    )
+
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS Compatibility (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
             cartridge_model TEXT,
             mfu_model TEXT,
-            FOREIGN KEY(cartridge_model) REFERENCES CartridgeModels(ModelName),
-            FOREIGN KEY(mfu_model) REFERENCES MFU(Name_MFU),
+            organization_id INTEGER,
             UNIQUE(cartridge_model, mfu_model)
         )
     """)
 
+    # ========== ОБОРУДОВАНИЕ ==========
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS Departments (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            office TEXT,
+        CREATE TABLE IF NOT EXISTS Equipment (
+            id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            type TEXT NOT NULL,
+            mol_employee INTEGER,
+            brand TEXT,
+            model TEXT,
+            serial_number TEXT,
+            inventory_number TEXT,
+            processor TEXT,
+            ram INTEGER,
+            ram_type TEXT,
+            storage TEXT,
+            os TEXT,
+            os_key TEXT,
+            monitor_size INTEGER,
+            resolution TEXT,
+            refresh_rate INTEGER,
+            panel_type TEXT,
+            response_time INTEGER,
+            viewing_angle TEXT,
+            ports TEXT,
+            port_count INTEGER,
+            speed TEXT,
+            network_type TEXT,
+            poe TEXT,
+            managed TEXT,
+            ip_address TEXT,
+            print_type TEXT,
+            print_format TEXT,
+            print_speed INTEGER,
+            color_type TEXT,
+            duplex TEXT,
+            printer_ports TEXT,
+            scanner_resolution TEXT,
+            scanner_speed TEXT,
+            duplex_scanner TEXT,
+            scan_format TEXT,
+            phone_number TEXT,
+            phone_ip TEXT,
+            sip_account TEXT,
+            lines INTEGER,
+            phone_poe TEXT,
+            ups_power TEXT,
+            ups_type TEXT,
+            ups_outlets INTEGER,
+            ups_usb TEXT,
+            ups_runtime INTEGER,
+            connection_type TEXT,
+            color TEXT,
+            is_set INTEGER DEFAULT 0,
+            set_type TEXT,
+            responsible_employee INTEGER,
+            room_id INTEGER,
             organization_id INTEGER,
+            status TEXT DEFAULT 'Установлено',
+            purchase_date DATE,
+            warranty_until DATE,
+            price DECIMAL(10,2),
+            supplier TEXT,
+            notes TEXT,
+            parent_equipment_id INTEGER,
+            network_name TEXT,
+            manufacture_year INTEGER,
+            photo TEXT,
+            cable_type TEXT,
+            characteristics TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY(organization_id) REFERENCES Organizations(id)
+            created_by INTEGER,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_by INTEGER,
+            address_id INTEGER
         )
     """)
-
-    cursor.execute("PRAGMA table_info(Analytics)")
-    columns = [col[1] for col in cursor.fetchall()]
-    if 'organization_id' not in columns:
-        cursor.execute("ALTER TABLE Analytics ADD COLUMN organization_id INTEGER")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_analytics_organization ON Analytics(organization_id)")
-        print("✅ Добавлена колонка organization_id в таблицу Analytics")
-
-    _migrate_analytics_pk(cursor)
-
-    cursor.execute("PRAGMA table_info(Departments)")
-    cols = [c[1] for c in cursor.fetchall()]
-    if 'office' not in cols:
-        cursor.execute("ALTER TABLE Departments ADD COLUMN office TEXT")
-
-    # ========== ТАБЛИЦА ДЛЯ УЧЕТА ОБОРУДОВАНИЯ ==========
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='Equipment'")
-    table_exists = cursor.fetchone()
-    
-    if not table_exists:
-        cursor.execute("""
-            CREATE TABLE Equipment (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                type TEXT NOT NULL,
-                mol_employee INTEGER,
-                brand TEXT,
-                model TEXT,
-                serial_number TEXT,
-                inventory_number TEXT,
-                processor TEXT,
-                ram INTEGER,
-                ram_type TEXT,
-                storage TEXT,
-                os TEXT,
-                os_key TEXT,
-                monitor_size INTEGER,
-                resolution TEXT,
-                refresh_rate INTEGER,
-                panel_type TEXT,
-                response_time INTEGER,
-                viewing_angle TEXT,
-                ports TEXT,
-                port_count INTEGER,
-                speed TEXT,
-                network_type TEXT,
-                poe TEXT,
-                managed TEXT,
-                ip_address TEXT,
-                print_type TEXT,
-                print_format TEXT,
-                print_speed INTEGER,
-                color_type TEXT,
-                duplex TEXT,
-                printer_ports TEXT,
-                scanner_resolution TEXT,
-                scanner_speed TEXT,
-                duplex_scanner TEXT,
-                scan_format TEXT,          -- <-- ДОБАВЛЕНА
-                phone_number TEXT,
-                phone_ip TEXT,
-                sip_account TEXT,
-                lines INTEGER,
-                phone_poe TEXT,
-                ups_power TEXT,
-                ups_type TEXT,
-                ups_outlets INTEGER,
-                ups_usb TEXT,
-                ups_runtime INTEGER,
-                connection_type TEXT,
-                color TEXT,
-                is_set INTEGER DEFAULT 0,
-                set_type TEXT,
-                responsible_employee INTEGER,
-                room_id INTEGER,
-                organization_id INTEGER,
-                status TEXT DEFAULT 'В работе',
-                purchase_date DATE,
-                warranty_until DATE,
-                price DECIMAL(10,2),
-                supplier TEXT,
-                notes TEXT,
-                parent_equipment_id INTEGER,   -- на каком компьютере установлено (Мониторы/Периферия/Комплектующие)
-                network_name TEXT,             -- Сетевое имя
-                manufacture_year INTEGER,      -- Год производства
-                photo TEXT,                    -- путь к файлу фото под static/uploads/equipment/
-                cable_type TEXT,               -- тип разъёма (только для type='Кабель')
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                created_by INTEGER,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_by INTEGER,
-                FOREIGN KEY(responsible_employee) REFERENCES Employees(id),
-                FOREIGN KEY(mol_employee) REFERENCES Employees(id),
-                FOREIGN KEY(room_id) REFERENCES Rooms(id),
-                FOREIGN KEY(organization_id) REFERENCES Organizations(id),
-                FOREIGN KEY(created_by) REFERENCES Users(id),
-                FOREIGN KEY(updated_by) REFERENCES Users(id)
-            )
-        """)
-        print("✅ Таблица Equipment создана")
-    else:
-        # Обновляем существующую таблицу – добавляем недостающие колонки
-        cursor.execute("PRAGMA table_info(Equipment)")
-        existing_columns = [col[1] for col in cursor.fetchall()]
-        
-        new_columns = {
-            'ram_type': 'TEXT',
-            'refresh_rate': 'INTEGER',
-            'panel_type': 'TEXT',
-            'response_time': 'INTEGER',
-            'viewing_angle': 'TEXT',
-            'ports': 'TEXT',
-            'network_type': 'TEXT',
-            'poe': 'TEXT',
-            'managed': 'TEXT',
-            'ip_address': 'TEXT',
-            'print_type': 'TEXT',
-            'print_format': 'TEXT',
-            'print_speed': 'INTEGER',
-            'color_type': 'TEXT',
-            'duplex': 'TEXT',
-            'duplex_scanner': 'TEXT',
-            'scan_format': 'TEXT',      # <-- ДОБАВЛЕНА
-            'printer_ports': 'TEXT',
-            'scanner_resolution': 'TEXT',
-            'scanner_speed': 'TEXT',
-            'phone_number': 'TEXT',
-            'phone_ip': 'TEXT',
-            'sip_account': 'TEXT',
-            'lines': 'INTEGER',
-            'phone_poe': 'TEXT',
-            'ups_power': 'TEXT',
-            'ups_type': 'TEXT',
-            'ups_outlets': 'INTEGER',
-            'ups_usb': 'TEXT',
-            'ups_runtime': 'INTEGER',
-            'connection_type': 'TEXT',
-            'color': 'TEXT',
-        }
-        
-        for col_name, col_type in new_columns.items():
-            if col_name not in existing_columns:
-                try:
-                    cursor.execute(f"ALTER TABLE Equipment ADD COLUMN {col_name} {col_type}")
-                    print(f"✅ Добавлена колонка {col_name} в таблицу Equipment")
-                except Exception as e:
-                    print(f"⚠️ Ошибка добавления {col_name}: {e}")
-    
-    # ========== ТАБЛИЦЫ ДЛЯ УЧЕТА ЛИЦЕНЗИЙ ==========
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS Licenses (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            product_name TEXT NOT NULL,
-            product_key TEXT UNIQUE,
-            expiry_date DATE,
-            email TEXT,
-            company TEXT,
-            quantity INTEGER DEFAULT 0,
-            used INTEGER DEFAULT 0,
-            organization_id INTEGER,
-            status TEXT DEFAULT 'Активна',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP,
-            FOREIGN KEY(organization_id) REFERENCES Organizations(id)
-        )
-    """)
-
-    cursor.execute("PRAGMA table_info(Licenses)")
-    columns = [col[1] for col in cursor.fetchall()]
-    if 'organization_id' not in columns:
-        cursor.execute("ALTER TABLE Licenses ADD COLUMN organization_id INTEGER")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_licenses_organization ON Licenses(organization_id)")
-        print("✅ Добавлена колонка organization_id в таблицу Licenses")
-    # SQLite не позволяет ADD COLUMN с DEFAULT CURRENT_TIMESTAMP — добавляем без значения по умолчанию.
-    if 'created_at' not in columns:
-        cursor.execute("ALTER TABLE Licenses ADD COLUMN created_at TIMESTAMP")
-        print("✅ Добавлена колонка created_at в таблицу Licenses")
-    if 'updated_at' not in columns:
-        cursor.execute("ALTER TABLE Licenses ADD COLUMN updated_at TIMESTAMP")
-        print("✅ Добавлена колонка updated_at в таблицу Licenses")
-    
-    # ========== ТАБЛИЦА ДЛЯ УЧЕТА ОРГАНИЗАЦИЙ ==========
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS Organizations (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            address TEXT
-        )
-    """)
-
-    # database.py – добавьте после создания Organizations
-
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS OrganizationAddresses (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            organization_id INTEGER NOT NULL,
-            address TEXT NOT NULL,
-            FOREIGN KEY(organization_id) REFERENCES Organizations(id) ON DELETE CASCADE
-        )
-    """)
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_org_addresses_org ON OrganizationAddresses(organization_id)")
-        
-    # ========== ТАБЛИЦА ДЛЯ ПОЛЬЗОВАТЕЛЕЙ ==========
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS Users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            full_name TEXT,
-            role TEXT DEFAULT 'user',
-            organization_id INTEGER,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            last_login TIMESTAMP,
-            is_active INTEGER DEFAULT 1,
-            FOREIGN KEY(organization_id) REFERENCES Organizations(id)
-        )
-    """)
-    
-    cursor.execute("PRAGMA table_info(Users)")
-    columns = [col[1] for col in cursor.fetchall()]
-    if 'organization_id' not in columns:
-        cursor.execute("ALTER TABLE Users ADD COLUMN organization_id INTEGER")
-    
-    # ========== ИНДЕКСЫ ==========
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_catrigs_serial ON Catrigs(Serial_number)")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_catrigs_status ON Catrigs(Status)")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_catrigs_ip ON Catrigs(Ip)")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_catrigs_created ON Catrigs(created_at)")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_catrigs_created_by ON Catrigs(created_by)")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_licenses_expiry ON Licenses(expiry_date)")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_organizations_name ON Organizations(name)")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_users_username ON Users(username)")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_users_role ON Users(role)")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_users_organization ON Users(organization_id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_equipment_type ON Equipment(type)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_equipment_serial ON Equipment(serial_number)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_equipment_inventory ON Equipment(inventory_number)")
@@ -514,18 +456,12 @@ def init_db():
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_equipment_responsible ON Equipment(responsible_employee)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_equipment_mol ON Equipment(mol_employee)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_equipment_room ON Equipment(room_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_equipment_parent ON Equipment(parent_equipment_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_equipment_address ON Equipment(address_id)")
 
-    # Создаем администратора по умолчанию
-    default_password = hash_password("admin123")
-    cursor.execute("""
-        INSERT OR IGNORE INTO Users (username, password_hash, full_name, role, is_active)
-        VALUES (?, ?, ?, ?, ?)
-    """, ("admin", default_password, "Главный администратор", "admin", 1))
-    
-    # Таблица для истории перемещений оборудования
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS EquipmentMovements (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
             equipment_id INTEGER NOT NULL,
             from_employee INTEGER,
             to_employee INTEGER,
@@ -537,353 +473,161 @@ def init_db():
             reason TEXT,
             comment TEXT,
             created_by INTEGER,
-            from_mol INTEGER, 
-            to_mol INTEGER,
-            FOREIGN KEY(from_mol) REFERENCES Employees(id), 
-            FOREIGN KEY(to_mol) REFERENCES Employees(id),
-            FOREIGN KEY(equipment_id) REFERENCES Equipment(id) ON DELETE CASCADE,
-            FOREIGN KEY(from_employee) REFERENCES Employees(id),
-            FOREIGN KEY(to_employee) REFERENCES Employees(id),
-            FOREIGN KEY(from_room) REFERENCES Rooms(id),
-            FOREIGN KEY(to_room) REFERENCES Rooms(id),
-            FOREIGN KEY(from_organization) REFERENCES Organizations(id),
-            FOREIGN KEY(to_organization) REFERENCES Organizations(id),
-            FOREIGN KEY(created_by) REFERENCES Users(id)
+            from_mol INTEGER,
+            to_mol INTEGER
         )
-    """)     
-    
+    """)
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_movements_equipment ON EquipmentMovements(equipment_id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_movements_date ON EquipmentMovements(movement_date)")
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS PeripheralTypes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
             name TEXT UNIQUE NOT NULL
         )
     """)
+    for name in ('Мышь', 'Клавиатура', 'ИБП', 'Внешний диск', 'Док-станция',
+                 'Веб-камера', 'Гарнитура', 'Колонки'):
+        cursor.execute("INSERT INTO PeripheralTypes (name) VALUES (%s) ON CONFLICT (name) DO NOTHING", (name,))
 
-    cursor.execute("INSERT OR IGNORE INTO PeripheralTypes (name) VALUES ('Мышь')")
-    cursor.execute("INSERT OR IGNORE INTO PeripheralTypes (name) VALUES ('Клавиатура')")
-    cursor.execute("INSERT OR IGNORE INTO PeripheralTypes (name) VALUES ('ИБП')")
-    cursor.execute("INSERT OR IGNORE INTO PeripheralTypes (name) VALUES ('Внешний диск')")
-    cursor.execute("INSERT OR IGNORE INTO PeripheralTypes (name) VALUES ('Док-станция')")
-    cursor.execute("INSERT OR IGNORE INTO PeripheralTypes (name) VALUES ('Веб-камера')")
-    cursor.execute("INSERT OR IGNORE INTO PeripheralTypes (name) VALUES ('Гарнитура')")
-    cursor.execute("INSERT OR IGNORE INTO PeripheralTypes (name) VALUES ('Колонки')")
-
-    cursor.execute("PRAGMA table_info(Users)")
-    columns = [col[1] for col in cursor.fetchall()]
-    if 'can_delete_history' not in columns:
-        cursor.execute("ALTER TABLE Users ADD COLUMN can_delete_history INTEGER DEFAULT 0")
-        print("✅ Добавлена колонка can_delete_history в таблицу Users")
-
-    # Добавляем недостающие колонки в Equipment (если были пропущены)
-    cursor.execute("PRAGMA table_info(Equipment)")
-    existing_columns = [col[1] for col in cursor.fetchall()]
-    extra_columns = {
-        'ram_type': 'TEXT',
-        'refresh_rate': 'INTEGER',
-        'panel_type': 'TEXT',
-        'response_time': 'INTEGER',
-        'ports': 'TEXT',
-        'network_type': 'TEXT',
-        'poe': 'TEXT',
-        'managed': 'TEXT',
-        'ip_address': 'TEXT',
-        'print_type': 'TEXT',
-        'print_format': 'TEXT',
-        'print_speed': 'INTEGER',
-        'color_type': 'TEXT',
-        'duplex': 'TEXT',
-        'printer_ports': 'TEXT',
-        'scanner_resolution': 'TEXT',
-        'scanner_speed': 'TEXT',
-        'duplex_scanner': 'TEXT',
-        'scan_format': 'TEXT',     # <-- добавлено
-        'phone_number': 'TEXT',
-        'phone_ip': 'TEXT',
-        'sip_account': 'TEXT',
-        'lines': 'INTEGER',
-        'phone_poe': 'TEXT',
-        'ups_power': 'TEXT',
-        'ups_type': 'TEXT',
-        'ups_outlets': 'INTEGER',
-        'ups_usb': 'TEXT',
-        'ups_runtime': 'INTEGER',
-        'connection_type': 'TEXT',
-        'color': 'TEXT',
-        'viewing_angle': 'TEXT'
-    }
-    
-    for col_name, col_type in extra_columns.items():
-        if col_name not in existing_columns:
-            try:
-                cursor.execute(f"ALTER TABLE Equipment ADD COLUMN {col_name} {col_type}")
-                print(f"✅ Добавлена колонка {col_name} в таблицу Equipment")
-            except Exception as e:
-                print(f"⚠️ Ошибка добавления {col_name}: {e}")
-
-    # Разделение "Учёт оборудования" на Компьютеры/Мониторы/МФУ/Периферию/Комплектующие:
-    # привязка к компьютеру, новые поля компьютеров и фото.
-    cursor.execute("PRAGMA table_info(Equipment)")
-    equipment_columns = [col[1] for col in cursor.fetchall()]
-    category_split_columns = {
-        'parent_equipment_id': 'INTEGER',
-        'network_name': 'TEXT',
-        'manufacture_year': 'INTEGER',
-        'photo': 'TEXT',
-        'cable_type': 'TEXT',
-    }
-    for col_name, col_type in category_split_columns.items():
-        if col_name not in equipment_columns:
-            try:
-                cursor.execute(f"ALTER TABLE Equipment ADD COLUMN {col_name} {col_type}")
-                print(f"✅ Добавлена колонка {col_name} в таблицу Equipment")
-            except Exception as e:
-                print(f"⚠️ Ошибка добавления {col_name}: {e}")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_equipment_parent ON Equipment(parent_equipment_id)")
-
-    _migrate_equipment_status_vocabulary(cursor)
-
-    cursor.execute("PRAGMA table_info(Catrigs)")
-    columns = [col[1] for col in cursor.fetchall()]
-    if 'equipment_id' not in columns:
-        cursor.execute("ALTER TABLE Catrigs ADD COLUMN equipment_id INTEGER")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_catrigs_equipment ON Catrigs(equipment_id)")
-        print("✅ Добавлено поле equipment_id в таблицу Catrigs")
-        
-        cursor.execute("""
-            UPDATE Catrigs 
-            SET equipment_id = (
-                SELECT Equipment.id FROM Equipment 
-                WHERE Equipment.type IN ('МФУ', 'Принтер')
-                AND Equipment.brand || ' ' || Equipment.model = (
-                    SELECT MFU.Name_MFU FROM MFU WHERE MFU.id = Catrigs.MFU_id
-                )
-                LIMIT 1
-            )
-            WHERE MFU_id IS NOT NULL AND equipment_id IS NULL
-        """)
-        print(f"✅ Мигрировано {cursor.rowcount} картриджей на связь с Equipment")
-
-    # В init_db() и upgrade_db() добавить:
-    cursor.execute("PRAGMA table_info(Equipment)")
-    columns = [col[1] for col in cursor.fetchall()]
-    if 'characteristics' not in columns:
-        cursor.execute("ALTER TABLE Equipment ADD COLUMN characteristics TEXT")
-        print("✅ Добавлена колонка characteristics в Equipment")
-
-    # Добавляем колонку status в Licenses, если её нет
-    cursor.execute("PRAGMA table_info(Licenses)")
-    columns = [col[1] for col in cursor.fetchall()]
-    if 'status' not in columns:
-        cursor.execute("ALTER TABLE Licenses ADD COLUMN status TEXT DEFAULT 'Активна'")
-        print("✅ Добавлена колонка status в таблицу Licenses")
-
-    cursor.execute("PRAGMA table_info(Rooms)")
-    columns = [col[1] for col in cursor.fetchall()]
-    if 'department_id' not in columns:
-        cursor.execute("ALTER TABLE Rooms ADD COLUMN department_id INTEGER")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_rooms_department ON Rooms(department_id)")
-        print("✅ Добавлено поле department_id в таблицу Rooms")
-
-    # Колонка address_id в таблицах, привязанных к адресам организаций.
-    # SQLite не поддерживает ALTER TABLE ... ADD FOREIGN KEY, поэтому добавляем
-    # только саму колонку и индекс. Каждую таблицу проверяем по её собственным колонкам.
-    for table, index in (
-        ('Equipment', 'idx_equipment_address'),
-        ('Catrigs', 'idx_catrigs_address'),
-        ('Licenses', 'idx_licenses_address'),
-        ('Analytics', 'idx_analytics_address'),
-        ('Departments', 'idx_departments_address'),
-    ):
-        cursor.execute(f"PRAGMA table_info({table})")
-        table_columns = [col[1] for col in cursor.fetchall()]
-        if 'address_id' not in table_columns:
-            try:
-                cursor.execute(f"ALTER TABLE {table} ADD COLUMN address_id INTEGER")
-                cursor.execute(f"CREATE INDEX IF NOT EXISTS {index} ON {table}(address_id)")
-            except Exception as e:
-                print(f"⚠️ Ошибка добавления address_id в {table}: {e}")
-
+    # ========== ЛИЦЕНЗИИ ==========
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS DepartmentOffices (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            department_id INTEGER NOT NULL,
-            office TEXT NOT NULL,
-            FOREIGN KEY (department_id) REFERENCES Departments(id) ON DELETE CASCADE
+        CREATE TABLE IF NOT EXISTS Licenses (
+            id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            product_name TEXT NOT NULL,
+            product_key TEXT UNIQUE,
+            expiry_date DATE,
+            email TEXT,
+            company TEXT,
+            quantity INTEGER DEFAULT 0,
+            used INTEGER DEFAULT 0,
+            organization_id INTEGER,
+            status TEXT DEFAULT 'Активна',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP,
+            address_id INTEGER
         )
     """)
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_department_offices_dept ON DepartmentOffices(department_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_licenses_expiry ON Licenses(expiry_date)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_licenses_organization ON Licenses(organization_id)")
+
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_organizations_name ON Organizations(name)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_users_username ON Users(username)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_users_role ON Users(role)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_users_organization ON Users(organization_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_rooms_department ON Rooms(department_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_departments_address ON Departments(address_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_analytics_address ON Analytics(address_id)")
+
+    # Администратор по умолчанию
+    default_password = hash_password("admin123")
+    cursor.execute("""
+        INSERT INTO Users (username, password_hash, full_name, role, is_active)
+        VALUES (%s, %s, %s, %s, %s)
+        ON CONFLICT (username) DO NOTHING
+    """, ("admin", default_password, "Главный администратор", "admin", 1))
 
     conn.commit()
+
+    # Оборачиваем в CompatCursor, чтобы переиспользовать общие функции-миграции без дублирования.
+    compat_cursor = conn.cursor(cursor_factory=CompatCursor)
+    _migrate_analytics_pk(compat_cursor)
+    _migrate_equipment_status_vocabulary(compat_cursor)
+    conn.commit()
+
     conn.close()
     print("✅ База данных инициализирована")
 
+
 def upgrade_db():
-    """Обновление схемы базы данных до актуальной версии"""
+    """Догнать схему до актуальной версии на уже существующей PostgreSQL-базе.
+
+    В отличие от SQLite, PostgreSQL сам поддерживает 'ADD COLUMN IF NOT EXISTS' —
+    поэтому не нужен весь тот ручной "проверить PRAGMA, потом ALTER" ритуал,
+    который был в SQLite-версии этого файла; миграция колонок сводится к
+    идемпотентным ALTER TABLE ... ADD COLUMN IF NOT EXISTS.
+    """
     conn = get_db()
     cursor = conn.cursor()
 
-    cursor.execute("PRAGMA table_info(Equipment)")
-    existing_columns = [col[1] for col in cursor.fetchall()]
-
-    new_columns = {
-        'ram_type': 'TEXT',
-        'refresh_rate': 'INTEGER',
-        'panel_type': 'TEXT',
-        'response_time': 'INTEGER',
-        'ports': 'TEXT',
-        'network_type': 'TEXT',
-        'poe': 'TEXT',
-        'managed': 'TEXT',
-        'ip_address': 'TEXT',
-        'print_type': 'TEXT',
-        'print_format': 'TEXT',
-        'print_speed': 'INTEGER',
-        'color_type': 'TEXT',
-        'duplex': 'TEXT',
-        'printer_ports': 'TEXT',
-        'scanner_resolution': 'TEXT',
-        'scanner_speed': 'TEXT',
-        'duplex_scanner': 'TEXT',
-        'scan_format': 'TEXT',      # <-- добавлено
-        'phone_number': 'TEXT',
-        'phone_ip': 'TEXT',
-        'sip_account': 'TEXT',
-        'lines': 'INTEGER',
-        'phone_poe': 'TEXT',
-        'ups_power': 'TEXT',
-        'ups_type': 'TEXT',
-        'ups_outlets': 'INTEGER',
-        'ups_usb': 'TEXT',
-        'ups_runtime': 'INTEGER',
-        'connection_type': 'TEXT',
-        'color': 'TEXT',
-        'viewing_angle': 'TEXT'
+    equipment_columns = {
+        'ram_type': 'TEXT', 'refresh_rate': 'INTEGER', 'panel_type': 'TEXT',
+        'response_time': 'INTEGER', 'viewing_angle': 'TEXT', 'ports': 'TEXT',
+        'network_type': 'TEXT', 'poe': 'TEXT', 'managed': 'TEXT', 'ip_address': 'TEXT',
+        'print_type': 'TEXT', 'print_format': 'TEXT', 'print_speed': 'INTEGER',
+        'color_type': 'TEXT', 'duplex': 'TEXT', 'printer_ports': 'TEXT',
+        'scanner_resolution': 'TEXT', 'scanner_speed': 'TEXT', 'duplex_scanner': 'TEXT',
+        'scan_format': 'TEXT', 'phone_number': 'TEXT', 'phone_ip': 'TEXT',
+        'sip_account': 'TEXT', 'lines': 'INTEGER', 'phone_poe': 'TEXT',
+        'ups_power': 'TEXT', 'ups_type': 'TEXT', 'ups_outlets': 'INTEGER',
+        'ups_usb': 'TEXT', 'ups_runtime': 'INTEGER', 'connection_type': 'TEXT',
+        'color': 'TEXT', 'characteristics': 'TEXT',
+        'parent_equipment_id': 'INTEGER', 'network_name': 'TEXT',
+        'manufacture_year': 'INTEGER', 'photo': 'TEXT', 'cable_type': 'TEXT',
+        'address_id': 'INTEGER',
     }
-
-    for col_name, col_type in new_columns.items():
-        if col_name not in existing_columns:
-            try:
-                cursor.execute(f"ALTER TABLE Equipment ADD COLUMN {col_name} {col_type}")
-                print(f"✅ Добавлена колонка {col_name} в таблицу Equipment")
-            except Exception as e:
-                print(f"⚠️ Ошибка добавления {col_name}: {e}")
-
-    # Разделение "Учёт оборудования" на Компьютеры/Мониторы/МФУ/Периферию/Комплектующие:
-    # привязка к компьютеру, новые поля компьютеров и фото.
-    cursor.execute("PRAGMA table_info(Equipment)")
-    equipment_columns = [col[1] for col in cursor.fetchall()]
-    category_split_columns = {
-        'parent_equipment_id': 'INTEGER',
-        'network_name': 'TEXT',
-        'manufacture_year': 'INTEGER',
-        'photo': 'TEXT',
-        'cable_type': 'TEXT',
-    }
-    for col_name, col_type in category_split_columns.items():
-        if col_name not in equipment_columns:
-            try:
-                cursor.execute(f"ALTER TABLE Equipment ADD COLUMN {col_name} {col_type}")
-                print(f"✅ Добавлена колонка {col_name} в таблицу Equipment")
-            except Exception as e:
-                print(f"⚠️ Ошибка добавления {col_name}: {e}")
+    for col_name, col_type in equipment_columns.items():
+        cursor.execute(f"ALTER TABLE Equipment ADD COLUMN IF NOT EXISTS {col_name} {col_type}")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_equipment_parent ON Equipment(parent_equipment_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_equipment_address ON Equipment(address_id)")
 
-    try:
-        _migrate_equipment_status_vocabulary(cursor)
-    except Exception as e:
-        print(f"⚠️ Ошибка миграции статусов Equipment: {e}")
+    for col_name, col_type in {
+        'status': "TEXT DEFAULT 'Активна'", 'organization_id': 'INTEGER',
+        'created_at': 'TIMESTAMP', 'updated_at': 'TIMESTAMP', 'address_id': 'INTEGER',
+    }.items():
+        cursor.execute(f"ALTER TABLE Licenses ADD COLUMN IF NOT EXISTS {col_name} {col_type}")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_licenses_organization ON Licenses(organization_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_licenses_address ON Licenses(address_id)")
 
-    cursor.execute("PRAGMA table_info(Licenses)")
-    licenses_cols = [col[1] for col in cursor.fetchall()]
-    if 'status' not in licenses_cols:
-        cursor.execute("ALTER TABLE Licenses ADD COLUMN status TEXT DEFAULT 'Активна'")
-        print("✅ Добавлена колонка status в Licenses")
-    if 'organization_id' not in licenses_cols:
-        cursor.execute("ALTER TABLE Licenses ADD COLUMN organization_id INTEGER")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_licenses_organization ON Licenses(organization_id)")
-        print("✅ Добавлена колонка organization_id в Licenses")
-    if 'created_at' not in licenses_cols:
-        cursor.execute("ALTER TABLE Licenses ADD COLUMN created_at TIMESTAMP")
-        print("✅ Добавлена колонка created_at в Licenses")
-    if 'updated_at' not in licenses_cols:
-        cursor.execute("ALTER TABLE Licenses ADD COLUMN updated_at TIMESTAMP")
-        print("✅ Добавлена колонка updated_at в Licenses")
+    for col_name, col_type in {
+        'organization_id': 'INTEGER', 'equipment_id': 'INTEGER', 'address_id': 'INTEGER',
+    }.items():
+        cursor.execute(f'ALTER TABLE Catrigs ADD COLUMN IF NOT EXISTS {col_name} {col_type}')
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_catrigs_organization ON Catrigs(organization_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_catrigs_equipment ON Catrigs(equipment_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_catrigs_address ON Catrigs(address_id)")
 
-    cursor.execute("PRAGMA table_info(Catrigs)")
-    catrigs_cols = [col[1] for col in cursor.fetchall()]
-    if 'organization_id' not in catrigs_cols:
-        try:
-            cursor.execute("ALTER TABLE Catrigs ADD COLUMN organization_id INTEGER")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_catrigs_organization ON Catrigs(organization_id)")
-            print("✅ Добавлена колонка organization_id в Catrigs")
-        except Exception as e:
-            print(f"⚠️ Ошибка добавления organization_id в Catrigs: {e}")
+    cursor.execute("ALTER TABLE Analytics ADD COLUMN IF NOT EXISTS organization_id INTEGER")
+    cursor.execute("ALTER TABLE Analytics ADD COLUMN IF NOT EXISTS address_id INTEGER")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_analytics_organization ON Analytics(organization_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_analytics_address ON Analytics(address_id)")
 
-    cursor.execute("PRAGMA table_info(Analytics)")
-    analytics_cols = [col[1] for col in cursor.fetchall()]
-    if 'organization_id' not in analytics_cols:
-        try:
-            cursor.execute("ALTER TABLE Analytics ADD COLUMN organization_id INTEGER")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_analytics_organization ON Analytics(organization_id)")
-            print("✅ Добавлена колонка organization_id в Analytics")
-        except Exception as e:
-            print(f"⚠️ Ошибка добавления organization_id в Analytics: {e}")
+    cursor.execute("ALTER TABLE Compatibility ADD COLUMN IF NOT EXISTS organization_id INTEGER")
+
+    cursor.execute("ALTER TABLE Departments ADD COLUMN IF NOT EXISTS office TEXT")
+    cursor.execute("ALTER TABLE Departments ADD COLUMN IF NOT EXISTS address_id INTEGER")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_departments_address ON Departments(address_id)")
+
+    cursor.execute("ALTER TABLE Rooms ADD COLUMN IF NOT EXISTS department_id INTEGER")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_rooms_department ON Rooms(department_id)")
+
+    cursor.execute("ALTER TABLE Employees ADD COLUMN IF NOT EXISTS department_id INTEGER")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_employees_department ON Employees(department_id)")
+
+    cursor.execute("ALTER TABLE Users ADD COLUMN IF NOT EXISTS can_delete_history INTEGER DEFAULT 0")
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS DepartmentOffices (
+            id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            department_id INTEGER NOT NULL,
+            office TEXT NOT NULL
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_department_offices_dept ON DepartmentOffices(department_id)")
 
     try:
         _migrate_analytics_pk(cursor)
     except Exception as e:
         print(f"⚠️ Ошибка миграции ключа Analytics: {e}")
 
-    if 'equipment_id' not in catrigs_cols:
-        try:
-            cursor.execute("ALTER TABLE Catrigs ADD COLUMN equipment_id INTEGER")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_catrigs_equipment ON Catrigs(equipment_id)")
-            print("✅ Добавлена колонка equipment_id в Catrigs")
-        except Exception as e:
-            print(f"⚠️ Ошибка добавления equipment_id в Catrigs: {e}")
-
-    cursor.execute("PRAGMA table_info(Equipment)")
-    columns = [col[1] for col in cursor.fetchall()]
-    if 'characteristics' not in columns:
-        cursor.execute("ALTER TABLE Equipment ADD COLUMN characteristics TEXT")
-        print("✅ Добавлена колонка characteristics в Equipment")
-
-    # Колонка address_id. SQLite не поддерживает ALTER TABLE ... ADD FOREIGN KEY,
-    # поэтому добавляем только колонку и индекс, проверяя каждую таблицу отдельно.
-    for table, index in (
-        ('Equipment', 'idx_equipment_address'),
-        ('Catrigs', 'idx_catrigs_address'),
-        ('Licenses', 'idx_licenses_address'),
-        ('Analytics', 'idx_analytics_address'),
-        ('Departments', 'idx_departments_address'),
-    ):
-        cursor.execute(f"PRAGMA table_info({table})")
-        table_columns = [col[1] for col in cursor.fetchall()]
-        if 'address_id' not in table_columns:
-            try:
-                cursor.execute(f"ALTER TABLE {table} ADD COLUMN address_id INTEGER")
-                cursor.execute(f"CREATE INDEX IF NOT EXISTS {index} ON {table}(address_id)")
-            except Exception as e:
-                print(f"⚠️ Ошибка добавления address_id в {table}: {e}")
-
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='DepartmentOffices'")
-    if not cursor.fetchone():
-        cursor.execute("""
-            CREATE TABLE DepartmentOffices (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                department_id INTEGER NOT NULL,
-                office TEXT NOT NULL,
-                FOREIGN KEY (department_id) REFERENCES Departments(id) ON DELETE CASCADE
-            )
-        """)
-        cursor.execute("CREATE INDEX idx_department_offices_dept ON DepartmentOffices(department_id)")
-        print("✅ Создана таблица DepartmentOffices")
+    try:
+        _migrate_equipment_status_vocabulary(cursor)
+    except Exception as e:
+        print(f"⚠️ Ошибка миграции статусов Equipment: {e}")
 
     conn.commit()
     conn.close()
+
 
 if __name__ == "__main__":
     init_db()
