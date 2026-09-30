@@ -1,5 +1,5 @@
 Flask==2.3.3
 waitress==3.0.2
-pandas==3.0.3
+pandas>=2.0,<3.0
 openpyxl==3.1.5
 psycopg2-binary==2.9.13

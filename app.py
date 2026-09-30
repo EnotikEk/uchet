@@ -2633,33 +2633,33 @@ def api_get_departments():
     if org_id:
         cursor.execute("""
             SELECT d.id, d.name, d.organization_id, o.name as organization_name,
-                   GROUP_CONCAT(do.office, '||') as offices_str
+                   STRING_AGG(doff.office, '||') as offices_str
             FROM Departments d
             LEFT JOIN Organizations o ON d.organization_id = o.id
-            LEFT JOIN DepartmentOffices do ON d.id = do.department_id
+            LEFT JOIN DepartmentOffices doff ON d.id = doff.department_id
             WHERE d.organization_id = ?
-            GROUP BY d.id
+            GROUP BY d.id, o.name
             ORDER BY d.name
         """, (org_id,))
     elif is_admin:
         cursor.execute("""
             SELECT d.id, d.name, d.organization_id, o.name as organization_name,
-                   GROUP_CONCAT(do.office, '||') as offices_str
+                   STRING_AGG(doff.office, '||') as offices_str
             FROM Departments d
             LEFT JOIN Organizations o ON d.organization_id = o.id
-            LEFT JOIN DepartmentOffices do ON d.id = do.department_id
-            GROUP BY d.id
+            LEFT JOIN DepartmentOffices doff ON d.id = doff.department_id
+            GROUP BY d.id, o.name
             ORDER BY d.name
         """)
     else:
         cursor.execute("""
             SELECT d.id, d.name, d.organization_id, o.name as organization_name,
-                   GROUP_CONCAT(do.office, '||') as offices_str
+                   STRING_AGG(doff.office, '||') as offices_str
             FROM Departments d
             LEFT JOIN Organizations o ON d.organization_id = o.id
-            LEFT JOIN DepartmentOffices do ON d.id = do.department_id
+            LEFT JOIN DepartmentOffices doff ON d.id = doff.department_id
             WHERE d.organization_id IS NULL
-            GROUP BY d.id
+            GROUP BY d.id, o.name
             ORDER BY d.name
         """)
     
@@ -4331,8 +4331,8 @@ def get_cartridges():
             
             cartridges.append({
                 'id': row['id'],
-                'serial_number': row['Serial_number'] or '',
-                'model': row['Model'] or '',
+                'serial_number': row['serial_number'] or '',
+                'model': row['model'] or '',
                 'responsible': row['responsible'] or '',
                 'room': row['room'] or '',
                 'status': row['status'] or '—',
@@ -4349,8 +4349,8 @@ def get_cartridges():
             created_by = row['created_by_username'] or row['created_by_fullname'] or ''
             cartridges.append({
                 'id': row['id'],
-                'serial_number': row['Serial_number'] or '',
-                'model': row['Model'] or '',
+                'serial_number': row['serial_number'] or '',
+                'model': row['model'] or '',
                 'responsible': row['responsible'] or '',
                 'room': row['room'] or '',
                 'status': row['status'] or '—',
@@ -4511,14 +4511,14 @@ def search_cartridges_by_ip():
             
             cartridges.append({
                 'id': row['id'],
-                'serial_number': row['Serial_number'] or '',
+                'serial_number': row['serial_number'] or '',
                 'responsible': row['responsible'] or '',
                 'room': row['room'] or '',
-                'status': row['Status'] or '',
+                'status': row['status'] or '',
                 'mfu_status': mfu_status or '',
                 'mfu_name': mfu_name or '',
-                'issued': row['Issued'] or '',
-                'ip': row['Ip'] or '',
+                'issued': row['issued'] or '',
+                'ip': row['ip'] or '',
                 'created_at': row['created_at'],
                 'created_by': row['created_by_username'] or row['created_by_fullname'] or None,
                 'organization_id': row['organization_id'] if 'organization_id' in row.keys() else None
@@ -4526,14 +4526,14 @@ def search_cartridges_by_ip():
         else:
             cartridges.append({
                 'id': row['id'],
-                'serial_number': row['Serial_number'] or '',
+                'serial_number': row['serial_number'] or '',
                 'responsible': row['responsible'] or '',
                 'room': row['room'] or '',
-                'status': row['Status'] or '',
+                'status': row['status'] or '',
                 'mfu_status': '',
                 'mfu_name': '',
-                'issued': row['Issued'] or '',
-                'ip': row['Ip'] or '',
+                'issued': row['issued'] or '',
+                'ip': row['ip'] or '',
                 'created_at': row['created_at'],
                 'created_by': row['created_by_username'] or row['created_by_fullname'] or None,
                 'organization_id': row['organization_id'] if 'organization_id' in row.keys() else None
