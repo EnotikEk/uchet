@@ -402,7 +402,7 @@ def index():
                    L.id
             FROM Licenses L
             WHERE COALESCE(L.updated_at, L.created_at) IS NOT NULL {cond_l}
-        )
+        ) AS recent
         ORDER BY ts DESC, rid DESC
         LIMIT 8
     """

@@ -14,6 +14,33 @@ for _stream in (sys.stdout, sys.stderr):
         pass
 
 
+def _load_env_file():
+    """Подхватить переменные из .env рядом с этим файлом (DATABASE_URL,
+    SECRET_KEY и т.п.), чтобы приложение подключалось к БД при любом способе
+    запуска — systemd, gunicorn вручную, python app.py — без export.
+    Уже заданные в окружении переменные имеют приоритет и не перезаписываются."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
+    try:
+        with open(path, encoding='utf-8') as f:
+            lines = f.readlines()
+    except OSError:
+        return
+    for line in lines:
+        line = line.strip()
+        if not line or line.startswith('#') or '=' not in line:
+            continue
+        if line.startswith('export '):
+            line = line[len('export '):].strip()
+        key, value = line.split('=', 1)
+        key, value = key.strip(), value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in ('"', "'"):
+            value = value[1:-1]
+        os.environ.setdefault(key, value)
+
+
+_load_env_file()
+
+
 def get_db_config():
     """Параметры подключения к PostgreSQL.
 
