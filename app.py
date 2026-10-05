@@ -2806,6 +2806,163 @@ def api_get_departments_list():
     conn.close()
     return jsonify(departments)
 
+# ========== ИМПОРТ СОТРУДНИКОВ И ОТДЕЛОВ ИЗ EXCEL ==========
+# Допустимые названия колонок (сравниваются без учёта регистра и пробелов по краям).
+STAFF_IMPORT_COLUMNS = {
+    'name': ['фио', 'сотрудник', 'ф.и.о.', 'ф.и.о'],
+    'department': ['отдел', 'подразделение'],
+    'office': ['кабинет', 'кабинеты'],
+}
+
+
+def _staff_import_cell(row, column):
+    if not column:
+        return ''
+    value = row[column]
+    if pd.isna(value):
+        return ''
+    if isinstance(value, float) and value.is_integer():
+        value = int(value)  # номер кабинета 101 приходит из Excel как 101.0
+    return ' '.join(str(value).split())
+
+
+@app.route('/api/organizations/import-staff/template', methods=['GET'])
+@login_required
+def staff_import_template():
+    df = pd.DataFrame([
+        {'ФИО': 'Иванов Иван Иванович', 'Отдел': 'Бухгалтерия', 'Кабинет': '101'},
+        {'ФИО': 'Петрова Анна Сергеевна', 'Отдел': 'Бухгалтерия', 'Кабинет': '101'},
+        {'ФИО': '', 'Отдел': 'Отдел кадров', 'Кабинет': '205'},
+    ])
+    output = BytesIO()
+    df.to_excel(output, index=False)
+    output.seek(0)
+    return send_file(output, as_attachment=True, download_name='шаблон_сотрудники_отделы.xlsx',
+                     mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+
+@app.route('/api/organizations/import-staff', methods=['POST'])
+@login_required
+def import_staff_excel():
+    """Импорт отделов и сотрудников из Excel (колонки ФИО / Отдел / Кабинет).
+
+    Отделы ищутся по названию внутри выбранной организации и создаются, если их нет;
+    кабинеты добавляются к отделу, если ещё не привязаны. Сотрудник, которого ещё
+    нет, создаётся; уже существующий в этой же организации — получает отдел из файла.
+    Сотрудник с таким ФИО в другой организации пропускается (ФИО уникально в базе).
+    """
+    file = request.files.get('file')
+    if not file or file.filename == '':
+        return jsonify({'success': False, 'error': 'Файл не выбран'}), 400
+    if not file.filename.lower().endswith(('.xlsx', '.xls')):
+        return jsonify({'success': False, 'error': 'Поддерживаются только файлы Excel (.xlsx, .xls)'}), 400
+
+    # Обычный пользователь импортирует только в свой филиал, администратор — в выбранный.
+    if session.get('role') == 'admin':
+        org_id = request.form.get('organization_id') or get_organization_for_new_record()
+    else:
+        org_id = get_user_organization_id()
+    org_id = int(org_id) if org_id else None
+
+    try:
+        df = pd.read_excel(file, dtype=object)
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Не удалось прочитать файл: {e}'}), 400
+
+    columns = {}
+    normalized = {str(c).strip().lower(): c for c in df.columns}
+    for key, aliases in STAFF_IMPORT_COLUMNS.items():
+        columns[key] = next((normalized[a] for a in aliases if a in normalized), None)
+    if not columns['name'] and not columns['department']:
+        return jsonify({
+            'success': False,
+            'error': 'В файле нет колонок "ФИО" или "Отдел". Скачайте шаблон и заполните его.'
+        }), 400
+
+    stats = {'departments_added': 0, 'offices_added': 0, 'employees_added': 0,
+             'employees_updated': 0, 'skipped': 0}
+    errors = []
+    org_cond = "organization_id = ?" if org_id else "organization_id IS NULL"
+    org_params = (org_id,) if org_id else ()
+
+    conn = get_db()
+    cursor = conn.cursor()
+    try:
+        dept_cache = {}
+
+        def get_or_create_department(dept_name):
+            key = dept_name.lower()
+            if key in dept_cache:
+                return dept_cache[key]
+            cursor.execute(f"SELECT id FROM Departments WHERE LOWER(TRIM(name)) = ? AND {org_cond} ORDER BY id LIMIT 1",
+                           (key,) + org_params)
+            found = cursor.fetchone()
+            if found:
+                dept_id = found[0]
+            else:
+                cursor.execute("INSERT INTO Departments (name, organization_id) VALUES (?, ?)", (dept_name, org_id))
+                dept_id = cursor.lastrowid
+                stats['departments_added'] += 1
+            dept_cache[key] = dept_id
+            return dept_id
+
+        for idx, row in df.iterrows():
+            line = idx + 2  # +1 за заголовок, +1 за нумерацию Excel с единицы
+            name = _staff_import_cell(row, columns['name'])
+            dept_name = _staff_import_cell(row, columns['department'])
+            offices = [o.strip() for o in _staff_import_cell(row, columns['office']).replace(';', ',').split(',') if o.strip()]
+            if not name and not dept_name:
+                continue
+
+            cursor.execute("SAVEPOINT staff_row")
+            try:
+                dept_id = get_or_create_department(dept_name) if dept_name else None
+
+                if dept_id:
+                    for office in offices:
+                        cursor.execute("SELECT 1 FROM DepartmentOffices WHERE department_id = ? AND office = ?",
+                                       (dept_id, office))
+                        if not cursor.fetchone():
+                            cursor.execute("INSERT INTO DepartmentOffices (department_id, office) VALUES (?, ?)",
+                                           (dept_id, office))
+                            stats['offices_added'] += 1
+
+                if name:
+                    cursor.execute("SELECT id, Organization_id, department_id FROM Employees WHERE Department_Fullname = ?",
+                                   (name,))
+                    existing = cursor.fetchone()
+                    if not existing:
+                        cursor.execute("INSERT INTO Employees (Department_Fullname, Organization_id, department_id) VALUES (?, ?, ?)",
+                                       (name, org_id, dept_id))
+                        stats['employees_added'] += 1
+                    elif existing[1] != org_id:
+                        errors.append(f'Строка {line}: сотрудник "{name}" уже есть в другой организации')
+                        stats['skipped'] += 1
+                    elif dept_id and existing[2] != dept_id:
+                        cursor.execute("UPDATE Employees SET department_id = ? WHERE id = ?", (dept_id, existing[0]))
+                        stats['employees_updated'] += 1
+
+                cursor.execute("RELEASE SAVEPOINT staff_row")
+            except Exception as e:
+                cursor.execute("ROLLBACK TO SAVEPOINT staff_row")
+                dept_cache.clear()  # созданный в откаченной строке отдел мог исчезнуть
+                errors.append(f'Строка {line}: {e}')
+                stats['skipped'] += 1
+
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        app.logger.error("Ошибка импорта сотрудников/отделов: %s", e)
+        return jsonify({'success': False, 'error': str(e)}), 400
+    finally:
+        conn.close()
+
+    message = (f"✅ Отделов добавлено: {stats['departments_added']}, кабинетов: {stats['offices_added']}<br>"
+               f"Сотрудников добавлено: {stats['employees_added']}, обновлено: {stats['employees_updated']}")
+    if stats['skipped']:
+        message += f"<br>Пропущено строк: {stats['skipped']}"
+    return jsonify({'success': True, 'message': message, 'errors': errors, **stats})
+
 # ========== УПРАВЛЕНИЕ ПОЛЬЗОВАТЕЛЯМИ ==========
 @app.route('/users')
 @admin_required

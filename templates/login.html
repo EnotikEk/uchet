@@ -56,8 +56,8 @@
         .login-icon {
             width: 70px;
             height: 70px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 50%;
+            background: #fff;
+            border-radius: 18px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -166,13 +166,15 @@
             border-radius: 6px;
         }
     </style>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/apple-touch-icon.png') }}">
 </head>
 <body>
     <div class="login-container">
         <div class="login-card">
             <div class="login-header">
                 <div class="login-icon">
-                    <i class="fas fa-server"></i>
+                    <img src="{{ url_for('static', filename='img/logo-mark.png') }}" alt="IT-Hub" style="width: 80%; height: 80%; object-fit: contain;">
                 </div>
                 <h2>Система учёта IT-ресурсов «IT-Hub»</h2>
             </div>

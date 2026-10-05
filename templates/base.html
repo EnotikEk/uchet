@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/apple-touch-icon.png') }}">
     {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -16,7 +17,7 @@
     <nav class="navbar navbar-dark bg-dark">
         <div class="container-fluid">
             <a class="navbar-brand" href="{{ url_for('index') }}">
-                <i class="fas fa-server"></i> Система учёта IT-ресурсов «IT-Hub»
+                <img src="{{ url_for('static', filename='img/apple-touch-icon.png') }}" alt="IT-Hub" width="30" height="30" class="me-2 align-text-top" style="border-radius: 6px;"> Система учёта IT-ресурсов «IT-Hub»
             </a>
             <div class="d-flex align-items-center">
                 <!-- СЕЛЕКТОР ФИЛИАЛА ДЛЯ АДМИНА -->
@@ -57,7 +58,7 @@
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('index') }}">
-                            <i class="fas fa-home"></i> Главная
+                            <img src="{{ url_for('static', filename='img/logo-mark.png') }}" alt="IT-Hub" class="home-logo"> Главная
                         </a>
                     </li>
                     <li class="nav-item">

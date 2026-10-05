@@ -849,3 +849,13 @@ tr .badge.bg-danger {
     border-color: #4361ee;
     box-shadow: 0 0 0 0.2rem rgba(67, 97, 238, 0.3);
 }
+/* Логотип IT-Hub на ссылках «Главная» / «На главную» */
+.home-logo {
+    width: 1.25em;
+    height: 1.25em;
+    padding: 2px;
+    background: #fff;
+    border-radius: 4px;
+    object-fit: contain;
+    vertical-align: -0.25em;
+}
