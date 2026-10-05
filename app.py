@@ -47,6 +47,18 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here')
 app.config['JSON_AS_ASCII'] = False
 app.config['MAX_CONTENT_LENGTH'] = 8 * 1024 * 1024  # 8MB — с запасом для фото оборудования
+# Перечитывать изменённые шаблоны без перезапуска: иначе каждый из воркеров gunicorn
+# держит в памяти свою копию, и после обновления файлов одни запросы получают новый
+# интерфейс, а другие — старый.
+app.config['TEMPLATES_AUTO_RELOAD'] = True
+
+
+@app.after_request
+def no_cache_html(response):
+    """Не давать браузеру показывать сохранённую копию страницы (в т.ч. по кнопке «Назад»)."""
+    if response.mimetype == 'text/html':
+        response.headers['Cache-Control'] = 'no-store, must-revalidate'
+    return response
 
 STATUS_CART = ["Заправлен", "Пустой", "Заправка", "На складе", "Под списание"]
 STATUS_MFU = ["Работает", "Ремонт"]
