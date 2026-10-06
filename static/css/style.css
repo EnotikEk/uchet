@@ -859,3 +859,26 @@ tr .badge.bg-danger {
     object-fit: contain;
     vertical-align: -0.25em;
 }
+
+/* Компактные карточки-кнопки на главной: ниже по высоте, без потери информации */
+.dashboard-card .card-body {
+    padding: 0.75rem 0.9rem !important;
+}
+.dashboard-card .fa-2x {
+    font-size: 1.5em;
+    margin-bottom: 0.3rem !important;
+}
+.dashboard-card .card-title {
+    margin-bottom: 0.15rem !important;
+}
+.dashboard-card .fs-4 {
+    font-size: 1.3rem !important;
+    line-height: 1.2;
+}
+.dashboard-card .mt-2 {
+    margin-top: 0.35rem !important;
+}
+.dashboard-card .badge {
+    font-size: 0.7rem;
+    padding: 0.25em 0.5em;
+}

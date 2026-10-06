@@ -233,6 +233,8 @@
                 const data = await response.json();
                 
                 if (response.ok && data.success) {
+                    // Отметка «вкладка открыта» — см. static/js/session-guard.js
+                    try { sessionStorage.setItem('uchet_tab_open', '1'); } catch (e) {}
                     showAlert('Вход выполнен!', 'success');
                     setTimeout(() => {
                         window.location.href = '/';
@@ -260,6 +262,19 @@
             }, 3000);
         }
         
+        // Причина, по которой пользователя вернули на страницу входа
+        (function() {
+            const reason = new URLSearchParams(window.location.search).get('reason');
+            const messages = {
+                expired: 'Сеанс завершён из-за бездействия. Войдите заново.',
+                closed: 'Вкладки приложения были закрыты. Войдите заново.'
+            };
+            if (messages[reason]) {
+                $('#alertText').text(messages[reason]);
+                $('#alertMessage').removeClass('alert-danger').addClass('alert-warning').show();
+            }
+        })();
+
         // Enter key submit
         $('#password').on('keypress', function(e) {
             if (e.which === 13) {

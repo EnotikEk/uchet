@@ -53,6 +53,32 @@ app.config['MAX_CONTENT_LENGTH'] = 8 * 1024 * 1024  # 8MB — с запасом 
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 
 
+# Через сколько минут бездействия пользователя выкидывает из учётной записи.
+app.config['SESSION_IDLE_MINUTES'] = int(os.environ.get('SESSION_IDLE_MINUTES', '30'))
+
+
+@app.before_request
+def enforce_session_idle_timeout():
+    """Завершает сессию, если от пользователя не было запросов дольше SESSION_IDLE_MINUTES.
+    Фоновых опросов сервера в приложении нет, поэтому любой запрос — это действие пользователя."""
+    if request.endpoint == 'static' or 'user_id' not in session:
+        return None
+    now = datetime.now().timestamp()
+    last_activity = session.get('last_activity')
+    if last_activity and now - last_activity > app.config['SESSION_IDLE_MINUTES'] * 60:
+        session.clear()
+        if request.path.startswith('/api/'):
+            return jsonify({'error': 'Сессия истекла. Войдите заново.'}), 401
+        return redirect(url_for('login_page', reason='expired'))
+    session['last_activity'] = now
+    return None
+
+
+@app.context_processor
+def inject_session_idle_minutes():
+    return {'session_idle_minutes': app.config['SESSION_IDLE_MINUTES']}
+
+
 @app.after_request
 def no_cache_html(response):
     """Не давать браузеру показывать сохранённую копию страницы (в т.ч. по кнопке «Назад»)."""
