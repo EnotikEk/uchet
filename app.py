@@ -35,6 +35,7 @@ try:
     cursor = conn.cursor()
     if not _table_exists(cursor, 'Users'):
         init_db()
+        upgrade_db()  # init_db создаёт базовую схему, колонки поздних версий добавляет upgrade_db
     else:
         # Обновляем схему для существующей БД
         upgrade_db()
@@ -103,6 +104,51 @@ MFU_TYPES = ['МФУ', 'Принтер']
 
 EQUIPMENT_PHOTO_DIR = os.path.join(app.root_path, 'static', 'uploads', 'equipment')
 EQUIPMENT_PHOTO_EXTENSIONS = {'jpg', 'jpeg', 'png', 'webp'}
+
+# Числовые колонки Equipment, которые приходят из форм. Список оборудования отдаёт
+# пустые значения как '', и форма присылает их обратно; PostgreSQL (в отличие от SQLite)
+# не принимает '' в числовую колонку, поэтому пустое значение сохраняем как NULL.
+EQUIPMENT_NUMERIC_FIELDS = (
+    'ram', 'monitor_size', 'refresh_rate', 'response_time', 'port_count', 'print_speed',
+    'lines', 'ups_outlets', 'ups_runtime', 'manufacture_year', 'price', 'is_set',
+    'parent_equipment_id', 'organization_id', 'address_id',
+)
+
+
+def _equipment_form_data(data):
+    data = dict(data or {})
+    for field in EQUIPMENT_NUMERIC_FIELDS:
+        if field in data and isinstance(data[field], str) and not data[field].strip():
+            data[field] = None
+    return data
+
+
+def _equipment_specs_json(data):
+    """Характеристики по типу без своей колонки (static/js/equipment-specs.js) → JSON
+    для колонки Equipment.specs. Пустые значения не сохраняем."""
+    import json
+    specs = data.get('specs')
+    if not isinstance(specs, dict):
+        return None
+    cleaned = {}
+    for key, value in specs.items():
+        if isinstance(value, str):
+            value = value.strip()
+        if value in (None, '', [], {}):
+            continue
+        cleaned[str(key)] = value
+    return json.dumps(cleaned, ensure_ascii=False) if cleaned else None
+
+
+def _equipment_specs_from_db(raw):
+    import json
+    if not raw:
+        return {}
+    try:
+        value = json.loads(raw)
+        return value if isinstance(value, dict) else {}
+    except (TypeError, ValueError):
+        return {}
 
 
 def _report_org_filter(alias, explicit_org_id, org_id, is_admin):
@@ -319,12 +365,13 @@ def index():
     cursor.execute("SELECT COUNT(*) FROM Organizations")
     organizations_count = cursor.fetchone()[0]
     
-    # ===== КОЛИЧЕСТВО ОБОРУДОВАНИЯ (ТОЛЬКО СВОЕГО ФИЛИАЛА) =====
+    # ===== КОЛИЧЕСТВО ОБОРУДОВАНИЯ (ТОЛЬКО СВОЕГО ФИЛИАЛА И ВЫБРАННОГО АДРЕСА) =====
+    equipment_addr_cond, equipment_addr_params = address_filter('')
     cursor.execute(f"""
-        SELECT COUNT(*) 
+        SELECT COUNT(*)
         FROM Equipment
-        {filter_equipment}
-    """, filter_params_equipment)
+        {filter_equipment or 'WHERE 1=1'} {equipment_addr_cond}
+    """, filter_params_equipment + equipment_addr_params)
     equipment_count = cursor.fetchone()[0]
     
     # ===== ДАШБОРД: КОМПЬЮТЕРЫ / МФУ / ЛИЦЕНЗИИ ПО СТАТУСАМ =====
@@ -342,9 +389,9 @@ def index():
         placeholders = ','.join('?' * len(types))
         cursor.execute(f"""
             SELECT status, COUNT(*) FROM Equipment
-            WHERE type IN ({placeholders}) {org_and}
+            WHERE type IN ({placeholders}) {org_and} {equipment_addr_cond}
             GROUP BY status ORDER BY COUNT(*) DESC
-        """, types + org_and_params)
+        """, types + org_and_params + equipment_addr_params)
         rows = cursor.fetchall()
         return {
             'total': sum(r[1] for r in rows),
@@ -1292,8 +1339,9 @@ def switch_organization():
     
     print(f"DEBUG: Переключение филиала на: {org_id}")
     
-    # Сохраняем выбранный филиал в сессию
+    # Сохраняем выбранный филиал в сессию; адрес относится к прежнему филиалу — сбрасываем
     session['view_organization_id'] = org_id
+    session.pop('view_address_id', None)
     
     # Получаем название филиала для отображения
     org_name = None
@@ -1319,22 +1367,140 @@ def switch_organization():
         'organization_name': org_name
     })
 
-# app.py - ДОБАВЬТЕ КОНТЕКСТНЫЙ ПРОЦЕССОР
+# ========== АДРЕСА ФИЛИАЛОВ ==========
+# У филиала может быть несколько адресов (OrganizationAddresses). Пользователь
+# выбирает в шапке один из адресов текущего филиала (session['view_address_id']),
+# и списки оборудования показывают только то, что находится по этому адресу.
+
+def get_address_scope_org_id():
+    """Филиал, адреса которого можно выбирать: у администратора — конкретный филиал,
+    выбранный в шапке (при «Все филиалы» адрес не выбирается), у пользователя — свой."""
+    if session.get('role') == 'admin':
+        view_org = session.get('view_organization_id')
+        if view_org and view_org not in ('__ALL__', '__NONE__'):
+            try:
+                return int(view_org)
+            except (TypeError, ValueError):
+                return None
+        return None
+    return get_user_organization_id()
+
+
+def get_view_address_id():
+    """Выбранный в шапке адрес или None («Все адреса»)."""
+    if not get_address_scope_org_id():
+        return None
+    return session.get('view_address_id')
+
+
+def address_filter(alias='e'):
+    """SQL-условие по выбранному адресу для подстановки в 'WHERE 1=1 {cond}'."""
+    address_id = get_view_address_id()
+    if address_id:
+        prefix = f"{alias}." if alias else ""
+        return f"AND {prefix}address_id = ?", [address_id]
+    return "", []
+
+
+def resolve_record_address(cursor, data, org_id):
+    """address_id для сохраняемой записи.
+
+    Поля address_id в запросе нет — берём адрес, выбранный в шапке (если он этого
+    филиала). Пустое значение — адрес не указан. Иначе проверяем, что адрес
+    принадлежит филиалу записи. Возвращает (address_id, задан_ли_явно)."""
+    if 'address_id' not in data:
+        view_address = session.get('view_address_id')
+        if view_address and org_id:
+            cursor.execute("SELECT 1 FROM OrganizationAddresses WHERE id = ? AND organization_id = ?",
+                           (view_address, org_id))
+            if cursor.fetchone():
+                return view_address, False
+        return None, False
+    raw = data.get('address_id')
+    if raw in (None, '', 'null'):
+        return None, True
+    address_id = int(raw)
+    cursor.execute("SELECT organization_id FROM OrganizationAddresses WHERE id = ?", (address_id,))
+    row = cursor.fetchone()
+    if not row:
+        raise ValueError('Выбранный адрес не найден')
+    if not org_id or int(row[0]) != int(org_id):
+        raise ValueError('Выбранный адрес не относится к филиалу записи')
+    return address_id, True
+
+
+def _load_addresses(cursor, org_id):
+    cursor.execute("SELECT id, address FROM OrganizationAddresses WHERE organization_id = ? ORDER BY id", (org_id,))
+    return [{'id': row[0], 'address': row[1]} for row in cursor.fetchall()]
+
+
+@app.route('/api/addresses', methods=['GET'])
+@login_required
+def api_get_addresses():
+    """Адреса филиала: администратор может запросить любой (?organization_id=),
+    пользователь — только свой."""
+    org_id = None
+    if session.get('role') == 'admin':
+        org_id = request.args.get('organization_id', type=int)
+    if not org_id:
+        org_id = get_address_scope_org_id()
+    if not org_id:
+        return jsonify([])
+    conn = get_db()
+    try:
+        return jsonify(_load_addresses(conn.cursor(), org_id))
+    finally:
+        conn.close()
+
+
+@app.route('/api/switch-address', methods=['POST'])
+@login_required
+def api_switch_address():
+    """Выбор адреса текущего филиала в шапке. Пустое значение — «Все адреса»."""
+    raw = (request.json or {}).get('address_id')
+    if raw in (None, '', '__ALL__'):
+        session.pop('view_address_id', None)
+        return jsonify({'success': True, 'address': None})
+    org_id = get_address_scope_org_id()
+    if not org_id:
+        return jsonify({'success': False, 'error': 'Сначала выберите филиал'}), 400
+    conn = get_db()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, address FROM OrganizationAddresses WHERE id = ? AND organization_id = ?",
+                       (int(raw), org_id))
+        row = cursor.fetchone()
+    finally:
+        conn.close()
+    if not row:
+        return jsonify({'success': False, 'error': 'Адрес не относится к текущему филиалу'}), 400
+    session['view_address_id'] = row[0]
+    return jsonify({'success': True, 'address': row[1]})
+
 
 @app.context_processor
 def inject_organizations():
-    """Добавляет список организаций во все шаблоны для селектора филиала"""
+    """Список организаций для селектора филиала и адреса текущего филиала для селектора адреса."""
     organizations = []
+    current_addresses = []
     try:
         conn = get_db()
         cursor = conn.cursor()
         cursor.execute("SELECT id, name FROM Organizations ORDER BY name")
         organizations = [{'id': row[0], 'name': row[1]} for row in cursor.fetchall()]
+        if 'user_id' in session:
+            scope_org = get_address_scope_org_id()
+            if scope_org:
+                current_addresses = _load_addresses(cursor, scope_org)
         conn.close()
     except Exception as e:
         print(f"Ошибка загрузки организаций: {e}")
 
-    return {'organizations': organizations}
+    return {
+        'organizations': organizations,
+        'current_addresses': current_addresses,
+        'current_address_id': get_view_address_id() if 'user_id' in session else None,
+    }
 
 @app.route('/api/analytics', methods=['POST'])
 @login_required
@@ -2321,10 +2487,11 @@ def api_get_organization(id):
     org = cursor.fetchone()
     if not org:
         return jsonify({'error': 'Не найдено'}), 404
-    cursor.execute("SELECT address FROM OrganizationAddresses WHERE organization_id = ?", (id,))
-    addresses = [row[0] for row in cursor.fetchall()]
+    address_items = _load_addresses(cursor, id)
     conn.close()
-    return jsonify({'id': org[0], 'name': org[1], 'addresses': addresses})
+    return jsonify({'id': org[0], 'name': org[1],
+                    'addresses': [a['address'] for a in address_items],
+                    'address_items': address_items})
 
 @app.route('/api/organizations/list', methods=['GET'])
 @login_required
@@ -2361,6 +2528,49 @@ def api_add_organization():
     finally:
         conn.close()
 
+ADDRESS_LINKED_TABLES = ['Equipment', 'Catrigs', 'Licenses', 'Analytics', 'Departments']
+
+
+def _sync_organization_addresses(cursor, org_id, addresses):
+    """Сохранить адреса филиала, не меняя id существующих — к ним привязаны записи
+    (address_id). Элемент списка — {'id': ..., 'address': ...} для уже существующего
+    адреса (текст можно исправить) или строка / {'address': ...} для нового.
+    Строка, совпадающая с текстом существующего адреса, считается этим адресом.
+    Адреса, которых нет в списке, удаляются, а записи от них отвязываются."""
+    cursor.execute("SELECT id, address FROM OrganizationAddresses WHERE organization_id = ?", (org_id,))
+    old = {row[0]: row[1] for row in cursor.fetchall()}
+    kept = set()
+    new_texts = []
+    for item in addresses:
+        if isinstance(item, dict):
+            addr_id, text = item.get('id'), (item.get('address') or '').strip()
+        else:
+            addr_id, text = None, (item or '').strip()
+        if not text:
+            continue
+        try:
+            addr_id = int(addr_id) if addr_id not in (None, '') else None
+        except (TypeError, ValueError):
+            addr_id = None
+        if addr_id in old and addr_id not in kept:
+            kept.add(addr_id)
+            if old[addr_id] != text:
+                cursor.execute("UPDATE OrganizationAddresses SET address = ? WHERE id = ?", (text, addr_id))
+        else:
+            new_texts.append(text)
+    for text in new_texts:
+        same = next((i for i, t in old.items() if t == text and i not in kept), None)
+        if same:
+            kept.add(same)
+        else:
+            cursor.execute("INSERT INTO OrganizationAddresses (organization_id, address) VALUES (?, ?)", (org_id, text))
+    for addr_id in old:
+        if addr_id not in kept:
+            for table in ADDRESS_LINKED_TABLES:
+                cursor.execute(f"UPDATE {table} SET address_id = NULL WHERE address_id = ?", (addr_id,))
+            cursor.execute("DELETE FROM OrganizationAddresses WHERE id = ?", (addr_id,))
+
+
 @app.route('/api/organizations/<int:id>', methods=['PUT'])
 @login_required
 def api_update_organization(id):
@@ -2373,11 +2583,7 @@ def api_update_organization(id):
     cursor = conn.cursor()
     try:
         cursor.execute("UPDATE Organizations SET name=? WHERE id=?", (name, id))
-        cursor.execute("DELETE FROM OrganizationAddresses WHERE organization_id = ?", (id,))
-        for addr in addresses:
-            if addr.strip():
-                cursor.execute("INSERT INTO OrganizationAddresses (organization_id, address) VALUES (?, ?)",
-                               (id, addr.strip()))
+        _sync_organization_addresses(cursor, id, addresses)
         conn.commit()
         return jsonify({'success': True})
     except Exception as e:
@@ -3223,7 +3429,7 @@ def equipment_page():
 @app.route('/api/equipment', methods=['POST'])
 @login_required
 def add_equipment():
-    data = request.json
+    data = _equipment_form_data(request.json)
     print("📦 ПОЛУЧЕННЫЕ ДАННЫЕ:", data)
 
     conn = get_db()
@@ -3254,7 +3460,7 @@ def add_equipment():
             if row:
                 responsible_id = row[0]
             else:
-                cursor.execute("INSERT INTO Employees (Department_Fullname) VALUES (?)", (data.get('responsible'),))
+                cursor.execute("INSERT INTO Employees (Department_Fullname, Organization_id) VALUES (?, ?)", (data.get('responsible'), org_id))
                 responsible_id = cursor.lastrowid
         
         # Обработка МОЛ
@@ -3265,7 +3471,7 @@ def add_equipment():
             if row:
                 mol_id = row[0]
             else:
-                cursor.execute("INSERT INTO Employees (Department_Fullname) VALUES (?)", (data.get('mol'),))
+                cursor.execute("INSERT INTO Employees (Department_Fullname, Organization_id) VALUES (?, ?)", (data.get('mol'), org_id))
                 mol_id = cursor.lastrowid
         
         # Обработка комнаты
@@ -3310,6 +3516,11 @@ def add_equipment():
         
         # Привязка к компьютеру (Мониторы/Периферия/Комплектующие) — просто id существующей записи Equipment
         parent_equipment_id = data.get('parent_equipment_id') or None
+
+        try:
+            address_id, _ = resolve_record_address(cursor, data, save_org_id)
+        except ValueError as e:
+            return jsonify({'success': False, 'error': str(e)}), 400
 
         # ===== ВСТАВКА – 65 колонок, 65 значений =====
         cursor.execute("""
@@ -3358,9 +3569,14 @@ def add_equipment():
         parent_equipment_id, data.get('network_name'), data.get('manufacture_year'), data.get('cable_type'),
         current_user_id
     ))
-        
+        new_id = cursor.lastrowid
+        if address_id:
+            cursor.execute("UPDATE Equipment SET address_id = ? WHERE id = ?", (address_id, new_id))
+        if 'specs' in data:
+            cursor.execute("UPDATE Equipment SET specs = ? WHERE id = ?", (_equipment_specs_json(data), new_id))
+
         conn.commit()
-        return jsonify({'success': True, 'message': 'Оборудование добавлено', 'id': cursor.lastrowid})
+        return jsonify({'success': True, 'message': 'Оборудование добавлено', 'id': new_id})
     except Exception as e:
         conn.rollback()
         print(f"❌ ОШИБКА add_equipment: {str(e)}")
@@ -3373,7 +3589,7 @@ def add_equipment():
 @app.route('/api/equipment/<int:id>', methods=['PUT'])
 @login_required
 def update_equipment(id):
-    data = request.json
+    data = _equipment_form_data(request.json)
     conn = get_db()
     cursor = conn.cursor()
     
@@ -3402,7 +3618,7 @@ def update_equipment(id):
             if row:
                 responsible_id = row[0]
             else:
-                cursor.execute("INSERT INTO Employees (Department_Fullname) VALUES (?)", (data.get('responsible'),))
+                cursor.execute("INSERT INTO Employees (Department_Fullname, Organization_id) VALUES (?, ?)", (data.get('responsible'), data.get('organization_id') or org_id))
                 responsible_id = cursor.lastrowid
         
         mol_id = None
@@ -3412,7 +3628,7 @@ def update_equipment(id):
             if row:
                 mol_id = row[0]
             else:
-                cursor.execute("INSERT INTO Employees (Department_Fullname) VALUES (?)", (data.get('mol'),))
+                cursor.execute("INSERT INTO Employees (Department_Fullname, Organization_id) VALUES (?, ?)", (data.get('mol'), data.get('organization_id') or org_id))
                 mol_id = cursor.lastrowid
         
         room_id = None
@@ -3428,6 +3644,12 @@ def update_equipment(id):
         
         organization_id = data.get('organization_id') if data.get('organization_id') else org_id
         current_user_id = session.get('user_id')
+        address_id, address_given = None, False
+        if 'address_id' in data:
+            try:
+                address_id, address_given = resolve_record_address(cursor, data, organization_id)
+            except ValueError as e:
+                return jsonify({'success': False, 'error': str(e)}), 400
         parent_equipment_id = data.get('parent_equipment_id') or None
         if parent_equipment_id and int(parent_equipment_id) == id:
             parent_equipment_id = None  # оборудование не может ссылаться само на себя
@@ -3497,7 +3719,11 @@ def update_equipment(id):
         parent_equipment_id, data.get('network_name'), data.get('manufacture_year'), data.get('cable_type'),
         current_user_id, id
     ))
-        
+        if address_given:
+            cursor.execute("UPDATE Equipment SET address_id = ? WHERE id = ?", (address_id, id))
+        if 'specs' in data:
+            cursor.execute("UPDATE Equipment SET specs = ? WHERE id = ?", (_equipment_specs_json(data), id))
+
         conn.commit()
         return jsonify({'success': True, 'message': 'Оборудование обновлено'})
     except Exception as e:
@@ -4757,6 +4983,9 @@ def get_equipment():
         filter_params = [org_id]
     elif not is_admin:
         filter_condition = "AND e.organization_id IS NULL"
+    addr_cond, addr_params = address_filter('e')
+    filter_condition += " " + addr_cond
+    filter_params = list(filter_params) + addr_params
 
     cursor.execute(f"""
         SELECT
@@ -4784,8 +5013,10 @@ def get_equipment():
             e.created_at,
             u.username as created_by_username, u.full_name as created_by_fullname,
             e.parent_equipment_id, e.network_name, e.manufacture_year, e.photo, e.cable_type,
-            COALESCE(parent_eq.network_name, TRIM(COALESCE(parent_eq.brand,'') || ' ' || COALESCE(parent_eq.model,''))) as parent_name
+            COALESCE(parent_eq.network_name, TRIM(COALESCE(parent_eq.brand,'') || ' ' || COALESCE(parent_eq.model,''))) as parent_name,
+            e.address_id, oa.address, e.specs
         FROM Equipment e
+        LEFT JOIN OrganizationAddresses oa ON e.address_id = oa.id
         LEFT JOIN Employees resp_emp ON e.responsible_employee = resp_emp.id
         LEFT JOIN Employees mol_emp ON e.mol_employee = mol_emp.id
         LEFT JOIN Rooms rm ON e.room_id = rm.id
@@ -4869,7 +5100,10 @@ def get_equipment():
             'manufacture_year': row[67] if len(row) > 67 else '',
             'photo': row[68] if len(row) > 68 else '',
             'cable_type': row[69] if len(row) > 69 else '',
-            'parent_name': row[70] if len(row) > 70 else ''
+            'parent_name': row[70] if len(row) > 70 else '',
+            'address_id': row[71],
+            'address': row[72] or '',
+            'specs': _equipment_specs_from_db(row[73])
         })
     
     conn.close()
@@ -4894,6 +5128,9 @@ def get_equipment_statistics():
         filter_params = [org_id]
     elif not is_admin:
         filter_condition = "AND e.organization_id IS NULL"
+    addr_cond, addr_params = address_filter('e')
+    filter_condition += " " + addr_cond
+    filter_params = list(filter_params) + addr_params
 
     cursor.execute(f"SELECT COUNT(*) FROM Equipment e WHERE 1=1 {filter_condition}", filter_params)
     total = cursor.fetchone()[0]
@@ -4970,7 +5207,9 @@ def search_equipment():
         filter_params = [org_id]
     elif not is_admin:
         filter_condition = "AND e.organization_id IS NULL"
-
+    addr_cond, addr_params = address_filter('e')
+    filter_condition += " " + addr_cond
+    filter_params = list(filter_params) + addr_params
 
     # Базовый запрос с исправленным JOIN
     query = f"""

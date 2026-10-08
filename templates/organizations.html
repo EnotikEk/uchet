@@ -1085,11 +1085,12 @@ function enableOrganizationEditMode() {
     const container = document.createElement('div');
     container.id = 'editAddressesContainer';
     $('#viewOrganizationAddressesList').replaceWith(container);
-    const addresses = org.addresses || [];
-    if (addresses.length === 0) {
+    // Адреса вместе с id: к ним привязано оборудование, id при правке должен сохраниться
+    const addressItems = org.address_items || (org.addresses || []).map(a => ({ id: null, address: a }));
+    if (addressItems.length === 0) {
         addAddressRow('edit', '');
     } else {
-        addresses.forEach(addr => addAddressRow('edit', addr));
+        addressItems.forEach(a => addAddressRow('edit', a.address, a.id));
     }
     const addBtn = document.createElement('button');
     addBtn.type = 'button';
@@ -1115,7 +1116,7 @@ function enableOrganizationEditMode() {
 function saveOrganizationEdit() {
     const id = $('#viewOrganizationId').val();
     const name = $('#editOrganizationName').val().trim();
-    const addresses = getAddresses('edit');
+    const addresses = getAddressItems('edit');
     if (!name) {
         showMessage('Введите название организации', 'danger');
         return;
@@ -1262,7 +1263,7 @@ function resetSearch() {
 }
 
 // ===== УПРАВЛЕНИЕ АДРЕСАМИ =====
-function addAddressRow(mode, addressText = '') {
+function addAddressRow(mode, addressText = '', addressId = null) {
     const containerId = mode === 'add' ? 'addAddressesContainer' : 'editAddressesContainer';
     let container = document.getElementById(containerId);
     if (!container) {
@@ -1280,6 +1281,7 @@ function addAddressRow(mode, addressText = '') {
     }
     const row = document.createElement('div');
     row.className = 'row address-row mb-1';
+    if (addressId) row.dataset.addressId = addressId;
     row.innerHTML = `
         <div class="col-10">
             <input type="text" class="form-control form-control-sm address-input" placeholder="Введите адрес" value="${escapeHtml(addressText)}">
@@ -1304,6 +1306,20 @@ function getAddresses(mode) {
         if (val) addresses.push(val);
     });
     return addresses;
+}
+
+// Адреса формы вместе с id существующих адресов ({id, address}); у новых строк id = null
+function getAddressItems(mode) {
+    const containerId = mode === 'add' ? 'addAddressesContainer' : 'editAddressesContainer';
+    const container = document.getElementById(containerId);
+    if (!container) return [];
+    const items = [];
+    container.querySelectorAll('.address-row').forEach(row => {
+        const input = row.querySelector('.address-input');
+        const val = input ? input.value.trim() : '';
+        if (val) items.push({ id: row.dataset.addressId ? Number(row.dataset.addressId) : null, address: val });
+    });
+    return items;
 }
 
 function populateAddresses(containerId, addresses) {

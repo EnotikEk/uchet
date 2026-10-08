@@ -218,8 +218,6 @@
             </div>
             <div class="modal-body">
                 <input type="hidden" id="viewEquipmentId">
-                <datalist id="editRoomList">{% for room in rooms %}<option value="{{ room.number }}">{% endfor %}</datalist>
-                <datalist id="editMolList">{% for emp in employees %}<option value="{{ emp }}">{% endfor %}</datalist>
                 <div class="row mb-3">
                     <div class="col-md-4 text-center">
                         <img id="viewEquipmentPhotoImg" src="" alt="Фото" class="img-fluid rounded mb-2" style="max-height:160px; display:none; border:1px solid #dee2e6;">
@@ -245,6 +243,7 @@
                     <div class="col-md-6 mb-2"><label class="fw-bold">МОЛ:</label><p id="viewEquipmentMOL" class="mb-2">—</p></div>
                     <div class="col-md-6 mb-2"><label class="fw-bold">Ответственный:</label><p id="viewEquipmentResponsible" class="mb-2">—</p></div>
                     <div class="col-md-6 mb-2"><label class="fw-bold">Филиал:</label><p id="viewEquipmentOrganization" class="mb-2">—</p></div>
+                    <div class="col-md-6 mb-2"><label class="fw-bold">Адрес:</label><p id="viewEquipmentAddress" class="mb-2">—</p></div>
                     <div class="col-md-6 mb-2"><label class="fw-bold">Помещение отдела:</label><p id="viewEquipmentDepartment" class="mb-2">—</p></div>
                     <div class="col-md-6 mb-2"><label class="fw-bold">Установлено на компьютере:</label><p id="viewEquipmentParent" class="mb-2">—</p></div>
                     <div class="col-md-6 mb-2"><label class="fw-bold">Сетевое имя:</label><p id="viewEquipmentNetworkName" class="mb-2">—</p></div>
@@ -444,9 +443,30 @@
 
 {% block extra_js %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="{{ url_for('static', filename='js/equipment-specs.js') }}?v=2"></script>
 <script>
 const EQUIPMENT_STATUSES = {{ statuses|tojson }};
 const EQUIPMENT_COMPUTERS = {{ computers|tojson }};
+const EQUIPMENT_EMPLOYEES = {{ employees|tojson }};
+const EQUIPMENT_ROOMS = {{ rooms|map(attribute='number')|select|list|tojson }};
+
+// Поле «выбор из списка или свой ввод» (Tom Select, см. initComboSelects в base.html).
+// Текущее значение записи, которого нет в списке, тоже остаётся выбранным.
+function comboSelectHtml(id, values, current, placeholder) {
+    const list = values.slice();
+    if (current && !list.includes(current)) list.unshift(current);
+    const options = ['<option value=""></option>'].concat(list.map(v =>
+        `<option value="${escapeHtml(v)}" ${v === current ? 'selected' : ''}>${escapeHtml(v)}</option>`));
+    return `<select class="combo-create form-select form-select-sm" id="${id}" data-placeholder="${escapeHtml(placeholder)}">${options.join('')}</select>`;
+}
+
+// Списки Tom Select выносятся в <body>; при выходе из редактирования убираем их вместе с полями
+function destroyCombos(root) {
+    root.querySelectorAll('select.combo-create').forEach(el => { if (el.tomselect) el.tomselect.destroy(); });
+}
+$(function () {
+    $('#viewEquipmentModal').on('hidden.bs.modal', function () { destroyCombos(this); });
+});
 
 const STATUS_BADGE = {
     'Установлено': 'bg-success',
@@ -462,113 +482,25 @@ function statusBadge(status) {
     return `<span class="badge ${cls}">${escapeHtml(status || '—')}</span>`;
 }
 
-// Поля-характеристики по блокам формы (formComputer/formMonitor/... — те же id,
-// что и в форме добавления, см. modals/equipment_modals.html). Используется, чтобы
-// показывать и редактировать характеристики оборудования в карточке просмотра —
-// раньше эти поля можно было заполнить только при добавлении и потом нигде не
-// показывались и не редактировались.
-const FORM_FIELD_DEFS = {
-    formComputer: [
-        {id: 'processor', label: 'Процессор'},
-        {id: 'ram', label: 'ОЗУ (ГБ)', type: 'number'},
-        {id: 'ram_type', label: 'Тип ОЗУ', options: ['', 'DDR2', 'DDR3', 'DDR4', 'DDR5']},
-        {id: 'storage', label: 'Накопитель'},
-        {id: 'os', label: 'ОС'},
-        {id: 'os_key', label: 'Ключ ОС'},
-        {id: 'ip_address', label: 'IP-адрес'}
-    ],
-    formMonitor: [
-        {id: 'monitor_size', label: 'Диагональ (")', type: 'number'},
-        {id: 'resolution', label: 'Разрешение', options: ['', '1920x1080', '2560x1440', '3840x2160']},
-        {id: 'refresh_rate', label: 'Частота, Гц', type: 'number'},
-        {id: 'panel_type', label: 'Тип матрицы', options: ['', 'IPS', 'VA', 'TN', 'OLED']},
-        {id: 'response_time', label: 'Время отклика, мс', type: 'number'},
-        {id: 'viewing_angle', label: 'Угол обзора'},
-        {id: 'connection_type', label: 'Тип подключения'}
-    ],
-    formNetwork: [
-        {id: 'port_count', label: 'Кол-во портов', type: 'number'},
-        {id: 'speed', label: 'Скорость портов', options: ['', '100Mbps', '1Gbps', '10Gbps']},
-        {id: 'poe', label: 'PoE', options: ['', 'Нет', 'Да']},
-        {id: 'managed', label: 'Управляемый', options: ['', 'Нет', 'Да']},
-        {id: 'ip_address', label: 'IP-адрес'}
-    ],
-    formPrint: [
-        {id: 'print_type', label: 'Тип печати', options: ['', 'Лазерный', 'Струйный']},
-        {id: 'print_format', label: 'Формат', options: ['', 'A4', 'A3', 'A3-A4']},
-        {id: 'print_speed', label: 'Скорость печати', type: 'number'},
-        {id: 'color_type', label: 'Цветность', options: ['', 'Ч/Б', 'Цветной']},
-        {id: 'duplex', label: 'Двусторонняя печать', options: ['Нет', 'Да']},
-        {id: 'ip_address', label: 'IP-адрес'},
-        {id: 'scanner_resolution', label: 'Разрешение сканера'},
-        {id: 'scanner_speed', label: 'Скорость сканера'}
-    ],
-    formUps: [
-        {id: 'ups_power', label: 'Мощность (VA)'},
-        {id: 'ups_type', label: 'Тип', options: ['', 'Резервный', 'Линейно-интерактивный', 'On-line']},
-        {id: 'ups_outlets', label: 'Розеток', type: 'number'},
-        {id: 'ups_runtime', label: 'Время работы, мин', type: 'number'}
-    ],
-    formConnection: [
-        {id: 'connection_type', label: 'Тип подключения'},
-        {id: 'color', label: 'Цвет'},
-        {id: 'storage', label: 'Объём (внешний диск)'}
-    ],
-    formComponent: [
-        {id: 'ram', label: 'Объём (ГБ)', type: 'number'},
-        {id: 'ram_type', label: 'Тип ОЗУ', options: ['', 'DDR2', 'DDR3', 'DDR4', 'DDR5']},
-        {id: 'storage', label: 'Накопитель/ёмкость'},
-        {id: 'ports', label: 'Порты'},
-        {id: 'speed', label: 'Скорость/сеть'},
-        {id: 'connection_type', label: 'Тип подключения'},
-        {id: 'cable_type', label: 'Тип разъёма (кабель)', options: ['', 'DVI', 'HDMI', 'RJ45', 'USB-C', 'VGA', 'DisplayPort', 'Jack 3.5mm', 'Питание', 'Другое'], onlyFor: 'Кабель'}
-    ]
-};
-
-function typeSpecificFieldDefs(type) {
-    const groups = (typeof TYPE_FORM_MAP !== 'undefined' ? TYPE_FORM_MAP[type] : null) || [];
-    const defs = [];
-    const seen = new Set();
-    for (const g of groups) {
-        for (const def of (FORM_FIELD_DEFS[g] || [])) {
-            if (def.onlyFor && def.onlyFor !== type) continue;
-            if (seen.has(def.id)) continue;
-            seen.add(def.id);
-            defs.push(def);
-        }
-    }
-    return defs;
-}
-
+// Характеристики по типу в карточке: те же поля, что и в форме добавления
+// (описание типов — static/js/equipment-specs.js). Сетевое имя и год производства
+// в карточке выводятся отдельными полями, поэтому здесь их нет (skipGeneral).
 function renderTypeSpecificView(item) {
-    const defs = typeSpecificFieldDefs(item.type).filter(def => item[def.id]);
+    const items = specViewItems(item, { skipGeneral: true });
     const box = $('#viewEquipmentTypeSpecific');
-    if (!defs.length) { box.hide().html(''); return; }
+    if (!items.length) { box.hide().html(''); return; }
     let html = '<label class="fw-bold d-block mb-1">Характеристики по типу:</label><div class="row">';
-    for (const def of defs) {
-        html += `<div class="col-md-4 mb-2"><small class="text-muted d-block">${def.label}</small>${escapeHtml(item[def.id])}</div>`;
+    for (const it of items) {
+        html += `<div class="col-md-4 mb-2"><small class="text-muted d-block">${it.label}</small>${it.html}</div>`;
     }
-    html += '</div>';
-    box.html(html).show();
+    box.html(html + '</div>').show();
 }
 
 function renderTypeSpecificEdit(item) {
-    const defs = typeSpecificFieldDefs(item.type);
     const box = $('#viewEquipmentTypeSpecific');
-    if (!defs.length) { box.hide().html(''); return; }
-    let html = '<label class="fw-bold d-block mb-1">Характеристики по типу:</label><div class="row">';
-    for (const def of defs) {
-        const val = item[def.id];
-        const id = 'edit_' + def.id;
-        if (def.options) {
-            const opts = def.options.map(o => `<option value="${escapeHtml(o)}" ${String(val == null ? '' : val) === o ? 'selected' : ''}>${o || '—'}</option>`).join('');
-            html += `<div class="col-md-4 mb-2"><label class="form-label small mb-0">${def.label}</label><select class="form-select form-select-sm" id="${id}">${opts}</select></div>`;
-        } else {
-            html += `<div class="col-md-4 mb-2"><label class="form-label small mb-0">${def.label}</label><input type="${def.type === 'number' ? 'number' : 'text'}" class="form-control form-control-sm" id="${id}" value="${escapeHtml(val)}"></div>`;
-        }
-    }
-    html += '</div>';
-    box.html(html).show();
+    box.html('<label class="fw-bold d-block mb-1">Характеристики по типу:</label><div id="editTypeSpecific"></div>');
+    const hasFields = renderSpecForm(document.getElementById('editTypeSpecific'), item.type, item, { small: true, skipGeneral: true });
+    if (hasFields) box.show(); else box.hide().html('');
 }
 
 let allEquipmentData = [];
@@ -656,7 +588,7 @@ function renderEquipment(data) {
             <td>${statusBadge(item.status)}</td>
             <td>${escapeHtml(item.room) || '—'}</td>
             <td>${escapeHtml(item.parent_name) || '<span class="text-muted">—</span>'}</td>
-            <td>${escapeHtml(item.organization) || '—'}</td>
+            <td>${escapeHtml(item.organization) || '—'}${item.address ? `<br><small class="text-muted"><i class="fas fa-map-marker-alt"></i> ${escapeHtml(item.address)}</small>` : ''}</td>
             <td class="text-center" onclick="event.stopPropagation();">
                 <button class="btn btn-sm btn-outline-success" title="Переместить" onclick="openMovementModal(${item.id})"><i class="fas fa-exchange-alt"></i></button>
                 <button class="btn btn-sm btn-outline-info" title="История" onclick="showMovements(${item.id}, '${escapeHtml(model).replace(/'/g,"")}')"><i class="fas fa-history"></i></button>
@@ -714,6 +646,7 @@ function openEquipmentView(id) {
 function disableEquipmentEditMode() {
     const item = currentEquipmentData;
     if (!item) return;
+    destroyCombos(document.getElementById('viewEquipmentModal'));
     $('#viewEquipmentId').val(item.id);
     $('#viewEquipmentType').text(item.type || '—');
     $('#viewEquipmentModel').text([item.brand, item.model].filter(Boolean).join(' ') || '—');
@@ -721,6 +654,7 @@ function disableEquipmentEditMode() {
     $('#viewEquipmentInventory').text(item.inventory_number || '—');
     $('#viewEquipmentStatus').html(statusBadge(item.status));
     $('#viewEquipmentRoom').text(item.room || '—');
+    $('#viewEquipmentAddress').text(item.address || '—');
     $('#viewEquipmentMOL').text(item.mol || '—');
     $('#viewEquipmentResponsible').text(item.responsible || '—');
     $('#viewEquipmentOrganization').text(item.organization || '—');
@@ -776,9 +710,11 @@ function enableEquipmentEditMode() {
     $('#viewEquipmentSerial').html(`<input class="form-control form-control-sm" id="editSerial" value="${escapeHtml(item.serial_number)}">`);
     $('#viewEquipmentInventory').html(`<input class="form-control form-control-sm" id="editInventory" value="${escapeHtml(item.inventory_number)}">`);
     $('#viewEquipmentStatus').html(`<select class="form-select form-select-sm" id="editStatus">${EQUIPMENT_STATUSES.map(s => `<option value="${s}" ${s===item.status?'selected':''}>${s}</option>`).join('')}</select>`);
-    $('#viewEquipmentRoom').html(`<input class="form-control form-control-sm" id="editRoom" list="editRoomList" value="${escapeHtml(item.room)}">`);
-    $('#viewEquipmentMOL').html(`<input class="form-control form-control-sm" id="editMol" list="editMolList" value="${escapeHtml(item.mol)}">`);
-    $('#viewEquipmentResponsible').html(`<input class="form-control form-control-sm" id="editResponsible" list="editMolList" value="${escapeHtml(item.responsible)}">`);
+    $('#viewEquipmentRoom').html(comboSelectHtml('editRoom', EQUIPMENT_ROOMS, item.room, 'Кабинет, склад, гараж...'));
+    renderAddressEdit(item);
+    $('#viewEquipmentMOL').html(comboSelectHtml('editMol', EQUIPMENT_EMPLOYEES, item.mol, 'Введите ФИО'));
+    $('#viewEquipmentResponsible').html(comboSelectHtml('editResponsible', EQUIPMENT_EMPLOYEES, item.responsible, 'Введите ФИО'));
+    initComboSelects(document.getElementById('viewEquipmentModal'));
     $('#viewEquipmentNetworkName').html(`<input class="form-control form-control-sm" id="editNetworkName" value="${escapeHtml(item.network_name)}">`);
     $('#viewEquipmentManufactureYear').html(`<input type="number" class="form-control form-control-sm" id="editManufactureYear" value="${escapeHtml(item.manufacture_year)}">`);
     $('#viewEquipmentPurchaseDate').html(`<input type="date" class="form-control form-control-sm" id="editPurchaseDate" value="${toIsoDate(item.purchase_date)}">`);
@@ -797,6 +733,25 @@ function enableEquipmentEditMode() {
         <button type="button" class="btn btn-success" onclick="saveEquipmentEdit()"><i class="fas fa-save"></i> Сохранить</button>
         <button type="button" class="btn btn-secondary" onclick="disableEquipmentEditMode()">Отмена</button>
     `);
+}
+
+// Выбор адреса из адресов филиала этой записи (у записи без филиала адреса нет)
+function renderAddressEdit(item) {
+    const cell = $('#viewEquipmentAddress');
+    if (!item.organization_id) {
+        cell.html('<span class="text-muted">— (у записи нет филиала)</span>');
+        return;
+    }
+    cell.html('<span class="text-muted"><i class="fas fa-spinner fa-spin"></i></span>');
+    $.get('/api/addresses', { organization_id: item.organization_id }, function(addresses) {
+        if (!addresses || !addresses.length) {
+            cell.html('<span class="text-muted">— (у филиала нет адресов)</span>');
+            return;
+        }
+        const options = ['<option value="">— не указан —</option>'].concat(addresses.map(a =>
+            `<option value="${a.id}" ${a.id == item.address_id ? 'selected' : ''}>${escapeHtml(a.address)}</option>`));
+        cell.html(`<select class="form-select form-select-sm" id="editAddress">${options.join('')}</select>`);
+    });
 }
 
 function toIsoDate(value) {
@@ -831,16 +786,21 @@ function saveEquipmentEdit() {
         organization_id: item.organization_id,
         parent_equipment_id: $('#editParent').val() || null
     };
-    // Поля, специфичные для типа (компьютер/монитор/сеть/печать/ИБП/периферия/комплектующие) —
-    // те, что показаны как поля ввода в блоке "Характеристики по типу", берём из формы,
-    // остальные (не относящиеся к текущему типу) просто сохраняем как есть.
-    for (const f of ['processor','ram','ram_type','storage','os','os_key','monitor_size','resolution',
-                      'refresh_rate','panel_type','response_time','viewing_angle','port_count','speed',
-                      'network_type','poe','managed','ip_address','print_type','print_format','print_speed',
-                      'color_type','duplex','scanner_resolution','scanner_speed','ups_power','ups_type',
-                      'ups_outlets','ups_usb','ups_runtime','connection_type','color','cable_type']) {
-        const el = document.getElementById('edit_' + f);
-        data[f] = el ? el.value : item[f];
+    if ($('#editAddress').length) data.address_id = $('#editAddress').val() || null;
+    // Колонки характеристик, не относящиеся к текущему типу, сохраняем как есть,
+    // а поля из блока «Характеристики по типу» берём из формы.
+    // (плюс колонки, которых нет в форме: телефония, комплекты и т.п. — сервер перезаписывает все колонки)
+    const keepColumns = EQUIPMENT_SPEC_COLUMNS.concat(['ups_usb', 'printer_ports', 'duplex_scanner', 'scan_format',
+        'phone_number', 'phone_ip', 'sip_account', 'lines', 'phone_poe', 'is_set', 'set_type', 'cable_type']);
+    for (const col of keepColumns) {
+        if (!(col in data)) data[col] = item[col];
+    }
+    const specBox = document.getElementById('editTypeSpecific');
+    if (specBox) {
+        const spec = collectSpecForm(specBox, item.type, { skipGeneral: true });
+        Object.assign(data, spec.columns);
+        // ключи specs других типов (если тип когда-то меняли) не теряем
+        data.specs = Object.assign({}, item.specs || {}, spec.specs);
     }
 
     $.ajax({

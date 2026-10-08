@@ -7,8 +7,6 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <datalist id="addRoomList">{% for room in rooms %}<option value="{{ room.number }}">{% endfor %}</datalist>
-                <datalist id="addMolList">{% for emp in employees %}<option value="{{ emp }}">{% endfor %}</datalist>
                 <form id="addEquipmentForm">
                     <div class="row">
                         <div class="col-md-4 mb-3">
@@ -87,144 +85,34 @@
                         </div>
                     </div>
 
-                    <!-- ===== Компьютеры ===== -->
-                    <div class="type-form" id="formComputer" style="display:none;">
-                        <hr><h6 class="text-muted">Параметры компьютера</h6>
-                        <div class="row">
-                            <div class="col-md-6 mb-3"><label class="form-label">Сетевое имя</label><input class="form-control" id="addNetworkName" placeholder="PC-001"></div>
-                            <div class="col-md-6 mb-3"><label class="form-label">Год производства</label><input type="number" class="form-control" id="addManufactureYear" min="1990" max="2100"></div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-4 mb-3"><label class="form-label">Процессор</label><input class="form-control" id="addProcessor"></div>
-                            <div class="col-md-2 mb-3"><label class="form-label">ОЗУ (ГБ)</label><input type="number" class="form-control" id="addRam"></div>
-                            <div class="col-md-2 mb-3"><label class="form-label">Тип ОЗУ</label>
-                                <select class="form-select" id="addRamType"><option value=""></option><option>DDR2</option><option>DDR3</option><option>DDR4</option><option>DDR5</option></select>
-                            </div>
-                            <div class="col-md-4 mb-3"><label class="form-label">Накопитель</label><input class="form-control" id="addStorage" placeholder="SSD 512GB"></div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-4 mb-3"><label class="form-label">ОС</label><input class="form-control" id="addOs"></div>
-                            <div class="col-md-4 mb-3"><label class="form-label">Ключ ОС</label><input class="form-control" id="addOsKey"></div>
-                            <div class="col-md-4 mb-3"><label class="form-label">IP-адрес</label><input class="form-control" id="addIpAddress1"></div>
-                        </div>
-                    </div>
-
-                    <!-- ===== Мониторы ===== -->
-                    <div class="type-form" id="formMonitor" style="display:none;">
-                        <hr><h6 class="text-muted">Параметры монитора</h6>
-                        <div class="row">
-                            <div class="col-md-3 mb-3"><label class="form-label">Диагональ (")</label><input type="number" class="form-control" id="addMonitorSize"></div>
-                            <div class="col-md-3 mb-3"><label class="form-label">Разрешение</label>
-                                <select class="form-select" id="addResolution"><option value=""></option><option>1920x1080</option><option>2560x1440</option><option>3840x2160</option></select>
-                            </div>
-                            <div class="col-md-3 mb-3"><label class="form-label">Частота, Гц</label><input type="number" class="form-control" id="addRefreshRate"></div>
-                            <div class="col-md-3 mb-3"><label class="form-label">Тип матрицы</label>
-                                <select class="form-select" id="addPanelType"><option value=""></option><option>IPS</option><option>VA</option><option>TN</option><option>OLED</option></select>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-4 mb-3"><label class="form-label">Время отклика, мс</label><input type="number" class="form-control" id="addResponseTime"></div>
-                            <div class="col-md-4 mb-3"><label class="form-label">Угол обзора</label><input class="form-control" id="addViewingAngle"></div>
-                            <div class="col-md-4 mb-3"><label class="form-label">Тип подключения</label><input class="form-control" id="addConnectionTypeMonitor" placeholder="HDMI, DP, VGA..."></div>
-                        </div>
-                    </div>
-
-                    <!-- ===== Сетевое оборудование ===== -->
-                    <div class="type-form" id="formNetwork" style="display:none;">
-                        <hr><h6 class="text-muted">Параметры сетевого оборудования</h6>
-                        <div class="row">
-                            <div class="col-md-3 mb-3"><label class="form-label">Кол-во портов</label><input type="number" class="form-control" id="addPortCount"></div>
-                            <div class="col-md-3 mb-3"><label class="form-label">Скорость портов</label>
-                                <select class="form-select" id="addSpeedNetwork"><option value=""></option><option>100Mbps</option><option>1Gbps</option><option>10Gbps</option></select>
-                            </div>
-                            <div class="col-md-3 mb-3"><label class="form-label">PoE</label>
-                                <select class="form-select" id="addPoe"><option value=""></option><option>Нет</option><option>Да</option></select>
-                            </div>
-                            <div class="col-md-3 mb-3"><label class="form-label">Управляемый</label>
-                                <select class="form-select" id="addManaged"><option value=""></option><option>Нет</option><option>Да</option></select>
-                            </div>
-                        </div>
-                        <div class="row"><div class="col-md-6 mb-3"><label class="form-label">IP-адрес</label><input class="form-control" id="addIpAddress2"></div></div>
-                    </div>
-
-                    <!-- ===== МФУ / Принтер / Сканер ===== -->
-                    <div class="type-form" id="formPrint" style="display:none;">
-                        <hr><h6 class="text-muted">Параметры печати/сканирования</h6>
-                        <div class="row">
-                            <div class="col-md-3 mb-3"><label class="form-label">Тип печати</label>
-                                <select class="form-select" id="addPrintType"><option value=""></option><option>Лазерный</option><option>Струйный</option></select>
-                            </div>
-                            <div class="col-md-3 mb-3"><label class="form-label">Формат</label>
-                                <select class="form-select" id="addPrintFormat"><option value=""></option><option>A4</option><option>A3</option><option>A3-A4</option></select>
-                            </div>
-                            <div class="col-md-3 mb-3"><label class="form-label">Скорость печати</label><input type="number" class="form-control" id="addPrintSpeed"></div>
-                            <div class="col-md-3 mb-3"><label class="form-label">Цветность</label>
-                                <select class="form-select" id="addColorType"><option value=""></option><option>Ч/Б</option><option>Цветной</option></select>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-3 mb-3"><label class="form-label">Двусторонняя печать</label>
-                                <select class="form-select" id="addDuplex"><option value="Нет">Нет</option><option value="Да">Да</option></select>
-                            </div>
-                            <div class="col-md-3 mb-3"><label class="form-label">IP-адрес</label><input class="form-control" id="addIpAddress3"></div>
-                            <div class="col-md-3 mb-3"><label class="form-label">Разрешение сканера</label><input class="form-control" id="addScannerResolution"></div>
-                            <div class="col-md-3 mb-3"><label class="form-label">Скорость сканера</label><input class="form-control" id="addScannerSpeed"></div>
-                        </div>
-                    </div>
-
-                    <!-- ===== ИБП ===== -->
-                    <div class="type-form" id="formUps" style="display:none;">
-                        <hr><h6 class="text-muted">Параметры ИБП</h6>
-                        <div class="row">
-                            <div class="col-md-3 mb-3"><label class="form-label">Мощность (VA)</label><input class="form-control" id="addUpsPower"></div>
-                            <div class="col-md-3 mb-3"><label class="form-label">Тип</label>
-                                <select class="form-select" id="addUpsType"><option value=""></option><option>Резервный</option><option>Линейно-интерактивный</option><option>On-line</option></select>
-                            </div>
-                            <div class="col-md-3 mb-3"><label class="form-label">Розеток</label><input type="number" class="form-control" id="addUpsOutlets"></div>
-                            <div class="col-md-3 mb-3"><label class="form-label">Время работы, мин</label><input type="number" class="form-control" id="addUpsRuntime"></div>
-                        </div>
-                    </div>
-
-                    <!-- ===== Простая периферия (мышь/клавиатура, камера/гарнитура, колонки, внешний диск, док-станция, другое) ===== -->
-                    <div class="type-form" id="formConnection" style="display:none;">
-                        <hr><h6 class="text-muted">Параметры</h6>
-                        <div class="row">
-                            <div class="col-md-4 mb-3"><label class="form-label">Тип подключения</label><input class="form-control" id="addConnectionType" placeholder="USB, Bluetooth, Wireless..."></div>
-                            <div class="col-md-4 mb-3"><label class="form-label">Цвет</label><input class="form-control" id="addColor"></div>
-                            <div class="col-md-4 mb-3" id="addStorageSizeGroup" style="display:none;"><label class="form-label">Объём</label><input class="form-control" id="addStorageSize" placeholder="1TB"></div>
-                        </div>
-                    </div>
-
-                    <!-- ===== Комплектующие и расходники ===== -->
-                    <div class="type-form" id="formComponent" style="display:none;">
-                        <hr><h6 class="text-muted">Параметры комплектующего</h6>
-                        <div class="row">
-                            <div class="col-md-4 mb-3"><label class="form-label">Объём (ГБ) <small class="text-muted">ОЗУ/видеопамять</small></label><input type="number" class="form-control" id="addComponentRam"></div>
-                            <div class="col-md-4 mb-3"><label class="form-label">Тип ОЗУ</label>
-                                <select class="form-select" id="addComponentRamType"><option value=""></option><option>DDR2</option><option>DDR3</option><option>DDR4</option><option>DDR5</option></select>
-                            </div>
-                            <div class="col-md-4 mb-3"><label class="form-label">Накопитель/ёмкость</label><input class="form-control" id="addComponentStorage" placeholder="512GB, 5000mAh, 650W..."></div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-3 mb-3"><label class="form-label">Порты</label><input class="form-control" id="addComponentPorts"></div>
-                            <div class="col-md-3 mb-3"><label class="form-label">Скорость/сеть</label><input class="form-control" id="addComponentSpeed"></div>
-                            <div class="col-md-3 mb-3"><label class="form-label">Тип подключения</label><input class="form-control" id="addComponentConnection"></div>
-                            <div class="col-md-3 mb-3" id="addCableTypeGroup" style="display:none;">
-                                <label class="form-label">Тип разъёма (кабель)</label>
-                                <select class="form-select" id="addCableType">
-                                    <option value=""></option>
-                                    <option>DVI</option><option>HDMI</option><option>RJ45</option><option>USB-C</option>
-                                    <option>VGA</option><option>DisplayPort</option><option>Jack 3.5mm</option><option>Питание</option><option>Другое</option>
-                                </select>
-                            </div>
-                        </div>
+                    <!-- ===== Характеристики по типу: поля строятся из static/js/equipment-specs.js ===== -->
+                    <div id="addTypeSpecificBlock" style="display:none;">
+                        <hr><h6 class="text-muted" id="addTypeSpecificTitle">Характеристики</h6>
+                        <div id="addTypeSpecific"></div>
                     </div>
 
                     <hr>
                     <div class="row">
-                        <div class="col-md-4 mb-3"><label class="form-label">МОЛ</label><input class="form-control" id="addMol" list="addMolList"></div>
-                        <div class="col-md-4 mb-3"><label class="form-label">Ответственный</label><input class="form-control" id="addResponsible" list="addMolList"></div>
-                        <div class="col-md-4 mb-3"><label class="form-label">Помещение</label><input class="form-control" id="addRoom" list="addRoomList" placeholder="Кабинет, склад, гараж..."></div>
+                        {% set eq_col = 'col-md-3' if current_addresses else 'col-md-4' %}
+                        <div class="{{ eq_col }} mb-3"><label class="form-label">МОЛ</label>
+                            <select class="combo-create form-select" id="addMol" data-placeholder="Введите ФИО"><option value=""></option>{% for emp in employees %}<option value="{{ emp }}">{{ emp }}</option>{% endfor %}</select>
+                        </div>
+                        <div class="{{ eq_col }} mb-3"><label class="form-label">Ответственный (пользователь)</label>
+                            <select class="combo-create form-select" id="addResponsible" data-placeholder="Введите ФИО"><option value=""></option>{% for emp in employees %}<option value="{{ emp }}">{{ emp }}</option>{% endfor %}</select>
+                        </div>
+                        {% if current_addresses %}
+                        <div class="{{ eq_col }} mb-3"><label class="form-label"><i class="fas fa-map-marker-alt"></i> Адрес</label>
+                            <select class="form-select" id="addAddress">
+                                <option value="">— не указан —</option>
+                                {% for addr in current_addresses %}
+                                <option value="{{ addr.id }}" {% if current_address_id == addr.id %}selected{% endif %}>{{ addr.address }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% endif %}
+                        <div class="{{ eq_col }} mb-3"><label class="form-label">Помещение (кабинет)</label>
+                            <select class="combo-create form-select" id="addRoom" data-placeholder="Кабинет, склад, гараж..."><option value=""></option>{% for room in rooms %}<option value="{{ room.number }}">{{ room.number }}</option>{% endfor %}</select>
+                        </div>
                     </div>
                     <div class="row">
                         <div class="col-md-3 mb-3"><label class="form-label">Статус</label>
@@ -253,39 +141,27 @@
 </div>
 
 <script>
-// Типы Equipment.type -> какие блоки .type-form показывать
-const TYPE_FORM_MAP = {
-    'Компьютер': ['formComputer'], 'Ноутбук': ['formComputer'], 'Моноблок': ['formComputer', 'formMonitor'],
-    'Сервер': ['formComputer'], 'Планшет': ['formComputer'],
-    'Монитор': ['formMonitor'],
-    'Сетевое оборудование': ['formNetwork'],
-    'МФУ': ['formPrint'], 'Принтер': ['formPrint'], 'Сканер': ['formPrint'],
-    'ИБП': ['formUps'],
-    'Мышь/Клавиатура': ['formConnection'], 'Веб-камера/Гарнитура/Микрофон': ['formConnection'],
-    'Колонки': ['formConnection'], 'Внешний диск': ['formConnection'], 'Док-станция': ['formConnection'],
-    'Другое': ['formConnection'],
-    'Процессор': ['formComponent'], 'Оперативная память': ['formComponent'], 'Накопитель': ['formComponent'],
-    'Материнская плата': ['formComponent'], 'Видеокарта': ['formComponent'], 'Аккумулятор': ['formComponent'],
-    'Контроллер': ['formComponent'], 'Привод': ['formComponent'], 'Звуковая карта': ['formComponent'],
-    'Блок питания': ['formComponent'], 'PCI-устройство': ['formComponent'], 'Сетевая карта': ['formComponent'],
-    'Кабель': ['formComponent']
-};
 // Для этих типов "установлено на компьютере" не имеет смысла (это сам компьютер или МФУ)
 const NO_PARENT_TYPES = ['Компьютер', 'Ноутбук', 'Моноблок', 'Сервер', 'Планшет', 'МФУ', 'Принтер'];
 
 function updateEquipmentTypeForm() {
     const type = $('#addType').val();
-    $('.type-form').hide();
-    (TYPE_FORM_MAP[type] || []).forEach(id => $('#' + id).show());
-    $('#addStorageSizeGroup').toggle(type === 'Внешний диск');
-    $('#addCableTypeGroup').toggle(type === 'Кабель');
+    const hasFields = renderSpecForm(document.getElementById('addTypeSpecific'), type, null);
+    $('#addTypeSpecificTitle').text('Характеристики: ' + (type || ''));
+    $('#addTypeSpecificBlock').toggle(hasFields);
     $('#addParentGroup').toggle(!NO_PARENT_TYPES.includes(type));
 }
 
-$(document).ready(function() {
+// Этот скрипт выполняется до подключения jQuery (он в конце base.html),
+// поэтому обработчики вешаем, когда документ загружен целиком.
+document.addEventListener('DOMContentLoaded', function() {
     updateEquipmentTypeForm();
     $('#addEquipmentModal').on('show.bs.modal', function() {
         $('#addEquipmentForm')[0].reset();
+        // reset() не очищает поля Tom Select — очищаем их отдельно
+        document.querySelectorAll('#addEquipmentForm select.combo-create').forEach(function(el) {
+            if (el.tomselect) el.tomselect.clear(true);
+        });
         updateEquipmentTypeForm();
     });
 });
@@ -303,6 +179,7 @@ function saveNewEquipment() {
         mol: $('#addMol').val(),
         responsible: $('#addResponsible').val(),
         room: $('#addRoom').val(),
+        ...($('#addAddress').length ? { address_id: $('#addAddress').val() || null } : {}),
         status: $('#addStatus').val(),
         purchase_date: $('#addPurchaseDate').val(),
         warranty_until: $('#addWarranty').val(),
@@ -310,45 +187,11 @@ function saveNewEquipment() {
         supplier: $('#addSupplier').val(),
         characteristics: $('#addCharacteristics').val(),
         notes: $('#addNotes').val(),
-        network_name: $('#addNetworkName').val(),
-        manufacture_year: $('#addManufactureYear').val() || null,
-        parent_equipment_id: NO_PARENT_TYPES.includes(type) ? null : ($('#addParent').val() || null),
-        processor: $('#addProcessor').val(),
-        ram: $('#addRam').val() || $('#addComponentRam').val() || null,
-        ram_type: $('#addRamType').val() || $('#addComponentRamType').val(),
-        storage: $('#addStorage').val() || $('#addComponentStorage').val(),
-        os: $('#addOs').val(),
-        os_key: $('#addOsKey').val(),
-        monitor_size: $('#addMonitorSize').val() || null,
-        resolution: $('#addResolution').val(),
-        refresh_rate: $('#addRefreshRate').val() || null,
-        panel_type: $('#addPanelType').val(),
-        response_time: $('#addResponseTime').val() || null,
-        viewing_angle: $('#addViewingAngle').val(),
-        port_count: $('#addPortCount').val() || null,
-        ports: $('#addComponentPorts').val(),
-        speed: $('#addSpeedNetwork').val() || $('#addComponentSpeed').val(),
-        poe: $('#addPoe').val(),
-        managed: $('#addManaged').val(),
-        ip_address: $('#addIpAddress1').val() || $('#addIpAddress2').val() || $('#addIpAddress3').val(),
-        print_type: $('#addPrintType').val(),
-        print_format: $('#addPrintFormat').val(),
-        print_speed: $('#addPrintSpeed').val() || null,
-        color_type: $('#addColorType').val(),
-        duplex: $('#addDuplex').val(),
-        scanner_resolution: $('#addScannerResolution').val(),
-        scanner_speed: $('#addScannerSpeed').val(),
-        ups_power: $('#addUpsPower').val(),
-        ups_type: $('#addUpsType').val(),
-        ups_outlets: $('#addUpsOutlets').val() || null,
-        ups_runtime: $('#addUpsRuntime').val() || null,
-        connection_type: $('#addConnectionType').val() || $('#addConnectionTypeMonitor').val() || $('#addComponentConnection').val(),
-        color: $('#addColor').val(),
-        cable_type: $('#addCableType').val()
+        parent_equipment_id: NO_PARENT_TYPES.includes(type) ? null : ($('#addParent').val() || null)
     };
-    if (type === 'Внешний диск' && $('#addStorageSize').val()) {
-        data.storage = $('#addStorageSize').val();
-    }
+    const spec = collectSpecForm(document.getElementById('addTypeSpecific'), type);
+    Object.assign(data, spec.columns);
+    data.specs = spec.specs;
 
     $.ajax({
         url: '/api/equipment',

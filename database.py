@@ -592,6 +592,8 @@ def upgrade_db():
         'parent_equipment_id': 'INTEGER', 'network_name': 'TEXT',
         'manufacture_year': 'INTEGER', 'photo': 'TEXT', 'cable_type': 'TEXT',
         'address_id': 'INTEGER',
+        # Характеристики по типу, для которых нет своей колонки (сокет, мощность, диски...) — JSON
+        'specs': 'TEXT',
     }
     for col_name, col_type in equipment_columns.items():
         cursor.execute(f"ALTER TABLE Equipment ADD COLUMN IF NOT EXISTS {col_name} {col_type}")

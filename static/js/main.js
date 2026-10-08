@@ -278,6 +278,29 @@ function switchOrganization() {
     });
 }
 
+// ===== ПЕРЕКЛЮЧЕНИЕ АДРЕСА ФИЛИАЛА =====
+function switchAddress() {
+    const select = document.getElementById('addressSelect');
+    if (!select) return;
+    $.ajax({
+        url: '/api/switch-address',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ address_id: select.value }),
+        success: function(response) {
+            if (response.success) {
+                showMessage('📍 Адрес: ' + (response.address || 'все адреса'), 'success');
+                setTimeout(function() { location.reload(); }, 400);
+            } else {
+                showMessage('❌ ' + (response.error || 'Не удалось выбрать адрес'), 'danger');
+            }
+        },
+        error: function(xhr) {
+            showMessage('❌ ' + ((xhr.responseJSON && xhr.responseJSON.error) || 'Не удалось выбрать адрес'), 'danger');
+        }
+    });
+}
+
 // Обновляем checkAuth для отображения выбранного филиала
 function checkAuth() {
     $.ajax({

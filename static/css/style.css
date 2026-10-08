@@ -940,3 +940,74 @@ tr .badge.bg-danger {
 .card:has(.sticky-table) {
     overflow: visible;
 }
+
+/* Tom Select (поля «выбор или ввод»): выглядят как остальные поля формы —
+   рамка, скругление, отступы и подсветка при фокусе как у .form-control/.form-select */
+.ts-wrapper.form-select {
+    padding: 0 !important;
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background-color: white;
+    transition: all 0.2s ease;
+}
+.ts-wrapper.form-select.focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(67, 97, 238, 0.25);
+}
+.ts-wrapper.form-select .ts-control,
+.ts-wrapper.form-select.single.input-active .ts-control {
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    border-radius: var(--radius-md);
+    padding: 10px 2.25rem 10px 15px;
+    min-height: calc(1.5em + 20px);  /* как у обычного поля, даже когда оно пустое */
+    font-size: 1rem;
+    line-height: 1.5;
+    cursor: text;
+}
+.ts-wrapper.form-select .ts-control > input {
+    font-size: inherit;
+    line-height: inherit;
+}
+.ts-wrapper.form-select .ts-control > input::placeholder {
+    color: #6c757d;
+}
+/* Компактный вариант (карточка оборудования): в проекте у -sm полей те же отступы,
+   отличается только размер шрифта */
+.ts-wrapper.form-select.form-select-sm .ts-control,
+.ts-wrapper.form-select.form-select-sm.single.input-active .ts-control {
+    font-size: 0.875rem;
+}
+
+/* Выпадающий список: вынесен в <body>, поэтому поверх модальных окон */
+body > .ts-dropdown {
+    z-index: 2000;
+}
+.ts-dropdown {
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-md);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+    margin-top: 4px;
+    overflow: hidden;
+}
+.ts-dropdown .option,
+.ts-dropdown .create,
+.ts-dropdown .no-results {
+    padding: 8px 15px;
+}
+.ts-dropdown .active {
+    background-color: var(--primary-color);
+    color: white;
+}
+.ts-dropdown .create {
+    color: var(--primary-color);
+}
+.ts-dropdown .create.active {
+    color: white;
+}
+/* совпадение с введённым текстом в выделенной строке списка */
+.ts-dropdown .active .highlight {
+    background: rgba(255, 255, 255, 0.3);
+    color: inherit;
+}
